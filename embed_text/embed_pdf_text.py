@@ -11,8 +11,7 @@ import io
 import pymupdf
 import spacy
 
-@daft.func(return_dtype=
-    DataType.list(DataType.struct({
+@daft.func(return_dtype=DataType.list(DataType.struct({
         "page_number": DataType.int32(), 
         "text": DataType.string()
     }))
@@ -106,7 +105,7 @@ if __name__ == "__main__":
         .with_column(f"text_embed_{MODEL_ID.split('/')[1]}", embed_text(col("sent_text"), provider="sentence_transformers", model=MODEL_ID))
     )
 
-    df.write_parquet(f"data/pdf_sentence_embeddings.parquet")
+    df.write_parquet(".data/embed_text")
 
     df.show()
 
