@@ -1,5 +1,5 @@
 # /// script
-# description = "Summarize podcasts"
+# description = "Embed Video Frames from a Youtube Video"
 # requires-python = ">=3.10, <3.13"
 # dependencies = ["daft", "pandas","numpy", "transformers","torchvision","matplotlib","av","yt-dlp"]
 # ///
