@@ -33,8 +33,9 @@ def transcribe(audio_file: daft.File):
 
     client = OpenAI()
 
-    file_obj = io.BytesIO(audio_file.read())
-    file_obj.name = "audio.mp3"
+    with file.open() as f:
+        file_obj = io.BytesIO(f.read())
+        file_obj.name = "audio.mp3"
 
     transcriptions = client.audio.transcriptions.create(
         model="whisper-1",
