@@ -1,4 +1,6 @@
 # /// script
+# description = "Embed images from a parquet file"
+# requires-python = ">=3.10, <3.13"
 # dependencies = ["daft", "transformers", "torch", "pillow", "torchvision"]
 # ///
 
@@ -13,8 +15,7 @@ if __name__ == "__main__":
 
     # Read in the parquet file
     df = (
-        daft.read_parquet()
-        .limit(NUM_IMAGES)
+        daft.read_parquet().limit(NUM_IMAGES)
         .explode(col("images"))
         .with_column("image", col("images").struct.get("bytes").image.decode())
         .with_column(
@@ -23,8 +24,8 @@ if __name__ == "__main__":
         )
     )
 
-    # Write to turbopuffer
-    df.write_parquet(".data/embed_images")
+    # Write to parquet
+    df = df.write_parquet(".data/embed_images")
 
     # Show the dataframe
     df.show()

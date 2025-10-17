@@ -1,58 +1,49 @@
 # /// script
 # description = "Summarize podcasts"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[lance]", "openai", "python-dotenv", "soundfile", "numpy"]
+# dependencies = ["daft", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
 # ///
 import io
 import pathlib
 
 import daft
 from daft import DataType
-from openai import OpenAI
-import soundfile as sf
+from openai import AsyncOpenAI
 
 
-@daft.func(
-    return_dtype=DataType.struct(
-        {
-            "transcript": DataType.string(),
-            "segments": DataType.list(
-                DataType.struct(
-                    {
-                        "seg_text": DataType.string(),
-                        "seg_start": DataType.float32(),
-                        "seg_end": DataType.float32(),
-                    }
-                )
-            ),
-        }
-    )
-)
-def transcribe(audio_file: daft.File):
-    """Transcribes an audio file using openai whisper."""
+@daft.cls()
+class OpenAITranscription:
+    def __init__(self):
+        self.client = AsyncOpenAI()
 
-    client = OpenAI()
+    @daft.method(unnest=True)
+    async def transcribe(
+        self, 
+        audio_file: daft.File
+    ) -> {
+        "transcript": str, 
+        "segments": list[{"seg_text": str, "seg_start": float, "seg_end": float}]
+    }:
+        
+        with audio_file.to_tempfile() as tmpfile:
+            transcriptions = await self.client.audio.transcriptions.create(
+                model="whisper-1",
+                file=str(tmpfile.name),
+                response_format="verbose_json",
+                timestamp_granularities=["segment"],
+            )
 
-    file_obj = io.BytesIO(audio_file.read())
-    file_obj.name = "audio.mp3"
+        segments = [
+            {"seg_text": t.text, "seg_start": t.start, "seg_end": t.end}
+            for t in transcriptions.segments
+        ]
+        transcript = " ".join([t.text for t in transcriptions.segments])
 
-    transcriptions = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=file_obj,
-        response_format="verbose_json",
-        timestamp_granularities=["segment"],
-    )
-
-    segments = [
-        {"seg_text": t.text, "seg_start": t.start, "seg_end": t.end}
-        for t in transcriptions.segments
-    ]
-    transcript = " ".join([t.text for t in transcriptions.segments])
-
-    return {"transcript": transcript, "segments": segments}
+        return {"transcript": transcript, "segments": segments}
 
 
 if __name__ == "__main__":
+    # Run this script with `uv run speech/speech_analytics_openai.py`
     from daft import col
     from daft.functions import embed_text, llm_generate, format, unnest, file
     from dotenv import load_dotenv
@@ -64,10 +55,13 @@ if __name__ == "__main__":
     # Load environment variables from .env file
     load_dotenv()
 
+    oai_transcriptor = OpenAITranscription()
+
     df_transcripts = (
-        daft.from_glob_path(SOURCE_URI)
-        .with_column("transcript_segments", transcribe(file(col("path"))))
-        .select(col("path"), unnest(col("transcript_segments")))
+        # Read the audio files
+        daft.from_glob_path(SOURCE_URI).where(col("path").endswith(".mp3")).limit(FILE_LIMIT)
+        # Transcribe the audio files
+        .with_column("transcript_segments", oai_transcriptor.transcribe(file(col("path"))))
         # Summarize the transcript
         .with_column(
             "transcript_summary",
@@ -100,7 +94,7 @@ if __name__ == "__main__":
         .with_column(
             "transcript_summary_embeddings",
             embed_text(
-                col("transcript_summary"),
+                daft.col("transcript_summary"),
                 model="text-embedding-ada-002",
                 provider="openai",
             ),

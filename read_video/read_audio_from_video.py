@@ -1,5 +1,5 @@
 # /// script
-# description = "Read audio files"
+# description = "Read audio files and save as mp3"
 # requires-python = ">=3.10, <3.13"
 # dependencies = ["daft", "soundfile", "av", "numpy", "matplotlib", "scipy"]
 # ///
@@ -94,16 +94,18 @@ def read_audio(
     """
     if isinstance(file, str):
         file = daft.File(file)
+        
+    with file.open() as f:
+        audio, native_sample_rate = sf.read(
+            file=f,
+            frames=frames,
+            start=start,
+            stop=stop,
+            dtype=dtype,
+            fill_value=fill_value,
+            always_2d=always_2d,
+        )
 
-    audio, native_sample_rate = sf.read(
-        file=file,
-        frames=frames,
-        start=start,
-        stop=stop,
-        dtype=dtype,
-        fill_value=fill_value,
-        always_2d=always_2d,
-    )
     if native_sample_rate != sr:
         audio = resample_audio(audio, native_sample_rate, sr)
 
