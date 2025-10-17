@@ -6,24 +6,23 @@ import daft
 from daft import DataType
 import spacy
 
-
-@daft.udf(
-    return_dtype=DataType.list(
-        DataType.struct(
-            {
-                "sent_id": DataType.int32(),
-                "sent_text": DataType.string(),
-                "sent_start": DataType.int32(),
-                "sent_end": DataType.int32(),
-            }
-        )
-    )
-)
+@daft.cls()
 class spacy_chunk_text:
     def __init__(self, model="en_core_web_sm"):
         self.nlp = spacy.load(model)
 
-    def __call__(self, texts):
+    @daft.method(return_dtype=DataType.list(
+            DataType.struct(
+                {
+                    "sent_id": DataType.int32(),
+                    "sent_text": DataType.string(),
+                    "sent_start": DataType.int32(),
+                    "sent_end": DataType.int32(),
+                }
+            )
+        )
+    )
+    def chunk_text(self, text: str):
         sentence_texts = []
         for text in texts:
             doc = self.nlp(text)
@@ -59,6 +58,7 @@ if __name__ == "__main__":
 
     # Authenticate with AWS
     load_dotenv()
+
     s3_config = S3Config(
         region_name="us-east-1",
         requester_pays=True,

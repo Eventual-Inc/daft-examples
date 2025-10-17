@@ -5,9 +5,7 @@
 # ///
 import daft
 from daft.functions import embed_image
-from daft import col, Window, DataType as dt
 
-import numpy as np
 
 
 if __name__ == "__main__":
