@@ -5,27 +5,32 @@
 # ///
 
 import daft
-from daft import col
-from daft.functions import embed_image
+from daft.functions import embed_image, decode_image
 
-if __name__ == "__main__":
-    SOURCE_URI = "hf://datasets/HuggingFaceM4/the_cauldron/ai2d/train-00000-of-00001-2ce340398c113b79.parquet"
-    MODEL_ID = "google/siglip2-base-patch16-224"
-    NUM_IMAGES = 10
+# Embed Text with Defaults
+df = (
+    # Discover a few images from HuggingFace
+    daft.from_glob_path("hf://datasets/datasets-examples/doc-image-3/images")
 
-    # Read in the parquet file
-    df = (
-        daft.read_parquet().limit(NUM_IMAGES)
-        .explode(col("images"))
-        .with_column("image", col("images").struct.get("bytes").image.decode())
-        .with_column(
-            "image_embeddings",
-            embed_image(col("image"), model_name=MODEL_ID, provider="transformers"),
+    # Read the 4 PNG, JPEG, TIFF, WEBP Images
+    .with_column("image_bytes", daft.col("path").url.download())
+
+    # Decode the image bytes into a daft Image DataType
+    .with_column("image_type", decode_image(daft.col("image_bytes")))
+
+    # Convert Image to RGB and resize the image to 288x288
+    .with_column("image_resized", daft.col("image_type").convert_image("RGB").resize(288, 288)) 
+    
+    # Embed the image
+    .with_column(
+        "image_embeddings", 
+        embed_image(
+            daft.col("image_resized"), 
+            provider="transformers", 
+            model="apple/aimv2-large-patch14-224-lit"
         )
     )
+)
 
-    # Write to parquet
-    df = df.write_parquet(".data/embed_images")
-
-    # Show the dataframe
-    df.show()
+# Show the dataframe
+df.show()
