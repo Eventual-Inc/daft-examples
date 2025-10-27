@@ -123,11 +123,10 @@ if __name__ == "__main__":
 
     # Define Parameters
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
-    SOURCE_URI = "/Users/everettkleven/Desktop/*.mp3"
-    DEST_URI = "/Users/everettkleven/Desktop/data/audio_clips/"
+    DEST_URI = ".data/audio_clips/"
     LLM_MODEL_ID = "openai/gpt-oss-120b"
     EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-    CONTEXT = "Daft: Unified Engine for Data Analytics, Engineering & ML/AI (github.com/Eventual-Inc/Daft) youtube channel video. The trasncription can have errors like DAF referring to Daft."
+    CONTEXT = "Daft: Unified Engine for Data Analytics, Engineering & ML/AI (github.com/Eventual-Inc/Daft) YouTube channel video. Transcriptions can have errors like 'DAF' referring to 'Daft'."
     FILE_LIMIT = 5
     PRINT_SEGMENTS = True
 
@@ -146,9 +145,9 @@ if __name__ == "__main__":
     # Instantiate Transcription UDF
     fwt = FasterWhisperTranscriber()
 
-    ### 
+    # ==============================================================================
     # Transcription
-    ###
+    # ==============================================================================
 
     # Transcribe the audio files
     df_transcript = (
@@ -176,9 +175,9 @@ if __name__ == "__main__":
         "segments",
     ).show(format="fancy", max_width=40)
 
-    ### 
-    # Summarization
-    ###
+    # ==============================================================================
+    # Summarization 
+    # ==============================================================================
 
     # Summarize the transcripts and translate to Chinese.
     df_summaries = (
@@ -187,7 +186,7 @@ if __name__ == "__main__":
         .with_column(
             "summary",
             prompt(
-                format("Summarize the following transcript from a youtube video belonging to {}: \n {}", daft.lit(CONTEXT), col("transcript")),
+                format("Summarize the following transcript from a YouTube video belonging to {}: \n {}", daft.lit(CONTEXT), col("transcript")),
                 model=LLM_MODEL_ID,
             ),
         )
@@ -213,9 +212,9 @@ if __name__ == "__main__":
         "summary_chinese",
     ).show(format="fancy", max_width=40)
 
-    ### 
+    # ==============================================================================
     # Key Moments Clipping
-    ###
+    # ==============================================================================
 
     # Extract key moments from the transcript and write the clips to disk. 
     df_key_moments = (
@@ -224,10 +223,10 @@ if __name__ == "__main__":
             "key_moments",
             prompt(
                 messages=format(
-                    "Extract 1 key moment from the following transcript + timestamps and identify a groups of segments of about 30 seconds in total duration to clip for short form content: \n {}",
+                    "Extract 1 key moment from the following transcript + timestamps and identify a group of segments of about 30 seconds total duration to clip for short-form content: \n {}",
                     print_segments_w_timestamps(col("segments")),
                 ),
-                system_message=f"You are world class short-form content creator and Developer Advocate for {CONTEXT}.",
+                system_message=f"You are a world-class short-form content creator and Developer Advocate for {CONTEXT}.",
                 return_format=KeyMoment,
                 model=LLM_MODEL_ID,
             ),
@@ -277,9 +276,9 @@ if __name__ == "__main__":
     # Show the key moments and the transcript.
     df_key_moments.show(format="fancy", max_width=40)
 
-    ### 
+    # ==============================================================================
     # Subtitles Generation
-    ###
+    # ==============================================================================
 
     # Explode the segments, embed, and translate to simplified Chinese for subtitles.
     df_segments = (
@@ -309,9 +308,9 @@ if __name__ == "__main__":
     ).show(format="fancy", max_width=40)
 
 
-    ### 
+    # ==============================================================================
     # Embedding Generation
-    ###
+    # ==============================================================================
 
     # Embed the segments and translate to simplified Chinese for subtitles.
     df_segments = (
