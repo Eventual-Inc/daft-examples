@@ -7,7 +7,7 @@ from daft import DataType
 import spacy
 
 @daft.cls()
-class spacy_chunk_text:
+class SpacyChunker:
     def __init__(self, model="en_core_web_sm"):
         self.nlp = spacy.load(model)
 
@@ -22,7 +22,7 @@ class spacy_chunk_text:
             )
         )
     )
-    def chunk_text(self, text: str):
+    def chunk_text(self, texts: str):
         sentence_texts = []
         for text in texts:
             doc = self.nlp(text)
@@ -59,21 +59,27 @@ if __name__ == "__main__":
     # Authenticate with AWS
     load_dotenv()
 
-    s3_config = S3Config(
-        region_name="us-east-1",
-        requester_pays=True,
-        key_id=os.environ["AWS_ACCESS_KEY_ID"],
-        access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        anonymous=False,
-    )
+    if os.environ.get("AWS_ACCESS_KEY_ID"):
+        IN_AWS = True
+        IOCONFIG = IOConfig(s3=S3Config(
+            region_name="us-east-1",
+            requester_pays=True,
+            key_id=os.environ["AWS_ACCESS_KEY_ID"],
+            access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+            anonymous=False,
+        ))
+    else: 
+        IN_AWS = False
+        IOCONFIG = None
 
     # Read Preprocessed Text from Common Crawl WET
     df_warc = daft.datasets.common_crawl(
         "CC-MAIN-2025-33",
         content="text",
         num_files=NUM_FILES,
-        io_config=IOConfig(s3=s3_config),  # Apply Creds
-    ).limit(100)
+        in_aws=IN_AWS,
+        io_config=IOCONFIG,  # Apply Creds
+    ).limit(NUM_FILES)
 
     # Download the spaCy model
     spacy.cli.download(SPACY_MODEL)

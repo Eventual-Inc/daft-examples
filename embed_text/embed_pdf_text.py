@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed text from pdfs"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pymupdf", "sentence_transformers", "spacy","pip"]
+# dependencies = ["daft", "pymupdf", "sentence_transformers", "spacy","pip", "python-dotenv"]
 # ///
 
 import daft
@@ -45,50 +45,41 @@ def extract_pdf_text(doc: bytes):
     return content
 
 
-@daft.udf(
-    return_dtype=DataType.list(
-        DataType.struct(
-            {
-                "sent_id": DataType.int32(),
-                "sent_text": DataType.string(),
-                "sent_start": DataType.int32(),
-                "sent_end": DataType.int32(),
-                "sent_ents": DataType.list(DataType.string()),
-            }
-        )
-    )
-)
+@daft.cls()
 class SpaCyChunkText:
-    def __init__(self):
+    def __init__(self, model="en_core_web_sm"):
         self.nlp = spacy.load(
-            "en_core_web_sm"
-        )  # use en_core_web_trf for higher accuracy
+            model
+        )
 
-    def __call__(self, texts):
-        sentence_texts = []
-        for text in texts:
-            doc = self.nlp(text)
-            sentence_texts.append(
-                [
-                    {
-                        "sent_id": i,
-                        "sent_start": sent.start,
-                        "sent_end": sent.end,
-                        "sent_text": sent.text,
-                        "sent_ents": [ent.text for ent in sent.ents]
-                        if sent.ents
-                        else [],
-                    }
-                    for i, sent in enumerate(doc.sents)
-                ]
-            )
-
-        return sentence_texts
+    @daft.method(return_dtype=DataType.list(DataType.struct({
+        "sent_id": DataType.int32(),
+        "sent_start": DataType.int32(),
+        "sent_end": DataType.int32(),
+        "sent_text": DataType.string(),
+        "sent_ents": DataType.list(DataType.string()),
+    })))
+    def chunk_text(self, text: list[str]):
+        doc = self.nlp(text)
+        return [
+            {
+                "sent_id": i,
+                "sent_start": sent.start,
+                "sent_end": sent.end,
+                "sent_text": sent.text,
+                "sent_ents": [ent.text for ent in sent.ents]
+                if sent.ents
+                else [],
+            }
+            for i, sent in enumerate(doc.sents)
+        ]
 
 
 if __name__ == "__main__":
     MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
     MAX_DOCS = 1
+    from dotenv import load_dotenv
+    load_dotenv()
 
     # Config
     uri = "hf://datasets/Eventual-Inc/sample-files/papers/*.pdf"
@@ -104,7 +95,8 @@ if __name__ == "__main__":
         # Extract text from pdf pages
         .with_column("pages", extract_pdf_text(col("documents")))
         .explode("pages")
-        .select(col("path"), unnest(col("pages")))
+        .select(col("path"), unnest(col("pages"))) 
+        
         # Chunk page text into sentences
         .with_column(
             "text_normalized", col("text").normalize(nfd_unicode=True, white_space=True)
@@ -119,7 +111,7 @@ if __name__ == "__main__":
         .with_column(
             f"text_embed_{MODEL_ID.split('/')[1]}",
             embed_text(
-                col("sent_text"), provider="sentence_transformers", model=MODEL_ID
+                col("sent_text"), provider="openai", model="text-embedding-3-small"
             ),
         )
     )
