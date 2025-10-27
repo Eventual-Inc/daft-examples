@@ -1,6 +1,7 @@
 .vscode/
 *.parquet
 .data/
+.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
