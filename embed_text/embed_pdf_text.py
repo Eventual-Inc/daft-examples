@@ -48,17 +48,21 @@ def extract_pdf_text(doc: bytes):
 @daft.cls()
 class SpaCyChunkText:
     def __init__(self, model="en_core_web_sm"):
-        self.nlp = spacy.load(
-            model
-        )
+        self.nlp = spacy.load(model)
 
-    @daft.method(return_dtype=DataType.list(DataType.struct({
-        "sent_id": DataType.int32(),
-        "sent_start": DataType.int32(),
-        "sent_end": DataType.int32(),
-        "sent_text": DataType.string(),
-        "sent_ents": DataType.list(DataType.string()),
-    })))
+    @daft.method(
+        return_dtype=DataType.list(
+            DataType.struct(
+                {
+                    "sent_id": DataType.int32(),
+                    "sent_start": DataType.int32(),
+                    "sent_end": DataType.int32(),
+                    "sent_text": DataType.string(),
+                    "sent_ents": DataType.list(DataType.string()),
+                }
+            )
+        )
+    )
     def chunk_text(self, text: list[str]):
         doc = self.nlp(text)
         return [
@@ -67,9 +71,7 @@ class SpaCyChunkText:
                 "sent_start": sent.start,
                 "sent_end": sent.end,
                 "sent_text": sent.text,
-                "sent_ents": [ent.text for ent in sent.ents]
-                if sent.ents
-                else [],
+                "sent_ents": [ent.text for ent in sent.ents] if sent.ents else [],
             }
             for i, sent in enumerate(doc.sents)
         ]
@@ -79,6 +81,7 @@ if __name__ == "__main__":
     MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
     MAX_DOCS = 1
     from dotenv import load_dotenv
+
     load_dotenv()
 
     # Config
@@ -92,11 +95,12 @@ if __name__ == "__main__":
         daft.from_glob_path(uri)
         .limit(MAX_DOCS)
         .with_column("documents", col("path").url.download())
+        
         # Extract text from pdf pages
         .with_column("pages", extract_pdf_text(col("documents")))
         .explode("pages")
-        .select(col("path"), unnest(col("pages"))) 
-        
+        .select(col("path"), unnest(col("pages")))
+
         # Chunk page text into sentences
         .with_column(
             "text_normalized", col("text").normalize(nfd_unicode=True, white_space=True)

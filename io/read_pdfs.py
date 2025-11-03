@@ -4,7 +4,7 @@
 # dependencies = ["daft"]
 # ///
 
-import daft 
+import daft
 from daft import col
 
 if __name__ == "__main__":
@@ -13,9 +13,9 @@ if __name__ == "__main__":
     MAX_DOCS = 10
 
     df = (
-        daft.from_glob_path(uri) # Discover pdfs
-        .with_column("document", col("path").url.download()) # Download documents
-        .limit(MAX_DOCS) # Limit the number of documents
+        daft.from_glob_path(uri)  # Discover pdfs
+        .with_column("document", col("path").url.download())  # Download documents
+        .limit(MAX_DOCS)  # Limit the number of documents
     )
 
     # Display the first 8 results

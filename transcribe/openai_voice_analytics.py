@@ -18,13 +18,11 @@ class OpenAITranscription:
 
     @daft.method(unnest=True)
     async def transcribe(
-        self, 
-        audio_file: daft.File
+        self, audio_file: daft.File
     ) -> {
-        "transcript": str, 
-        "segments": list[{"seg_text": str, "seg_start": float, "seg_end": float}]
+        "transcript": str,
+        "segments": list[{"seg_text": str, "seg_start": float, "seg_end": float}],
     }:
-        
         with audio_file.to_tempfile() as tmpfile:
             transcriptions = await self.client.audio.transcriptions.create(
                 model="whisper-1",
@@ -45,7 +43,7 @@ class OpenAITranscription:
 if __name__ == "__main__":
     # Run this script with `uv run speech/speech_analytics_openai.py`
     from daft import col
-    from daft.functions import embed_text, llm_generate, format, unnest, file
+    from daft.functions import embed_text, llm_generate, format, file
     from dotenv import load_dotenv
 
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
@@ -59,9 +57,13 @@ if __name__ == "__main__":
 
     df_transcripts = (
         # Read the audio files
-        daft.from_glob_path(SOURCE_URI).where(col("path").endswith(".mp3")).limit(FILE_LIMIT)
+        daft.from_glob_path(SOURCE_URI)
+        .where(col("path").endswith(".mp3"))
+        .limit(FILE_LIMIT)
         # Transcribe the audio files
-        .with_column("transcript_segments", oai_transcriptor.transcribe(file(col("path"))))
+        .with_column(
+            "transcript_segments", oai_transcriptor.transcribe(file(col("path")))
+        )
         # Summarize the transcript
         .with_column(
             "transcript_summary",
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     )
 
     # Save and Show
-    df_transcripts.write_lance(DEST_URI)
+    df_transcripts.write_lance(DEST_URI, mode="overwrite")
 
     # Query the data and display the results
-    daft.read_lance(DEST_URI).show()
+    daft.read_lance(DEST_URI).show(format="fancy", max_width=40)

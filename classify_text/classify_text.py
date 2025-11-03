@@ -10,13 +10,13 @@ from daft.functions import classify_text
 df = daft.from_pydict({"text": ["Daft is wicked fast!"]})
 
 df = df.with_column(
-    "label", 
+    "label",
     classify_text(
-        daft.col("text"), 
+        daft.col("text"),
         labels=["Positive", "Negative"],
         provider="transformers",
-        model="tabularisai/multilingual-sentiment-analysis"
-    )
+        model="tabularisai/multilingual-sentiment-analysis",
+    ),
 )
 
 df.show()

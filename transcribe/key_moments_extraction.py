@@ -17,6 +17,7 @@ SAMPLE_RATE = 16000
 DTYPE = "float32"
 BATCH_SIZE = 16
 
+
 @daft.cls()
 class FasterWhisperTranscriber:
     def __init__(self, model="distil-large-v3", compute_type="float32", device="auto"):
@@ -41,24 +42,52 @@ class FasterWhisperTranscriber:
 
             return {"transcript": text, "segments": segments, "info": asdict(info)}
 
+
 @daft.func()
-def print_segments_w_timestamps(segments: list[dict], print_segments: bool = True) -> str:
-    segment_string = "\n".join([f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments])
+def print_segments_w_timestamps(
+    segments: list[dict], print_segments: bool = True
+) -> str:
+    segment_string = "\n".join(
+        [f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments]
+    )
     if print_segments:
         print(segment_string)
     return f"<segments>\n{segment_string}\n</segments>"
 
+
 # Define Pydantic Models for Extracting Key Moments using Structured Outputs
 class KeyMoment(BaseModel):
-    moment_reasoning: str = Field(...,description="Use this field as a notepad to reason about moments worth clipping for short form content.")
-    moment_summary: str = Field(...,description="A concise one-sentence summary of the key moment.")
-    moment_start_sec: float = Field(...,description="The start time of the first segment in the group of segments in seconds. Reference the provided segment start timestamps.", strict=True)
-    moment_end_sec: float = Field(...,description="The end time of the last segment in the group of segments in seconds. Reference the provided segment end timestamps.", strict=True)
-    moment_text: str = Field(...,description="The text of all segments combined. Used for validation. Reference the provided segment text.")
+    moment_reasoning: str = Field(
+        ...,
+        description="Use this field as a notepad to reason about moments worth clipping for short form content.",
+    )
+    moment_summary: str = Field(
+        ..., description="A concise one-sentence summary of the key moment."
+    )
+    moment_start_sec: float = Field(
+        ...,
+        description="The start time of the first segment in the group of segments in seconds. Reference the provided segment start timestamps.",
+        strict=True,
+    )
+    moment_end_sec: float = Field(
+        ...,
+        description="The end time of the last segment in the group of segments in seconds. Reference the provided segment end timestamps.",
+        strict=True,
+    )
+    moment_text: str = Field(
+        ...,
+        description="The text of all segments combined. Used for validation. Reference the provided segment text.",
+    )
 
 
-@daft.func(return_dtype=DataType.struct({"start_sec_snapped": DataType.float64(), "end_sec_snapped": DataType.float64()}))
-def snap_to_segment_bounds(segments: list[dict], start_sec: float, end_sec: float, pad_ms: int = 200):
+@daft.func(
+    return_dtype=DataType.struct(
+        {"start_sec_snapped": DataType.float64(), "end_sec_snapped": DataType.float64()}
+    )
+)
+def snap_to_segment_bounds(
+    segments: list[dict], start_sec: float, end_sec: float, pad_ms: int = 200
+):
     pad = pad_ms / 1000.0
     left_candidates = [seg["start"] for seg in segments if seg["start"] <= start_sec]
     right_candidates = [seg["end"] for seg in segments if seg["end"] >= end_sec]
@@ -70,8 +99,11 @@ def snap_to_segment_bounds(segments: list[dict], start_sec: float, end_sec: floa
         left = start_sec
     return {"start_sec_snapped": max(0.0, left - pad), "end_sec_snapped": right + pad}
 
+
 @daft.func()
-def clip_audio(path: str, audio_file: daft.File, dest: str, start_time: float, end_time: float) -> str:
+def clip_audio(
+    path: str, audio_file: daft.File, dest: str, start_time: float, end_time: float
+) -> str:
     import soundfile as sf
     from pathlib import Path
 
@@ -84,7 +116,9 @@ def clip_audio(path: str, audio_file: daft.File, dest: str, start_time: float, e
             # Clamp to valid range and convert to integer frame indices
             start_frame = int(round(max(0.0, start_time) * sample_rate))
             end_time_capped = max(start_time, end_time)
-            end_frame = int(round(min(end_time_capped, total_frames / sample_rate) * sample_rate))
+            end_frame = int(
+                round(min(end_time_capped, total_frames / sample_rate) * sample_rate)
+            )
 
             if end_frame < start_frame:
                 end_frame = start_frame
@@ -93,22 +127,28 @@ def clip_audio(path: str, audio_file: daft.File, dest: str, start_time: float, e
             snd.seek(start_frame)
             num_frames = end_frame - start_frame
             audio = snd.read(frames=num_frames, dtype=DTYPE, always_2d=True)
-    
+
     # Extract just the filename (without path) from path
-    original_filename = Path(path).stem  
+    original_filename = Path(path).stem
 
     # Build the destination directory and ensure it exists
     dest_dir = Path(dest)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create the full destination path with the adjusted filename
     rounded_start = f"{start_time:.2f}"
     rounded_end = f"{end_time:.2f}"
     clip_filename = f"{original_filename}_{rounded_start}_{rounded_end}.mp3"
     full_dest = dest_dir / clip_filename
-    
+
     # Write the audio to the destination path
-    sf.write(str(full_dest), audio, samplerate=sample_rate, format="MP3", subtype="MPEG_LAYER_III")
+    sf.write(
+        str(full_dest),
+        audio,
+        samplerate=sample_rate,
+        format="MP3",
+        subtype="MPEG_LAYER_III",
+    )
     return str(full_dest)
 
 
@@ -154,29 +194,28 @@ if __name__ == "__main__":
         # Discover the audio files
         daft.from_glob_path(SOURCE_URI)
         .limit(FILE_LIMIT)
-
         # Wrap the path as a daft.File
         .with_column("audio_file", file(col("path")))
-
         # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
         .with_column("result", fwt.transcribe(col("audio_file")))
-
         # Unpack Results
         .select("path", "audio_file", unnest(col("result")))
     ).collect()
 
-    print("\n\nRunning Transcription with Voice Activity Detection (VAD) using Faster Whisper...")
+    print(
+        "\n\nRunning Transcription with Voice Activity Detection (VAD) using Faster Whisper..."
+    )
 
     # Show the transcript.
     df_transcript.select(
-        "path", 
+        "path",
         "info",
-        "transcript", 
+        "transcript",
         "segments",
     ).show(format="fancy", max_width=40)
 
     # ==============================================================================
-    # Summarization 
+    # Summarization
     # ==============================================================================
 
     # Summarize the transcripts and translate to Chinese.
@@ -186,11 +225,14 @@ if __name__ == "__main__":
         .with_column(
             "summary",
             prompt(
-                format("Summarize the following transcript from a YouTube video belonging to {}: \n {}", daft.lit(CONTEXT), col("transcript")),
+                format(
+                    "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
+                    daft.lit(CONTEXT),
+                    col("transcript"),
+                ),
                 model=LLM_MODEL_ID,
             ),
-        )
-        .with_column(
+        ).with_column(
             "summary_chinese",
             prompt(
                 format(
@@ -206,9 +248,9 @@ if __name__ == "__main__":
 
     # Show the summaries and the transcript.
     df_summaries.select(
-        "path", 
-        "transcript", 
-        "summary", 
+        "path",
+        "transcript",
+        "summary",
         "summary_chinese",
     ).show(format="fancy", max_width=40)
 
@@ -216,10 +258,9 @@ if __name__ == "__main__":
     # Key Moments Clipping
     # ==============================================================================
 
-    # Extract key moments from the transcript and write the clips to disk. 
+    # Extract key moments from the transcript and write the clips to disk.
     df_key_moments = (
-        df_transcript
-        .with_column(
+        df_transcript.with_column(
             "key_moments",
             prompt(
                 messages=format(
@@ -237,38 +278,50 @@ if __name__ == "__main__":
 
     print("\n\nClipping Key Moments...")
     df_key_moments.select(
-        "path", 
-        "audio_file", 
-        "segments", 
+        "path",
+        "audio_file",
+        "segments",
         "moment_summary",
         "moment_reasoning",
-        "moment_text", 
+        "moment_text",
         "moment_start_sec",
         "moment_end_sec",
     ).show(format="fancy", max_width=40)
 
     df_clips = (
         df_key_moments
-        
         # Snap boundaries to nearby segment edges with padding
         .with_column(
             "snapped",
-            snap_to_segment_bounds(col("segments"), col("moment_start_sec"), col("moment_end_sec"), pad_ms=200),
-        )
-        .select("path", "audio_file", "segments", "moment_summary", "moment_text", unnest(col("snapped")))
-        
-        # Save Key Moment Clips to Disk
-        .with_column(
-            "short_form_clip_path", 
-            clip_audio(
-                col("path"),
-                col("audio_file"), 
-                dest=DEST_URI, 
-                start_time=col("start_sec_snapped"), 
-                end_time=col("end_sec_snapped"),
+            snap_to_segment_bounds(
+                col("segments"),
+                col("moment_start_sec"),
+                col("moment_end_sec"),
+                pad_ms=200,
             ),
         )
-        
+        # Save Key Moment Clips to Disk
+        .with_column(
+            "short_form_clip_path",
+            clip_audio(
+                col("path"),
+                col("audio_file"),
+                dest=DEST_URI,
+                start_time=col("snapped")["start_sec_snapped"],
+                end_time=col("snapped")["end_sec_snapped"],
+            ),
+        )
+        # Storyboard Generation
+        .with_column(
+            "storyboard",
+            prompt(
+                format(
+                    "Generate a storyboard from the following segments: {}",
+                    print_segments_w_timestamps(col("segments")),
+                ),
+                model=LLM_MODEL_ID,
+            ),
+        )
     ).collect()
 
     print("\n\nClipping Key Moments...")
@@ -282,8 +335,7 @@ if __name__ == "__main__":
 
     # Explode the segments, embed, and translate to simplified Chinese for subtitles.
     df_segments = (
-        df_transcript
-        .explode("segments")
+        df_transcript.explode("segments")
         .select(
             "path",
             unnest(col("segments")),
@@ -302,34 +354,7 @@ if __name__ == "__main__":
 
     # Show the segments and the transcript.
     df_segments.select(
-        "path", 
+        "path",
         col("text"),
         "segment_text_chinese",
-    ).show(format="fancy", max_width=40)
-
-
-    # ==============================================================================
-    # Embedding Generation
-    # ==============================================================================
-
-    # Embed the segments and translate to simplified Chinese for subtitles.
-    df_segments = (
-        df_segments
-        .with_column(
-            "segment_embeddings",
-            embed_text(
-                col("text"),
-                provider="sentence_transformers",
-                model=EMBEDDING_MODEL_ID,
-            ),
-        )
-    ).collect() 
-
-    print("\n\nGenerating Embeddings for Segments...")
-
-    # Show the segments and the transcript.
-    df_segments.select(
-        "path", 
-        "text", 
-        "segment_embeddings",
     ).show(format="fancy", max_width=40)

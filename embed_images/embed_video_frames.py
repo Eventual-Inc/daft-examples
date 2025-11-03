@@ -13,7 +13,7 @@ if __name__ == "__main__":
     ]
     DEST_URI = ".data/embed_video_frames"
     MODEL_NAME = "apple/aimv2-large-patch14-224-lit"
-    H, W = (288,288)  # Batch Size, Clip Size (# frames), Height, Width, RGB
+    H, W = (288, 288)  # Batch Size, Clip Size (# frames), Height, Width, RGB
     ROW_LIMIT = 50
 
     # Read Video Frames from MP4 Files

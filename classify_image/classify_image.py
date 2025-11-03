@@ -1,13 +1,13 @@
 # /// script
-# description = "Embed images from a parquet file"
+# description = "Classify image"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "transformers", "torch", "pillow", "torchvision"]
+# dependencies = ["daft>=0.6.8", "transformers","torch","torchvision"]
 # ///
 
 import daft
-from daft.functions import embed_image, decode_image
+from daft.functions import decode_image
+from daft.functions.ai import classify_image
 
-# Embed Text with Defaults
 df = (
     # Discover a few images from HuggingFace
     daft.from_glob_path("hf://datasets/datasets-examples/doc-image-3/images")
@@ -19,16 +19,16 @@ df = (
     .with_column(
         "image_resized", daft.col("image_type").convert_image("RGB").resize(288, 288)
     )
-    # Embed the image
+    # Classify the image
     .with_column(
-        "image_embeddings",
-        embed_image(
+        "image_label",
+        classify_image(
             daft.col("image_resized"),
+            labels=[],
             provider="transformers",
-            model="apple/aimv2-large-patch14-224-lit",
+            model="google/vit-base-patch16-224",
         ),
     )
 )
 
-# Show the dataframe
 df.show()

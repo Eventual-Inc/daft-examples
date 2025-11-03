@@ -13,8 +13,10 @@ from daft import DataType
 import soundfile as sf
 import numpy as np
 
+
 def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
     from scipy import signal
+
     gcd = np.gcd(orig_sr, target_sr)
     up = target_sr // gcd
     down = orig_sr // gcd
@@ -45,7 +47,7 @@ def read_audio(
     """
     Read audio file into a numpy array
     """
-    
+
     with file.open() as f:
         audio, native_sample_rate = sf.read(
             file=f,
@@ -111,11 +113,12 @@ def write_audio_to_mp3(
 @daft.func()
 def sanitize_filename(filename: str) -> str:
     import re
+
     # Replace problematic characters including Unicode variants
     return re.sub(r"[/\\|｜:<>\"?*\s⧸]+", "_", filename)
 
 
-# Copy + Paste this script then `uv run myscript.py` 
+# Copy + Paste this script then `uv run myscript.py`
 if __name__ == "__main__":
     from daft import col, lit
     from daft.functions import file, format
@@ -145,7 +148,6 @@ if __name__ == "__main__":
                 sample_rate=TARGET_SR,
             ),
         )
-        
     )
 
     df.show()

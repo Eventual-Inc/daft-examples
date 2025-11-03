@@ -1,21 +1,14 @@
 # /// script
 # description = "Transcribe + VAD with Faster Whisper"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.7", "faster-whisper"]
+# dependencies = ["daft>=0.6.8", "faster-whisper"]
 # ///
 from dataclasses import asdict
 import daft
 from daft import col
 from daft.functions import file, unnest
 from faster_whisper import WhisperModel, BatchedInferencePipeline
-from transcription_schema import TranscriptionResult
-
-# Define Parameters & Constants
-SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
-SOURCE_URI = "/Users/everettkleven/Desktop/*.mp3"
-SAMPLE_RATE = 16000
-DTYPE = "float32"
-BATCH_SIZE = 16
+from faster_whisper_schema import TranscriptionResult
 
 
 @daft.cls()
@@ -40,25 +33,30 @@ class FasterWhisperTranscriber:
 
             return {"transcript": text, "segments": segments, "info": asdict(info)}
 
-# Instantiate Transcription UDF
-fwt = FasterWhisperTranscriber()
 
-# Transcribe the audio files
-df_transcript = (
-    # Discover the audio files
-    daft.from_glob_path(SOURCE_URI)
+if __name__ == "__main__":
+    # Define Parameters & Constants
+    SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
+    SOURCE_URI = "/Users/everettkleven/Desktop/*.mp3"
+    SAMPLE_RATE = 16000
+    DTYPE = "float32"
+    BATCH_SIZE = 16
 
-    # Wrap the path as a daft.File
-    .with_column("audio_file", file(col("path")))
+    # Instantiate Transcription UDF
+    fwt = FasterWhisperTranscriber()
 
-    # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
-    .with_column("result", fwt.transcribe(col("audio_file")))
+    # Transcribe the audio files
+    df_transcript = (
+        # Discover the audio files
+        daft.from_glob_path(SOURCE_URI)
+        # Wrap the path as a daft.File
+        .with_column("audio_file", file(col("path")))
+        # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
+        .with_column("result", fwt.transcribe(col("audio_file")))
+        # Unpack Results
+        .select("path", unnest(col("result")))
+        .explode("segments")
+        .select("path", "info", "transcript", unnest(col("segments")))
+    ).collect()
 
-    # Unpack Results
-    .select("path", unnest(col("result")))
-    .explode("segments")
-    .select("path", "info", "transcript", unnest(col("segments")))
-).collect()
-
-df_transcript.show(format="fancy", max_width=40)
-  
+    df_transcript.show(format="fancy", max_width=40)

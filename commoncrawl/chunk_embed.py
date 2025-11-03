@@ -6,12 +6,14 @@ import daft
 from daft import DataType
 import spacy
 
+
 @daft.cls()
 class SpacyChunker:
     def __init__(self, model="en_core_web_sm"):
         self.nlp = spacy.load(model)
 
-    @daft.method(return_dtype=DataType.list(
+    @daft.method(
+        return_dtype=DataType.list(
             DataType.struct(
                 {
                     "sent_id": DataType.int32(),
@@ -61,14 +63,16 @@ if __name__ == "__main__":
 
     if os.environ.get("AWS_ACCESS_KEY_ID"):
         IN_AWS = True
-        IOCONFIG = IOConfig(s3=S3Config(
-            region_name="us-east-1",
-            requester_pays=True,
-            key_id=os.environ["AWS_ACCESS_KEY_ID"],
-            access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-            anonymous=False,
-        ))
-    else: 
+        IOCONFIG = IOConfig(
+            s3=S3Config(
+                region_name="us-east-1",
+                requester_pays=True,
+                key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+                anonymous=False,
+            )
+        )
+    else:
         IN_AWS = False
         IOCONFIG = None
 

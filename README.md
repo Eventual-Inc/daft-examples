@@ -1,6 +1,10 @@
 # daft-examples
 
-This repository is an examples hub for Multimodal AI Workloads including text, image, audio, video, and documents.
+This repository is an examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft) the distributed query engine providing simple and reliable data processing for any modality and scale. 
+
+Examples cover modalities including text, image, audio, video, and documents, as well as specific AI/ML tasks like embedding, classification, and text generation via the `prompt` function. 
+
+Other advanced end to end usecases can also be explored. 
 
 ## Getting Started
 
