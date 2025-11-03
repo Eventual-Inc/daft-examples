@@ -143,7 +143,7 @@ if __name__ == "__main__":
             write_audio_to_mp3(
                 audio=col("audio").struct.get("audio_array"),
                 destination=format(
-                    "{}{}{}", lit(DEST_URI), col("filename_sanitized"), lit(".mp3")
+                    "{}{}.mp3", lit(DEST_URI), col("filename_sanitized")
                 ),
                 sample_rate=TARGET_SR,
             ),
