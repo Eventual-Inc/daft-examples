@@ -17,44 +17,6 @@ SAMPLE_RATE = 16000
 DTYPE = "float32"
 BATCH_SIZE = 16
 
-
-@daft.cls()
-class FasterWhisperTranscriber:
-    def __init__(self, model="distil-large-v3", compute_type="float32", device="auto"):
-        self.model = WhisperModel(model, compute_type=compute_type, device=device)
-        self.pipe = BatchedInferencePipeline(self.model)
-
-    @daft.method(return_dtype=TranscriptionResult)
-    def transcribe(self, audio_file: daft.File):
-        """Transcribe Audio Files with Voice Activity Detection (VAD) using Faster Whisper"""
-        with audio_file.to_tempfile() as tmp:
-            segments_iter, info = self.pipe.transcribe(
-                str(tmp.name),
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
-                word_timestamps=True,
-                without_timestamps=False,
-                temperature=0,
-                batch_size=BATCH_SIZE,
-            )
-            segments = [asdict(seg) for seg in segments_iter]
-            text = " ".join([seg["text"] for seg in segments])
-
-            return {"transcript": text, "segments": segments, "info": asdict(info)}
-
-
-@daft.func()
-def print_segments_w_timestamps(
-    segments: list[dict], print_segments: bool = True
-) -> str:
-    segment_string = "\n".join(
-        [f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments]
-    )
-    if print_segments:
-        print(segment_string)
-    return f"<segments>\n{segment_string}\n</segments>"
-
-
 # Define Pydantic Models for Extracting Key Moments using Structured Outputs
 class KeyMoment(BaseModel):
     moment_reasoning: str = Field(
@@ -78,6 +40,17 @@ class KeyMoment(BaseModel):
         ...,
         description="The text of all segments combined. Used for validation. Reference the provided segment text.",
     )
+
+@daft.func()
+def print_segments_w_timestamps(
+    segments: list[dict], print_segments: bool = True
+) -> str:
+    segment_string = "\n".join(
+        [f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments]
+    )
+    if print_segments:
+        print(segment_string)
+    return f"<segments>\n{segment_string}\n</segments>"
 
 
 @daft.func(
@@ -200,62 +173,11 @@ if __name__ == "__main__":
         .with_column("result", fwt.transcribe(col("audio_file")))
         # Unpack Results
         .select("path", "audio_file", unnest(col("result")))
-    ).collect()
-
-    print(
-        "\n\nRunning Transcription with Voice Activity Detection (VAD) using Faster Whisper..."
     )
 
-    # Show the transcript.
-    df_transcript.select(
-        "path",
-        "info",
-        "transcript",
-        "segments",
-    ).show(format="fancy", max_width=40)
 
     # ==============================================================================
-    # Summarization
-    # ==============================================================================
-
-    # Summarize the transcripts and translate to Chinese.
-    df_summaries = (
-        df_transcript
-        # Summarize the transcripts
-        .with_column(
-            "summary",
-            prompt(
-                format(
-                    "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
-                    daft.lit(CONTEXT),
-                    col("transcript"),
-                ),
-                model=LLM_MODEL_ID,
-            ),
-        ).with_column(
-            "summary_chinese",
-            prompt(
-                format(
-                    "Translate the following text to Simplified Chinese: {}",
-                    col("summary"),
-                ),
-                model=LLM_MODEL_ID,
-            ),
-        )
-    ).collect()
-
-    print("\n\nGenerating Summaries...")
-
-    # Show the summaries and the transcript.
-    df_summaries.select(
-        "path",
-        "transcript",
-        "summary",
-        "summary_chinese",
-    ).show(format="fancy", max_width=40)
-
-    # ==============================================================================
-    # Key Moments Clipping
+    # Key Moments Extraction
     # ==============================================================================
 
     # Extract key moments from the transcript and write the clips to disk.
@@ -275,18 +197,6 @@ if __name__ == "__main__":
         # Unpack the key moments
         .select("path", "audio_file", "segments", unnest(col("key_moments")))
     ).collect()
-
-    print("\n\nClipping Key Moments...")
-    df_key_moments.select(
-        "path",
-        "audio_file",
-        "segments",
-        "moment_summary",
-        "moment_reasoning",
-        "moment_text",
-        "moment_start_sec",
-        "moment_end_sec",
-    ).show(format="fancy", max_width=40)
 
     df_clips = (
         df_key_moments
@@ -322,12 +232,7 @@ if __name__ == "__main__":
                 model=LLM_MODEL_ID,
             ),
         )
-    ).collect()
-
-    print("\n\nClipping Key Moments...")
-
-    # Show the key moments and the transcript.
-    df_key_moments.show(format="fancy", max_width=40)
+    )
 
     # ==============================================================================
     # Subtitles Generation
@@ -348,13 +253,8 @@ if __name__ == "__main__":
                 model=LLM_MODEL_ID,
             ),
         )
-    ).collect()
+    )
 
-    print("\n\nGenerating Chinese Subtitles...")
 
-    # Show the segments and the transcript.
-    df_segments.select(
-        "path",
-        col("text"),
-        "segment_text_chinese",
-    ).show(format="fancy", max_width=40)
+
+    

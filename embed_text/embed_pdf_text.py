@@ -44,6 +44,36 @@ def extract_pdf_text(doc: bytes):
 
     return content
 
+import pymupdf
+import daft
+from daft import DataType
+import io
+
+@daft.func(
+    return_dtype=DataType.list(DataType.struct({
+            "page_no": DataType.uint8(), 
+            "page_text": DataType.string(), 
+            "page_image_bytes": DataType.binary()
+        }))
+)
+def extract_pdf(file: daft.File):
+    content = []
+    with file.to_tempfile() as tmp: 
+        doc = pymupdf.Document(filename=str(tmp.name), filetype="pdf")
+        for pno, page in enumerate(doc):
+            print(pno)
+            print(page.g)
+            row = {
+                "pno": pno,
+                "text": page.get_text("text"),
+                "image": page.get_pixmap().pil_tobytes(),
+            }
+            print(row)
+            content.append(row)
+        return content
+
+
+
 
 @daft.cls()
 class SpaCyChunkText:
@@ -95,7 +125,7 @@ if __name__ == "__main__":
         daft.from_glob_path(uri)
         .limit(MAX_DOCS)
         .with_column("documents", col("path").url.download())
-        
+
         # Extract text from pdf pages
         .with_column("pages", extract_pdf_text(col("documents")))
         .explode("pages")

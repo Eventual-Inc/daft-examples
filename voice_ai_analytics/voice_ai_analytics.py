@@ -71,110 +71,128 @@ if __name__ == "__main__":
     daft.attach_provider(openrouter_provider)
     daft.set_provider("OpenRouter")
 
-    # Instantiate Transcription UDF
-    fwt = FasterWhisperTranscriber()
+    transcripts_path = os.path.join(DEST_URI, "transcripts.parquet")
+    segments_path = os.path.join(DEST_URI, "segments.parquet")
 
-    # ==============================================================================
-    # Transcription
-    # ==============================================================================
+    os.makedirs(DEST_URI, exist_ok=True)
 
-    # Transcribe the audio files
-    df_transcript = (
-        # Discover the audio files
-        daft.from_glob_path(SOURCE_URI)
-        # Wrap the path as a daft.File
-        .with_column("audio_file", file(col("path")))
-        # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
-        .with_column("result", fwt.transcribe(col("audio_file")))
-        # Unpack Results
-        .select("path", "audio_file", unnest(col("result")))
-    )
+    transcripts_exist = os.path.exists(transcripts_path)
+    segments_exist = os.path.exists(segments_path)
 
-    # ==============================================================================
-    # Summarization
-    # ==============================================================================
+    if transcripts_exist and segments_exist:
+        print("Loading cached transcripts and segments from parquet.")
+        df_summaries = daft.read_parquet(transcripts_path)
+        df_segments = daft.read_parquet(segments_path)
+    else:
+        if transcripts_exist or segments_exist:
+            print("Found partial cache. Re-running transcription pipeline to refresh outputs.")
+        else:
+            print("No cached transcripts detected. Running transcription pipeline.")
 
-    # Summarize the transcripts and translate to Chinese.
-    df_summaries = (
-        df_transcript
-        # Summarize the transcripts
-        .with_column(
-            "summary",
-            prompt(
-                format(
-                    "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
-                    daft.lit(CONTEXT),
-                    col("transcript"),
-                ),
-                model=LLM_MODEL_ID,
-            ),
-        ).with_column(
-            "summary_chinese",
-            prompt(
-                format(
-                    "Translate the following text to Simplified Chinese: <text>{}</text>",
-                    col("summary"),
-                ),
-                system_message="You will be provided with a piece of text. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
-                model=LLM_MODEL_ID,
-            ),
+        # Instantiate Transcription UDF only when needed
+        fwt = FasterWhisperTranscriber()
+
+        # ==============================================================================
+        # Transcription
+        # ==============================================================================
+
+        # Transcribe the audio files
+        df_transcript = (
+            # Discover the audio files
+            daft.from_glob_path(SOURCE_URI)
+            # Wrap the path as a daft.File
+            .with_column("audio_file", file(col("path")))
+            # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
+            .with_column("result", fwt.transcribe(col("audio_file")))
+            # Unpack Results
+            .select("path", "audio_file", unnest(col("result")))
         )
-    )
 
-    # ==============================================================================
-    # Subtitles Generation
-    # ==============================================================================
+        # ==============================================================================
+        # Summarization
+        # ==============================================================================
 
-    # Explode the segments, embed, and translate to simplified Chinese for subtitles.
-    df_segments = (
-        df_transcript.select("path", "segments")
-        .explode("segments")
-        .select("path", unnest(col("segments")))
-        .with_column(
-            "segment_text_chinese",
-            prompt(
-                format(
-                    "Translate the following text to Simplified Chinese: <text>{}</text>",
+        # Summarize the transcripts and translate to Chinese.
+        df_summaries = (
+            df_transcript
+            # Summarize the transcripts
+            .with_column(
+                "summary",
+                prompt(
+                    format(
+                        "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
+                        daft.lit(CONTEXT),
+                        col("transcript"),
+                    ),
+                    model=LLM_MODEL_ID,
+                ),
+            ).with_column(
+                "summary_chinese",
+                prompt(
+                    format(
+                        "Translate the following text to Simplified Chinese: <text>{}</text>",
+                        col("summary"),
+                    ),
+                    system_message="You will be provided with a piece of text. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
+                    model=LLM_MODEL_ID,
+                ),
+            )
+        )
+
+        # ==============================================================================
+        # Subtitles Generation
+        # ==============================================================================
+
+        # Explode the segments, embed, and translate to simplified Chinese for subtitles.
+        df_segments = (
+            df_transcript.select("path", "segments")
+            .explode("segments")
+            .select("path", unnest(col("segments")))
+            .with_column(
+                "segment_text_chinese",
+                prompt(
+                    format(
+                        "Translate the following text to Simplified Chinese: <text>{}</text>",
+                        col("text"),
+                    ),
+                    system_message="You will be provided with a transcript segment. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
+                    model=LLM_MODEL_ID,
+                ),
+            )
+            .with_column(
+                "segment_embeddings",
+                embed_text(
                     col("text"),
+                    provider="transformers",
+                    model=EMBEDDING_MODEL_ID,
                 ),
-                system_message="You will be provided with a transcript segment. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
-                model=LLM_MODEL_ID,
-            ),
+            )
         )
-        .with_column(
+
+        # ==============================================================================
+        # Store Transcripts and Segments
+        # ==============================================================================
+
+        # Store Transcripts with Summaries
+        df_summaries.select(
+            "path", "info", "transcript", "summary", "summary_chinese"
+        ).write_parquet(transcripts_path, write_mode="overwrite")
+        # Store Segments
+        df_segments.select(
+            "path",
+            "id",
+            "start",
+            "end",
+            "text",
+            "tokens",
+            "avg_logprob",
+            "compression_ratio",
+            "no_speech_prob",
+            "words",
+            "temperature",
+            "segment_text_chinese",
             "segment_embeddings",
-            embed_text(
-                col("text"),
-                provider="transformers",
-                model=EMBEDDING_MODEL_ID,
-            ),
-        )
-    )
-
-    # ==============================================================================
-    # Store Transcripts and Segments
-    # ==============================================================================
-
-    # Store Transcripts with Summaries
-    df_summaries.select(
-        "path", "info", "transcript", "summary", "summary_chinese"
-    ).write_parquet(f"{DEST_URI}/transcripts.parquet", write_mode="overwrite")
-    # Store Segments
-    df_segments.select(
-        "path",
-        "id",
-        "start",
-        "end",
-        "text",
-        "tokens",
-        "avg_logprob",
-        "compression_ratio",
-        "no_speech_prob",
-        "words",
-        "temperature",
-        "segment_text_chinese",
-        "segment_embeddings",
-    ).write_parquet(f"{DEST_URI}/segments.parquet", write_mode="overwrite")
+        ).write_parquet(segments_path, write_mode="overwrite")
 
     # ==============================================================================
     # RAG QA Section
