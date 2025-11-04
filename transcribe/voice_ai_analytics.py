@@ -9,7 +9,7 @@ import daft
 from daft import DataType
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
-from transcription_schema import TranscriptionResult, InfoStruct
+from faster_whisper_schema import TranscriptionResult
 
 # Define Constants
 SAMPLE_RATE = 16000
@@ -85,21 +85,31 @@ if __name__ == "__main__":
         df_segments = daft.read_parquet(segments_path)
     else:
         if transcripts_exist or segments_exist:
-            print("Found partial cache. Re-running transcription pipeline to refresh outputs.")
+            print(
+                "Found partial cache. Re-running transcription pipeline to refresh outputs."
+            )
         else:
             print("No cached transcripts detected. Running transcription pipeline.")
 
         # Instantiate Transcription UDF only when needed
         fwt = FasterWhisperTranscriber()
 
-        # ==============================================================================
-        # Transcription
-        # ==============================================================================
+    # ==============================================================================
+    # Transcription
+    # ==============================================================================
 
+    # Transcribe the audio files
+    if not os.path.exists(os.path.join(DEST_URI, "transcripts.parquet")):
+        from transcribe_faster_whisper import FasterWhisperTranscriber
+        
+        # Instantiate Transcription UDF
+        fwt = FasterWhisperTranscriber()
+        
         # Transcribe the audio files
         df_transcript = (
             # Discover the audio files
             daft.from_glob_path(SOURCE_URI)
+            .limit(FILE_LIMIT)
             # Wrap the path as a daft.File
             .with_column("audio_file", file(col("path")))
             # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
@@ -107,6 +117,8 @@ if __name__ == "__main__":
             # Unpack Results
             .select("path", "audio_file", unnest(col("result")))
         )
+    else:
+        df_transcript = daft.read_parquet(os.path.join(DEST_URI, "transcripts.parquet"))
 
         # ==============================================================================
         # Summarization

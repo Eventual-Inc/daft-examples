@@ -3,19 +3,15 @@
 # requires-python = ">=3.10, <3.13"
 # dependencies = ["daft>=0.6.7", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "openai", "sentence-transformers"]
 # ///
-from dataclasses import asdict
-
 import daft
 from daft import DataType
-from faster_whisper import WhisperModel, BatchedInferencePipeline
 from pydantic import BaseModel, Field
-
-from transcription_schema import TranscriptionResult
 
 # Define Constants
 SAMPLE_RATE = 16000
 DTYPE = "float32"
 BATCH_SIZE = 16
+
 
 # Define Pydantic Models for Extracting Key Moments using Structured Outputs
 class KeyMoment(BaseModel):
@@ -41,26 +37,38 @@ class KeyMoment(BaseModel):
         description="The text of all segments combined. Used for validation. Reference the provided segment text.",
     )
 
+
 @daft.func()
 def print_segments_w_timestamps(
-    segments: list[dict], print_segments: bool = True
+    segments: list[dict], 
+    print_segments: bool = True,
 ) -> str:
+    """Print segments with timestamps"""
+
     segment_string = "\n".join(
         [f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments]
     )
+
     if print_segments:
         print(segment_string)
+
     return f"<segments>\n{segment_string}\n</segments>"
 
 
 @daft.func(
-    return_dtype=DataType.struct(
-        {"start_sec_snapped": DataType.float64(), "end_sec_snapped": DataType.float64()}
-    )
+    return_dtype=DataType.struct({
+        "start_sec_snapped": DataType.float64(), 
+        "end_sec_snapped": DataType.float64()
+    }),
 )
 def snap_to_segment_bounds(
-    segments: list[dict], start_sec: float, end_sec: float, pad_ms: int = 200
+    segments: list[dict], 
+    start_sec: float, 
+    end_sec: float, 
+    pad_ms: int = 200,
 ):
+    """Snap to segment bounds"""
+
     pad = pad_ms / 1000.0
     left_candidates = [seg["start"] for seg in segments if seg["start"] <= start_sec]
     right_candidates = [seg["end"] for seg in segments if seg["end"] >= end_sec]
@@ -75,8 +83,14 @@ def snap_to_segment_bounds(
 
 @daft.func()
 def clip_audio(
-    path: str, audio_file: daft.File, dest: str, start_time: float, end_time: float
+    path: str, 
+    audio_file: daft.File, 
+    dest: str, 
+    start_time: float, 
+    end_time: float,
 ) -> str:
+    """Clip audio"""
+
     import soundfile as sf
     from pathlib import Path
 
@@ -155,26 +169,32 @@ if __name__ == "__main__":
     daft.attach_provider(openrouter_provider)
     daft.set_provider("OpenRouter")
 
-    # Instantiate Transcription UDF
-    fwt = FasterWhisperTranscriber()
 
     # ==============================================================================
     # Transcription
     # ==============================================================================
 
     # Transcribe the audio files
-    df_transcript = (
-        # Discover the audio files
-        daft.from_glob_path(SOURCE_URI)
-        .limit(FILE_LIMIT)
-        # Wrap the path as a daft.File
-        .with_column("audio_file", file(col("path")))
-        # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
-        .with_column("result", fwt.transcribe(col("audio_file")))
-        # Unpack Results
-        .select("path", "audio_file", unnest(col("result")))
-    )
-
+    if not os.path.exists(os.path.join(DEST_URI, "transcripts.parquet")):
+        from transcribe_faster_whisper import FasterWhisperTranscriber
+        
+        # Instantiate Transcription UDF
+        fwt = FasterWhisperTranscriber()
+        
+        # Transcribe the audio files
+        df_transcript = (
+            # Discover the audio files
+            daft.from_glob_path(SOURCE_URI)
+            .limit(FILE_LIMIT)
+            # Wrap the path as a daft.File
+            .with_column("audio_file", file(col("path")))
+            # Transcribe the audio file with Voice Activity Detection (VAD) using Faster Whisper
+            .with_column("result", fwt.transcribe(col("audio_file")))
+            # Unpack Results
+            .select("path", "audio_file", unnest(col("result")))
+        )
+    else:
+        df_transcript = daft.read_parquet(os.path.join(DEST_URI, "transcripts.parquet"))
 
     # ==============================================================================
     # Key Moments Extraction
@@ -197,6 +217,10 @@ if __name__ == "__main__":
         # Unpack the key moments
         .select("path", "audio_file", "segments", unnest(col("key_moments")))
     ).collect()
+
+    # ==============================================================================
+    # Clip Audio
+    # ==============================================================================
 
     df_clips = (
         df_key_moments
@@ -221,40 +245,4 @@ if __name__ == "__main__":
                 end_time=col("snapped")["end_sec_snapped"],
             ),
         )
-        # Storyboard Generation
-        .with_column(
-            "storyboard",
-            prompt(
-                format(
-                    "Generate a storyboard from the following segments: {}",
-                    print_segments_w_timestamps(col("segments")),
-                ),
-                model=LLM_MODEL_ID,
-            ),
-        )
     )
-
-    # ==============================================================================
-    # Subtitles Generation
-    # ==============================================================================
-
-    # Explode the segments, embed, and translate to simplified Chinese for subtitles.
-    df_segments = (
-        df_transcript.explode("segments")
-        .select(
-            "path",
-            unnest(col("segments")),
-        )
-        .with_column(
-            "segment_text_chinese",
-            prompt(
-                col("text"),
-                system_message="Translate the following text to Simplified Chinese.",
-                model=LLM_MODEL_ID,
-            ),
-        )
-    )
-
-
-
-    

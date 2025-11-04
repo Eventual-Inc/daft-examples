@@ -1,5 +1,5 @@
 # /// script
-# dependencies = ["daft>=0.6.4", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# dependencies = ["daft>=0.6.8", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
 import daft
@@ -88,12 +88,13 @@ if __name__ == "__main__":
     # Download the spaCy model
     spacy.cli.download(SPACY_MODEL)
 
+    # Initialize the spaCy chunker
+    spacy_chunk_text = SpacyChunker(model="en_core_web_trf")
+
     # Chunk Text into sentences with spaCy
     df_prep = df_warc.with_column(
         "spacy_results",
-        spacy_chunk_text.with_init_args(model=SPACY_MODEL)(
-            decode(col("warc_content"), "utf-8")
-        ),
+        spacy_chunk_text.chunk_text(decode(col("warc_content"), "utf-8")),
     ).explode("spacy_results")
 
     # Embed Sentences
@@ -101,8 +102,8 @@ if __name__ == "__main__":
         f"embed_{EMBEDDING_MODEL.split('/')[1]}",
         embed_text(
             col("spacy_results")["sent_text"],
-            model=EMBEDDING_MODEL,
-            provider="sentence_transformers",
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            provider="transformers",
         ),
     )
 
