@@ -15,7 +15,7 @@ from datetime import datetime
 
 load_dotenv()
 
-supabase_connection = os.environ["SUPABASE_CONNECTION"]
+
 
 class Citation(BaseModel):
     url: str = Field(description="The URL of the source")
@@ -41,11 +41,11 @@ df = df.with_column(
         daft.col("query"),
         model="gpt-5",
         tools=[{"type": "web_search"}],
-        return_format=SearchResults,
+        #return_format=SearchResults,
         provider="openai",
     )
 )
-
+supabase_connection = os.environ["SUPABASE_CONNECTION"]
 catalog = daft.Catalog.from_postgres(supabase_connection)
 table = catalog.create_table_if_not_exists("prompt_openai_web_search", df.schema())
 table.append(df)
