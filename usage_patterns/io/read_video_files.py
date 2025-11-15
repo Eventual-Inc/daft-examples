@@ -6,7 +6,6 @@
 
 import daft
 from daft import DataType
-from daft.file import Video
 import av
 import numpy as np
 from fractions import Fraction

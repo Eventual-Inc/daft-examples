@@ -22,9 +22,7 @@ class SearchResults(BaseModel):
     citations: list[Citation] = Field(description="A list of citations")
 
 df = daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/papers/*.pdf")
-
 df = df.with_column("file", file(daft.col("path")))
-
 df = df.with_column(
     "search_results",
     prompt(
@@ -36,4 +34,4 @@ df = df.with_column(
     )
 )
 
-print(json.dumps(df.to_pydict(), indent=4))
+df.show(format="fancy", max_width=60)

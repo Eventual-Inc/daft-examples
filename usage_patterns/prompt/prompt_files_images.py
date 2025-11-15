@@ -3,18 +3,12 @@
 # requires-python = ">=3.10, <3.13"
 # dependencies = ["daft>=0.6.13", "openai", "numpy", "python-dotenv", "pillow"]
 # ///
-import os
+import json
 from dotenv import load_dotenv
 import daft
 from daft.functions import prompt, download, decode_image, file
 
 load_dotenv()
-
-#daft.set_provider(
-#    "openai",
-#    base_url="https://openrouter.ai/api/v1",
-#    api_key=os.environ.get("OPENROUTER_API_KEY")
-#)
 
 df = daft.from_pydict({
     "prompt": ["Whats in this image and file?"],
@@ -45,4 +39,4 @@ df = df.with_column(
     )
 )
 
-print(df.to_pydict())
+df.select("prompt", "result").show(format="fancy", max_width=60)

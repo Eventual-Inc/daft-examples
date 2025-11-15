@@ -6,10 +6,9 @@
 from dataclasses import asdict
 
 import daft
-from daft import DataType
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
-from transcription_schema import TranscriptionResult, InfoStruct
+from transcription_schema import TranscriptionResult
 
 # Define Constants
 SAMPLE_RATE = 16000
