@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed images from a parquet file"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft==0.6.8", "transformers", "torch", "pillow", "torchvision"]
+# dependencies = ["daft>=0.6.13", "transformers", "torch", "pillow", "torchvision"]
 # ///
 
 import daft

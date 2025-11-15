@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed text"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft==0.6.12", "sentence-transformers", "python-dotenv"]
+# dependencies = ["daft>=0.6.13", "sentence-transformers", "python-dotenv"]
 # ///
 import daft
 from daft.functions import embed_text
