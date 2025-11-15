@@ -54,7 +54,7 @@ AWS_SECRET_ACCESS_KEY=...
 ### Embeddings
 - [`embed/embed_images.py`](usage_patterns/embed/embed_images.py) - Generate image embeddings using Apple's AIMv2 model
 - [`embed/embed_pdf.py`](usage_patterns/embed/embed_pdf.py) - Extract text from PDFs, chunk with spaCy, and embed sentences
-- [`embed/embed_text_providers.py`](eusage_patterns/mbed/embed_text_providers.py) - Compare text embeddings across providers (Transformers, OpenAI, LM Studio)
+- [`embed/embed_text_providers.py`](usage_patterns/embed/embed_text_providers.py) - Compare text embeddings across providers (Transformers, OpenAI, LM Studio)
 - [`embed/embed_video_frames.py`](usage_patterns/embed/embed_video_frames.py) - Extract and embed video frames from YouTube videos
 - [`embed/shot_boundary_detection.py`](usage_patterns/embed/shot_boundary_detection.py) - Detect scene cuts and dissolves in videos using frame embeddings
 - [`embed/similarity_Search.py`](usage_patterns/embed/similarity_Search.py) - Semantic search using cosine distance between text embeddings
@@ -69,7 +69,7 @@ AWS_SECRET_ACCESS_KEY=...
 
 ### UDFs
 - [`udfs/cls_with_types.py`](usage_patterns/udfs/cls_with_types.py) - Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions
-- [`udfs/udf.py`]usage_patterns/(udfs/udf.py) - Simple UDF example to extract file names from File objects
+- [`udfs/udf.py`](usage_patterns/udfs/udf.py) - Simple UDF example to extract file names from File objects
 
 ### I/O
 - [`io/read_audio_file.py`](usage_patterns/io/read_audio_file.py) - Read and resample audio files, write to MP3 format
