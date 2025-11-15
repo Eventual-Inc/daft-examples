@@ -5,7 +5,7 @@
 # ///
 #from dotenv import load_dotenv
 import daft
-from daft.functions import prompt, file
+from daft.functions import prompt, file, unnest
 from pydantic import BaseModel, Field
 import json
 from dotenv import load_dotenv
@@ -32,6 +32,6 @@ df = df.with_column(
         return_format=SearchResults,
         provider="openai",
     )
-)
+).select("path", "size", unnest(daft.col("search_results")))
 
 df.show(format="fancy", max_width=60)
