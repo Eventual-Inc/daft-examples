@@ -69,7 +69,7 @@ AWS_SECRET_ACCESS_KEY=...
 
 ### UDFs
 - [`udfs/cls_with_types.py`](usage_patterns/udfs/cls_with_types.py) - Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions
-- [`udfs/udf.py`]usage_patterns/(udfs/udf.py) - Simple UDF example to extract file names from File objects
+- [`udfs/udf.py`](usage_patterns/udfs/udf.py) - Simple UDF example to extract file names from File objects
 
 ### I/O
 - [`io/read_audio_file.py`](usage_patterns/io/read_audio_file.py) - Read and resample audio files, write to MP3 format
