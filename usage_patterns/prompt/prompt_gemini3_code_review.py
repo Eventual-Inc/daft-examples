@@ -27,7 +27,7 @@ daft.set_provider(
 )
 
 df = (
-    # Disover Python Files
+    # Discover Python Files
     daft.from_glob_path(os.path.join(pwd, "*.py"))
 
     # Prompt the Gemini 3 model to review the code using the chat completions API
