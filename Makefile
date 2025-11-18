@@ -41,6 +41,7 @@ test-prompt:
 	uv run usage_patterns/prompt/prompt_qa.py
 	uv run usage_patterns/prompt/prompt_session.py
 	uv run usage_patterns/prompt/prompt_structured_outputs.py
+	uv run usage_patterns/prompt/prompt_gemini3_code_review.py
 
 # usage_patterns/udfs
 test-udfs:
