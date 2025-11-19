@@ -3,13 +3,18 @@
 # requires-python = ">=3.10, <3.13"
 # dependencies = ["daft>=0.6.13","openai","pydantic","python-dotenv", "numpy"]
 # ///
+import os
 import daft
 from daft.functions import format, prompt
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 daft.set_provider(
     "openai", 
-    api_key="none", 
-    base_url="http://127.0.0.1:1234/v1" # Local LM Studio Server
+    api_key=os.environ.get("OPENROUTER_API_KEY"), 
+    base_url="https://openrouter.ai/api/v1"
 )
 
 # Create a dataframe with the quotes
@@ -32,11 +37,14 @@ df = (
         prompt(
             messages = daft.col("prompt"),
             system_message="Impersonating the persona provided, authentically represent your perspective to the prompt posed.",
-            model="google/gemma-3-4b", # Make sure LM Studio Server is running with the model loaded
+            model="google/gemini-2.5-flash", 
             use_chat_completions=True,
+            max_tokens = 100,
         ),
     )
 )
 
 # Show the results
-df.select("professional_persona", "response").show(format="fancy", max_width=60)
+df = df.select("professional_persona", "response").limit(100)
+df.write_json("../../.data/prompt/prompt_chat_completions.json")
+df.show(format="fancy", max_width=60)
