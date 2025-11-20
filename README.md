@@ -2,22 +2,29 @@
 
 # Daft Examples
 
-An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)
-
-<i>The distributed query engine providing simple and reliable data processing for any modality and scale.</i>
+<i>An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)<i>
 
 </div>
 
- on [Daft](https://github.com/Eventual-Inc/Daft) the distributed query engine providing simple and reliable data processing for any modality and scale. 
+## Getting Started
+
 This repository is organized into three sections:
 
 1. **[Usage Patterns](#usage-patterns)** - Small atomic demonstrations of core features. 
 2. **[Use Cases](#use-cases)** - Entire Pipelines or end-to-end workflows built in Daft. 
 3. **[Notebooks](#notebooks)** - End to End tutorials on working with Daft in an interactive Jupyter Notebook
 
-## Getting Started
+To get started, run the following in your terminal.
 
-This project leverages [uv scripts](https://docs.astral.sh/uv/guides/scripts/) for dependency management isolation.
+```bash
+git clone https://github.com/Eventual-Inc/daft-examples.git
+cd daft-examples
+make setup
+```
+
+# Running Examples
+
+This project leverages [uv scripts](https://docs.astral.sh/uv/guides/scripts/) for dependency management isolation. This is because many of the scripts in this repository have different requirements. The venv that is created by the `setup` make target is just for type hints and notebooks. 
 
 You can run any script like:
 
@@ -27,28 +34,10 @@ uv run usage_patterns/prompt/prompt.py
 
 If you don't have `uv`, check out this [installation guide](https://docs.astral.sh/uv/getting-started/installation/).
 
-### Setting up a venv for notebooks and type hints
-
-Quickly get started by using the following command to create a virtual environment useful for type-hinting and jupyter notebook dependencies: 
-
-```bash
-make setup
-```
-
-### Environment variables
-Some examples require credentials. Create a `.env` file from in the repo root with the keys you need:
-
-```bash
-OPENAI_API_KEY=sk-...
-
-
-# AWS (for Common Crawl access; requester pays)
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-```
 
 ### System dependencies
 - Some examples leverage libraries like [`soundfile`](https://github.com/bastibe/python-soundfile) or [`PyAv`](https://github.com/PyAV-Org/PyAV) to process audio and video files which requires [`ffmpeg`](https://ffmpeg.org/download.html).
+
 
 ## Usage Patterns 
 
