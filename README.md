@@ -2,7 +2,7 @@
 
 # Daft Examples
 
-<i>An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)<i>
+<i>An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)</i>
 
 </div>
 
