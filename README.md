@@ -1,10 +1,19 @@
-# daft-examples
+<div align="center">
 
-This repository is an examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft) the distributed query engine providing simple and reliable data processing for any modality and scale. 
+# Daft Examples
 
-Examples cover modalities including text, image, audio, video, and documents, as well as specific AI/ML tasks like embedding, classification, and text generation via the `prompt` function. 
+An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)
 
-Other advanced end to end usecases can also be explored. 
+<i>The distributed query engine providing simple and reliable data processing for any modality and scale.</i>
+
+</div>
+
+ on [Daft](https://github.com/Eventual-Inc/Daft) the distributed query engine providing simple and reliable data processing for any modality and scale. 
+This repository is organized into three sections:
+
+1. **[Usage Patterns](#usage-patterns)** - Small atomic demonstrations of core features. 
+2. **[Use Cases](#use-cases)** - Entire Pipelines or end-to-end workflows built in Daft. 
+3. **[Notebooks](#notebooks)** - End to End tutorials on working with Daft in an interactive Jupyter Notebook
 
 ## Getting Started
 
@@ -20,7 +29,11 @@ If you don't have `uv`, check out this [installation guide](https://docs.astral.
 
 ### Setting up a venv for notebooks and type hints
 
+Quickly get started by using the following command to create a virtual environment useful for type-hinting and jupyter notebook dependencies: 
 
+```bash
+make setup
+```
 
 ### Environment variables
 Some examples require credentials. Create a `.env` file from in the repo root with the keys you need:
