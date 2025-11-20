@@ -8,7 +8,7 @@ from dataclasses import asdict
 import daft
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
-from transcription_schema import TranscriptionResult
+from faster_whisper_schema import TranscriptionResult
 
 # Define Constants
 SAMPLE_RATE = 16000
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         "segment_embeddings",
         embed_text(
             col("text"),
-            provider="sentence_transformers",
+            provider="transformers",
             model=EMBEDDING_MODEL_ID,
         ),
     )
