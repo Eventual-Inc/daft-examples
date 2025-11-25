@@ -1,21 +1,20 @@
 import os
 import daft
-from daft.functions import embed_image
+from daft.functions import prompt
 
 SUBSET = os.environ.get("SUBSET", "ai2d")
 LIMIT = os.environ.get("LIMIT", 100)
 DEST_URI = os.environ.get("DEST_URI", None)
 
-def run_image_embedding(df: daft.DataFrame): 
+def run_prompt_text(df: daft.DataFrame): 
     df = (
         df
-        .with_column("images", daft.col("images")["bytes"].decode_image())
         .with_column(
-            "image_embeddings",
-            embed_image(
-                daft.col("images"),
+            "response",
+            prompt(
+                daft.col("text"),
+                model="Qwen/Qwen3-VL-4B-Instruct",
                 provider="daft",
-                model="openai/clip-vit-base-patch32",
             ),
         )
         .limit(LIMIT)
@@ -24,9 +23,9 @@ def run_image_embedding(df: daft.DataFrame):
 
 def main():
     df = daft.read_parquet(f"hf://datasets/HuggingFaceM4/the_cauldron/{SUBSET}/*.parquet")
-    df = df.explode("images").with_column("image", daft.col("images")["bytes"].decode_image())
+    df = df.select("text").explode("texts").with_column("text", daft.col("texts")["user"])
     
-    df = run_image_embedding(df)
+    df = run_prompt_text(df)
     
     if DEST_URI is not None:
         df.write_parquet(DEST_URI)
