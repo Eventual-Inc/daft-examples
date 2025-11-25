@@ -1,8 +1,3 @@
-# /// script
-# description = "Embed images from a parquet file"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.14", "openai", "numpy"]
-# ///
 import os
 import daft
 from daft.functions import embed_image
