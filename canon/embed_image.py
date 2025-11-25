@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed images from a parquet file"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.14", "openai", "numpy", "python-dotenv", "torch","torchvision", "pillow", "transformers"]
+# dependencies = ["daft>=0.6.14", "openai", "numpy"]
 # ///
 import os
 import daft
@@ -19,7 +19,7 @@ def run_image_embedding(df: daft.DataFrame):
             "image_embeddings",
             embed_image(
                 daft.col("images"),
-                provider="transformers",
+                provider="daft",
                 model="openai/clip-vit-base-patch32",
             ),
         )
