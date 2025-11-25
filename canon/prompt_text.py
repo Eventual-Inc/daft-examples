@@ -23,7 +23,7 @@ def run_prompt_text(df: daft.DataFrame):
 
 def main():
     df = daft.read_parquet(f"hf://datasets/HuggingFaceM4/the_cauldron/{SUBSET}/*.parquet")
-    df = df.select("text").explode("texts").with_column("text", daft.col("texts")["user"])
+    df = df.select("texts").explode("texts").with_column("text", daft.col("texts")["user"])
     
     df = run_prompt_text(df)
     
