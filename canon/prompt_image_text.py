@@ -12,7 +12,7 @@ def run_prompt_text(df: daft.DataFrame):
         .with_column(
             "response",
             prompt(
-                [daft.col("image"), daft.col("texts")["user"]],
+                [daft.col("texts")["user"]],
                 model="Qwen/Qwen3-VL-4B-Instruct",
             ),
         )
