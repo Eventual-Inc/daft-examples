@@ -14,7 +14,6 @@ def run_prompt_text(df: daft.DataFrame):
             prompt(
                 [daft.col("image"), daft.col("texts")["user"]],
                 model="Qwen/Qwen3-VL-4B-Instruct",
-                provider="daft",
             ),
         )
         .limit(LIMIT)
