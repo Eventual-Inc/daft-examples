@@ -218,7 +218,7 @@ if __name__ == "__main__":
     # ========================
 
     # Model & Provider
-    MODEL_ID = "qwen/qwen3-vl-8b-instruct"
+    MODEL_ID = "Qwen/Qwen3-VL-8B-Instruct"
     PROVIDER = "daft"  # "daft" or "openai"
 
     # Output
@@ -329,4 +329,3 @@ if __name__ == "__main__":
         print(f"Judge feedback saved to {judge_path}")
 
     print("\nEvaluation complete!")
-
