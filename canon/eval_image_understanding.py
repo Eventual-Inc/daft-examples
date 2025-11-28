@@ -218,7 +218,7 @@ if __name__ == "__main__":
     # ========================
 
     # Model & Provider
-    MODEL_ID = "Qwen/Qwen3-VL-8B-Instruct"
+    MODEL_ID = "Qwen/Qwen3-VL-4B-Instruct"
     PROVIDER = "daft"  # "daft" or "openai"
 
     # Output
