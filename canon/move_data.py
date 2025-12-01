@@ -8,14 +8,14 @@ from daft.io import S3Config, IOConfig
 S3_URI = "s3://daft-public-datasets/the_cauldron/original/"
 
 subsets = {
-    "general visual question answering": ["vqav2", "coco-qa", "visual7w", "a-okvqa", "tallyqa", "ok-vqa", "hatefulmemes", "vqa-rad"],
-    "captioning": ["lnarratives", "screen2words", "vsr"],
-    "ocr, document understanding, text transcription": ["renderedtext", "docvqa", "textcaps", "textvqa", "st-vqa", "ocr-vqa", "visualmrc", "iam", "infovqa", "diagram image-to-text"],
+    "general visual question answering": ["vqav2", "cocoqa", "visual7w", "aokvqa", "tallyqa", "okvqa", "hateful_memes", "vqarad"],
+    "captioning": ["localized_narratives", "screen2words", "vsr"],
+    "ocr, document understanding, text transcription": ["rendered_text", "docvqa", "textcaps", "textvqa", "st_vqa", "ocrvqa", "visualmrc", "iam", "infographic_vqa", "diagram_image_to_text"],
     "chart/figure understanding": ["chart2text", "dvqa", "vistext", "chartqa", "plotqa", "figureqa", "mapqa"],
-    "table understanding": ["tabmwp", "tat-qa", "hitab", "multihiertt", "finqa", "wikisql", "sqa", "wtq"],
-    "reasoning, logic, maths": ["geomverse", "clevr-math", "clevr", "iconqa", "raven", "inter-gps"],
+    "table understanding": ["tabmwp", "tat_qa", "hitab", "multihiertt", "finqa", "robut_wikisql", "robut_sqa", "robut_wtq"],
+    "reasoning, logic, maths": ["geomverse", "clevr_math", "clevr", "iconqa", "raven", "intergps"],
     "textbook/academic questions": ["ai2d", "tqa", "scienceqa"],
-    "differences between 2 images": ["nlvr2", "gsd", "spot the diff"],
+    "differences between 2 images": ["nlvr2", "mimic_cgd", "spot_the_diff"],
     "screenshot to code": ["websight", "datikz"],
 }
 
