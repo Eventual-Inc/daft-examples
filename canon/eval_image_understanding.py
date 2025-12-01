@@ -209,9 +209,6 @@ def run_full_pipeline(subset: str, model_id: str, limit: int = None):
 
 if __name__ == "__main__":
     import argparse
-    from dotenv import load_dotenv
-
-    load_dotenv()
 
     # ========================
     # Configuration 
