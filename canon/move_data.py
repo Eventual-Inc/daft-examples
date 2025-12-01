@@ -1,9 +1,9 @@
 import os
 import daft 
 from daft.io import S3Config, IOConfig
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
 
 S3_URI = "s3://daft-public-datasets/the_cauldron/original/"
 
