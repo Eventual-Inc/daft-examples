@@ -17,6 +17,8 @@ Usage:
 """
 
 import os
+import json
+from re import S
 from pydantic import BaseModel, Field
 
 import daft
@@ -25,7 +27,6 @@ from daft.functions import (
     prompt,
     unnest,
     when,
-    monotonically_increasing_id,
     format,
 )
 
@@ -35,7 +36,6 @@ class ChoiceResponse(BaseModel):
     choice: str = Field(
         ..., description="The letter of the correct choice (e.g., A, B, C, D)"
     )
-
 
 class JudgeResponse(BaseModel):
     """Structured diagnostic feedback from the VLM judge."""
@@ -57,74 +57,75 @@ class JudgeResponse(BaseModel):
 # ========================
 
 # System Prompts
-SYSTEM_PROMPT_WITH_IMAGE = (
-    "Observe the attached image and respond to the multiple choice question "
-    "with just the letter corresponding to the correct answer."
+SYSTEM_MESSAGE = (
+    "Referencing the attached image, respond to the multiple choice question with just the letter corresponding to the correct answer. Do not include any other text."
 )
 
-SYSTEM_PROMPT_NO_IMAGE = (
-    "Respond to the multiple choice question with just the letter "
-    "corresponding to the correct answer."
-)
-
-JUDGE_SYSTEM_PROMPT = """
-You are an impartial judge reviewing the results of a visual Q&A benchmark.
-Inspect the attached image and provide high-signal feedback on why the model chose its answer.
-Focus on image understanding—your feedback should help improve accuracy when images are attached.
-Do not propose improvements. Simply diagnose the failure mode.
-"""
-
-# ========================
-# Pipeline Stages
-# ========================
-
-
-def load_cauldron(subset: str = "ai2d"):
-    """Load a subset from The Cauldron dataset."""
-    return daft.read_huggingface(f"HuggingFaceM4/the_cauldron/{subset}")
-
-
-def preprocess(df):
+def preprocess(df: daft.DataFrame, category: str, subset: str, model_id: str, system_message: str, params: dict) -> daft.DataFrame:
     """Preprocess images and text from The Cauldron format."""
-    return (
-        df.explode("images")
-        .with_column("image", col("images")["bytes"].decode_image())
+
+    # Track Evaluation Inputs (Prompt Arguments) 
+    df = df.with_columns(
+        {
+            "category": daft.lit(category), 
+            "subset": daft.lit(subset),
+            "model_id": daft.lit(model_id),
+            "system_message": daft.lit(system_message),
+            "params": daft.lit(json.dumps(params, indent=4)),
+        }
+    )
+ 
+    df = (
+        df
         .explode("texts")
-        .select(unnest(col("texts")), "image")
-        .with_column("answer", col("assistant").regexp_replace("Answer: ", ""))
+        .select("*", unnest(col("texts"))) 
+        # Create deterministic prompt_id from content only (allows tracking unique questions across models)
+        .with_column(
+            "prompt_hash_64",
+            (
+                daft.lit(SYSTEM_MESSAGE)
+                + col("user")
+                + col("assistant")
+                + col("params")
+                + col("image").encode_image("PNG").encode("base64").substr(0, 64)
+            ).hash(hash_function="xxhash3_64")
+        )
     )
 
+    return df
 
-def run_inference(df, model_id: str, with_image: bool = True):
+
+def run_inference_and_check_correctness(df: daft.DataFrame, model_id: str, with_image: bool = True, system_message: str = SYSTEM_MESSAGE, params: dict = {}) -> daft.DataFrame:
     """Run structured output inference with or without images."""
     if with_image:
         messages = [col("image"), col("user")]
-        system = SYSTEM_PROMPT_WITH_IMAGE
         result_col = "result"
         correct_col = "is_correct"
     else:
         messages = col("user")
-        system = SYSTEM_PROMPT_NO_IMAGE
         result_col = "result_no_image"
         correct_col = "is_correct_no_image"
 
-    return df.with_column(
-        result_col,
-        prompt(
-            messages=messages,
-            system_message=system,
-            model=model_id,
-            use_chat_completions=True,
-            return_format=ChoiceResponse,
-        ),
-    ).with_column(
-        correct_col,
-        col(result_col)["choice"].lstrip().rstrip()
-        == col("answer").lstrip().rstrip(),
+    return (
+        df
+        .with_column(
+            result_col,
+            prompt(
+                messages=messages,
+                system_message=system_message,
+                model=model_id,
+                use_chat_completions=True,
+                return_format=ChoiceResponse,
+                **params,
+            ),
+        ).with_column(
+            correct_col,
+            col(result_col)["choice"].lstrip().rstrip()
+            == col("answer").lstrip().rstrip(),
+        )
     )
 
-
-def classify_quadrants(df):
+def classify_quadrants(df: daft.DataFrame) -> daft.DataFrame:
     """Classify results into diagnostic quadrants based on ablation results."""
     return df.with_column(
         "quadrant",
@@ -144,37 +145,7 @@ def classify_quadrants(df):
     )
 
 
-def run_judge(df, model_id: str):
-    """Run VLM-as-a-Judge on failure cases."""
-    judge_template = format(
-        """The model answered <predicted>{}</predicted> but the correct answer is <correct>{}</correct>.
-
-Without the image, the model answered <no_image>{}</no_image>.
-
-Question: {}
-
-Analyze why the model failed.""",
-        col("result")["choice"],
-        col("answer"),
-        col("result_no_image")["choice"],
-        col("user"),
-    )
-
-    return df.where(
-        (col("quadrant") == "Image Hurt") | (col("quadrant") == "Both Incorrect")
-    ).with_column(
-        "judge",
-        prompt(
-            messages=[col("image"), judge_template],
-            system_message=JUDGE_SYSTEM_PROMPT,
-            model=model_id,
-            use_chat_completions=True,
-            return_format=JudgeResponse,
-        ),
-    )
-
-
-def run_full_pipeline(subset: str, model_id: str, limit: int = None):
+def run_full_pipeline(source_uri: str, category: str, subset: str, model_id: str, system_message: str, params: dict, limit: int = None) -> daft.DataFrame:
     """
     Run the complete evaluation pipeline.
 
@@ -186,21 +157,16 @@ def run_full_pipeline(subset: str, model_id: str, limit: int = None):
     Returns:
         Collected DataFrame with quadrant classifications
     """
-    df = load_cauldron(subset)
-    df = preprocess(df)
-
-    if limit:
-        df = df.limit(limit)
-
-    df = run_inference(df, model_id, with_image=True)
-    df = run_inference(df, model_id, with_image=False)
-    df = df.with_columns({
-        "id":  monotonically_increasing_id(),
-        "model_id": daft.lit(model_id),
-    })
+    df = daft.read_parquet(source_uri)
+    df = preprocess(df, category=category, subset=subset, model_id=model_id, system_message=system_message, params=params)
+    df = run_inference_and_check_correctness(df, model_id, with_image=True)
+    df = run_inference_and_check_correctness(df, model_id, with_image=False)
     df = classify_quadrants(df)
 
-    return df.collect()
+    if limit is not None:
+        df = df.limit(limit)
+   
+    return df
 
 
 # ==============================================================================
@@ -208,121 +174,32 @@ def run_full_pipeline(subset: str, model_id: str, limit: int = None):
 # ==============================================================================
 
 if __name__ == "__main__":
-    import argparse
+    from daft.io import IOConfig, S3Config
 
-    # ========================
-    # Configuration 
-    # ========================
+    CATEGORY = os.getenv("CATEGORY", "general_visual_qna")
+    SUBSET = os.getenv("SUBSET", "ai2d")
+    LIMIT = 10 #os.getenv("LIMIT", None)
+    MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen3-VL-4B-Instruct")
+    SYSTEM_MESSAGE = os.getenv("SYSTEM_MESSAGE", SYSTEM_MESSAGE)
+    PARAMS = {"temperature": 0.7}
 
-    # Model & Provider
-    MODEL_ID = "Qwen/Qwen3-VL-4B-Instruct"
-    PROVIDER = "daft"  # "daft" or "openai"
-
-    # Output
-    OUTPUT_DIR = ".data/image_understanding_eval"
-    SKIP_JUDGE = False
-
-    # Defaults (can be overridden via CLI: --subset, --limit)
-    DEFAULT_SUBSET = "ai2d"
-    DEFAULT_LIMIT = None  # None = full dataset, set to int for testing
-
-    # ========================
-    # CLI Arguments 
-    # ========================
-
-    # CLI overrides for subset and limit 
-    parser = argparse.ArgumentParser(
-        description="Evaluate VLM image understanding with structured outputs"
-    )
-    parser.add_argument(
-        "--subset",
-        type=str,
-        default=DEFAULT_SUBSET,
-        help=f"The Cauldron subset to evaluate (default: {DEFAULT_SUBSET})",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=DEFAULT_LIMIT,
-        help="Limit number of rows (default: no limit)",
-    )
-    args = parser.parse_args()
-
-    # ========================
-    # Provider Setup
-    # ========================
-
-    if os.environ.get("HF_TOKEN", None) is not None:
-        daft.set_provider(
-            "openai",
-            api_key=os.environ["HF_TOKEN"],
-            base_url="https://router.huggingface.co/v1",
+    SOURCE_URI = f"s3://daft-public-datasets/the_cauldron/{CATEGORY}/{SUBSET}/*.parquet"
+    DEST_URI = "s3://daft-public-datasets/the_cauldron/evals/image_ablation/"
+    
+    daft.set_provider("daft")
+    daft.set_planning_config(
+        default_io_config=IOConfig(
+            s3=S3Config(
+                region_name="us-west-2",
+                key_id=os.getenv("S3_ACCESS_KEY_ID"),
+                access_key=os.getenv("S3_SECRET_ACCESS_KEY"),
+                session_token=os.getenv("S3_SESSION_TOKEN"),
+            )
         )
-    else:
-        daft.set_provider("daft")
-
-    # ========================
-    # Run Evaluation Pipeline
-    # ========================
-
-    # Run the main pipeline
-    print(f"\nRunning evaluation pipeline for {MODEL_ID} on {args.subset}...")
-    df_results = run_full_pipeline(args.subset, MODEL_ID, args.limit)
-
-    # Calculate and display accuracy
-    total = df_results.count_rows()
-    accuracy_with_image = (
-        df_results.where(col("is_correct")).count_rows() / total
-    )
-    accuracy_no_image = (
-        df_results.where(col("is_correct_no_image")).count_rows() / total
     )
 
-    print(f"\nResults ({total} rows):")
-    print(f"  Accuracy with image:    {accuracy_with_image:.1%}")
-    print(f"  Accuracy without image: {accuracy_no_image:.1%}")
-    print(f"  Delta:                  {accuracy_with_image - accuracy_no_image:+.1%}")
+    df = run_full_pipeline(source_uri=SOURCE_URI, category=CATEGORY, subset=SUBSET, model_id=MODEL_ID, system_message=SYSTEM_MESSAGE, params=PARAMS, limit=LIMIT)
 
-    # Display quadrant distribution
-    print("\nQuadrant Distribution:")
-    df_results.groupby("quadrant").count().select(
-        "quadrant", col("id").alias("count")
-    ).show()
+    df.write_parquet(DEST_URI, write_mode="append")
 
-    # ========================
-    # Run Judge Evaluation
-    # ========================
-
-    if not SKIP_JUDGE:
-        print("\nRunning VLM-as-a-Judge on failures...")
-        df_judge = run_judge(df_results, MODEL_ID).collect()
-
-        judge_count = df_judge.count_rows()
-        print(f"Judged {judge_count} failures")
-
-        if judge_count > 0:
-            print("\nSample Judge Feedback:")
-            df_judge.select(
-                "id",
-                "quadrant",
-                col("judge")["reasoning"].alias("reasoning"),
-                col("judge")["hypothesis"].alias("hypothesis"),
-                col("judge")["attribution"].alias("attribution"),
-            ).show()
-
-    # ========================
-    # Persist Results
-    # ========================
-
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    results_path = os.path.join(OUTPUT_DIR, f"{args.subset}_results.parquet")
-    df_results.write_parquet(results_path)
-    print(f"\nResults saved to {results_path}")
-
-    if not SKIP_JUDGE:
-        judge_path = os.path.join(OUTPUT_DIR, f"{args.subset}_judge.parquet")
-        df_judge.write_parquet(judge_path)
-        print(f"Judge feedback saved to {judge_path}")
-
-    print("\nEvaluation complete!")
+    daft.read_parquet(DEST_URI).show()

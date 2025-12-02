@@ -19,17 +19,23 @@ subsets = {
     "screenshot_to_code": ["websight", "datikz"],
 }
 
-category = os.getenv("CATEGORY", None)
-if category is None:
+CATEGORY = os.getenv("CATEGORY", None)
+if CATEGORY is None:
     raise ValueError("CATEGORY environment variable is not set")
 
-for subset in subsets[category]:
-    DEST_URI = S3_URI + category + "/" + subset
+if CATEGORY in ["captioning", "general_visual_qna"]:
+    raise ValueError(f"You already ran {CATEGORY}! Dont process 100's of GBs of data again.")
+
+WRITE_MODE = os.getenv("WRITE_MODE", "overwrite")
+
+for subset in subsets[CATEGORY]:
+    DEST_URI = S3_URI + CATEGORY + "/" + subset
 
     df = daft.read_parquet(f"hf://datasets/HuggingFaceM4/the_cauldron/{subset}/*.parquet")
     df = df.explode("images").with_column("image", daft.col("images")["bytes"].decode_image().convert_image("RGB"))
     df.select("image", "texts").write_parquet(
         DEST_URI,
+        write_mode=WRITE_MODE,
         io_config=IOConfig(
             s3 = S3Config(
                 region_name="us-west-2",
