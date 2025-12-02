@@ -174,6 +174,7 @@ def run_full_pipeline(source_uri: str, category: str, subset: str, model_id: str
     """
     df = daft.read_parquet(source_uri)
     if limit is not None:
+        limit = int(limit)
         df = df.limit(limit)
 
     df = preprocess(df, category=category, subset=subset, model_id=model_id, params=params)
