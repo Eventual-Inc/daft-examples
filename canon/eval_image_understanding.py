@@ -30,12 +30,14 @@ from daft.functions import (
     format,
 )
 
+
 class ChoiceResponse(BaseModel):
     """Structured output for multiple choice answers."""
 
     choice: str = Field(
         ..., description="The letter of the correct choice (e.g., A, B, C, D)"
     )
+
 
 class JudgeResponse(BaseModel):
     """Structured diagnostic feedback from the VLM judge."""
@@ -53,32 +55,37 @@ class JudgeResponse(BaseModel):
 
 
 # ========================
-# Configuration 
+# Configuration
 # ========================
 
 # System Prompts
-SYSTEM_MESSAGE = (
-    "Referencing the attached image, respond to the multiple choice question with just the letter corresponding to the correct answer. Do not include any other text."
-)
+SYSTEM_MESSAGE = "Referencing the attached image, respond to the multiple choice question with just the letter corresponding to the correct answer. Do not include any other text."
 
-def preprocess(df: daft.DataFrame, category: str, subset: str, model_id: str, system_message: str, params: dict) -> daft.DataFrame:
+
+def preprocess(
+    df: daft.DataFrame,
+    category: str,
+    subset: str,
+    model_id: str,
+    system_message: str,
+    params: dict,
+) -> daft.DataFrame:
     """Preprocess images and text from The Cauldron format."""
 
-    # Track Evaluation Inputs (Prompt Arguments) 
+    # Track Evaluation Inputs (Prompt Arguments)
     df = df.with_columns(
         {
-            "category": daft.lit(category), 
+            "category": daft.lit(category),
             "subset": daft.lit(subset),
             "model_id": daft.lit(model_id),
             "system_message": daft.lit(system_message),
             "params": daft.lit(json.dumps(params, indent=4)),
         }
     )
- 
+
     df = (
-        df
-        .explode("texts")
-        .select("*", unnest(col("texts"))) 
+        df.explode("texts")
+        .select("*", unnest(col("texts")))
         # Create deterministic prompt_id from content only (allows tracking unique questions across models)
         .with_column(
             "prompt_hash_64",
@@ -88,14 +95,20 @@ def preprocess(df: daft.DataFrame, category: str, subset: str, model_id: str, sy
                 + col("assistant")
                 + col("params")
                 + col("image").encode_image("PNG").decode("base64").substr(0, 64)
-            ).hash(hash_function="xxhash3_64")
+            ).hash(hash_function="xxhash3_64"),
         )
     )
 
     return df
 
 
-def run_inference_and_check_correctness(df: daft.DataFrame, model_id: str, with_image: bool = True, system_message: str = SYSTEM_MESSAGE, params: dict = {}) -> daft.DataFrame:
+def run_inference_and_check_correctness(
+    df: daft.DataFrame,
+    model_id: str,
+    with_image: bool = True,
+    system_message: str = SYSTEM_MESSAGE,
+    params: dict = {},
+) -> daft.DataFrame:
     """Run structured output inference with or without images."""
     if with_image:
         messages = [col("image"), col("user")]
@@ -106,24 +119,21 @@ def run_inference_and_check_correctness(df: daft.DataFrame, model_id: str, with_
         result_col = "result_no_image"
         correct_col = "is_correct_no_image"
 
-    return (
-        df
-        .with_column(
-            result_col,
-            prompt(
-                messages=messages,
-                system_message=system_message,
-                model=model_id,
-                use_chat_completions=True,
-                return_format=ChoiceResponse,
-                **params,
-            ),
-        ).with_column(
-            correct_col,
-            col(result_col)["choice"].lstrip().rstrip()
-            == col("answer").lstrip().rstrip(),
-        )
+    return df.with_column(
+        result_col,
+        prompt(
+            messages=messages,
+            system_message=system_message,
+            model=model_id,
+            use_chat_completions=True,
+            return_format=ChoiceResponse,
+            **params,
+        ),
+    ).with_column(
+        correct_col,
+        col(result_col)["choice"].lstrip().rstrip() == col("answer").lstrip().rstrip(),
     )
+
 
 def classify_quadrants(df: daft.DataFrame) -> daft.DataFrame:
     """Classify results into diagnostic quadrants based on ablation results."""
@@ -145,7 +155,15 @@ def classify_quadrants(df: daft.DataFrame) -> daft.DataFrame:
     )
 
 
-def run_full_pipeline(source_uri: str, category: str, subset: str, model_id: str, system_message: str, params: dict, limit: int = None) -> daft.DataFrame:
+def run_full_pipeline(
+    source_uri: str,
+    category: str,
+    subset: str,
+    model_id: str,
+    system_message: str,
+    params: dict,
+    limit: int = None,
+) -> daft.DataFrame:
     """
     Run the complete evaluation pipeline.
 
@@ -158,14 +176,21 @@ def run_full_pipeline(source_uri: str, category: str, subset: str, model_id: str
         Collected DataFrame with quadrant classifications
     """
     df = daft.read_parquet(source_uri)
-    df = preprocess(df, category=category, subset=subset, model_id=model_id, system_message=system_message, params=params)
+    df = preprocess(
+        df,
+        category=category,
+        subset=subset,
+        model_id=model_id,
+        system_message=system_message,
+        params=params,
+    )
     df = run_inference_and_check_correctness(df, model_id, with_image=True)
     df = run_inference_and_check_correctness(df, model_id, with_image=False)
     df = classify_quadrants(df)
 
     if limit is not None:
         df = df.limit(limit)
-   
+
     return df
 
 
@@ -178,14 +203,16 @@ if __name__ == "__main__":
 
     CATEGORY = os.getenv("CATEGORY", "general_visual_qna")
     SUBSET = os.getenv("SUBSET", "hateful_memes")
-    LIMIT = 10 #os.getenv("LIMIT", None)
+    LIMIT = 10  # os.getenv("LIMIT", None)
     MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen3-VL-4B-Instruct")
     SYSTEM_MESSAGE = os.getenv("SYSTEM_MESSAGE", SYSTEM_MESSAGE)
     PARAMS = {"temperature": 0.7}
 
-    SOURCE_URI = f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
+    SOURCE_URI = (
+        f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
+    )
     DEST_URI = "s3://daft-public-datasets/the_cauldron/evals/image_ablation/"
-    
+
     daft.set_provider("daft")
     daft.set_planning_config(
         default_io_config=IOConfig(
@@ -198,9 +225,19 @@ if __name__ == "__main__":
         )
     )
 
-    print(f"Running evaluation pipeline for {CATEGORY} {SUBSET} with {MODEL_ID} and {SYSTEM_MESSAGE} and {PARAMS} and {LIMIT}")
+    print(
+        f"Running evaluation pipeline for {CATEGORY} {SUBSET} with {MODEL_ID} and {SYSTEM_MESSAGE} and {PARAMS} and {LIMIT}"
+    )
 
-    df = run_full_pipeline(source_uri=SOURCE_URI, category=CATEGORY, subset=SUBSET, model_id=MODEL_ID, system_message=SYSTEM_MESSAGE, params=PARAMS, limit=LIMIT)
+    df = run_full_pipeline(
+        source_uri=SOURCE_URI,
+        category=CATEGORY,
+        subset=SUBSET,
+        model_id=MODEL_ID,
+        system_message=SYSTEM_MESSAGE,
+        params=PARAMS,
+        limit=LIMIT,
+    )
 
     df.write_parquet(DEST_URI, write_mode="append")
 
