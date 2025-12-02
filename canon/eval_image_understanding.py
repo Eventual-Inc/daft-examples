@@ -87,7 +87,7 @@ def preprocess(df: daft.DataFrame, category: str, subset: str, model_id: str, sy
                 + col("user")
                 + col("assistant")
                 + col("params")
-                + col("image").encode_image("PNG").encode("base64").substr(0, 64)
+                + col("image").encode_image("PNG").decode("base64").substr(0, 64)
             ).hash(hash_function="xxhash3_64")
         )
     )
