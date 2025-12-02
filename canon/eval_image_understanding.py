@@ -177,7 +177,7 @@ if __name__ == "__main__":
     from daft.io import IOConfig, S3Config
 
     CATEGORY = os.getenv("CATEGORY", "general_visual_qna")
-    SUBSET = os.getenv("SUBSET", "ai2d")
+    SUBSET = os.getenv("SUBSET", "hateful_memes")
     LIMIT = 10 #os.getenv("LIMIT", None)
     MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen3-VL-4B-Instruct")
     SYSTEM_MESSAGE = os.getenv("SYSTEM_MESSAGE", SYSTEM_MESSAGE)
@@ -198,6 +198,8 @@ if __name__ == "__main__":
         )
     )
 
+    print(f"Running evaluation pipeline for {CATEGORY} {SUBSET} with {MODEL_ID} and {SYSTEM_MESSAGE} and {PARAMS} and {LIMIT}")
+    
     df = run_full_pipeline(source_uri=SOURCE_URI, category=CATEGORY, subset=SUBSET, model_id=MODEL_ID, system_message=SYSTEM_MESSAGE, params=PARAMS, limit=LIMIT)
 
     df.write_parquet(DEST_URI, write_mode="append")
