@@ -108,7 +108,7 @@ def main():
     print("-" * 40)
 
     # Count total rows
-    total_count = df.count("text").collect()
+    total_count = df.count().collect()
     print(f"Total rows: {total_count}")
 
     # Count unique labels
@@ -128,11 +128,11 @@ def main():
 
     # Filter for specific labels (e.g., label 0 = sadness)
     sadness_df = df.filter(col("label") == 0)
-    print(f"Rows with label=0 (sadness): {sadness_df.count('text').collect()}")
+    print(f"Rows with label=0 (sadness): {sadness_df.count().collect()}")
 
     # Filter with string operations - texts containing "love"
     love_texts = df.filter(col("text").str.contains("love"))
-    print(f"Rows containing 'love': {love_texts.count('text').collect()}")
+    print(f"Rows containing 'love': {love_texts.count().collect()}")
 
     # Preview filtered data
     print("\nSample texts containing 'love':")
