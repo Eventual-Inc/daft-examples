@@ -237,18 +237,26 @@ if __name__ == "__main__":
         .with_column("result", transcriber.transcribe(col("audio_file")))
         # Step 4: Unpack the structured result into separate columns
         .select("path", unnest(col("result")))
-        # Step 5: Explode segments to get one row per segment
+    )
+
+    # Collect the base transcript results for reuse
+    df_transcript_result = df_transcript.collect()
+
+    # ==============================================================================
+    # Execute and Display Detailed Results
+    # ==============================================================================
+
+    # Process segments for detailed view
+    df_segments = (
+        df_transcript_result.to_daft()
+        # Explode segments to get one row per segment
         .explode("segments")
-        # Step 6: Unnest segment details for analysis
+        # Unnest segment details for analysis
         .select("path", "info", "transcript", unnest(col("segments")))
     )
 
-    # ==============================================================================
-    # Execute and Display Results
-    # ==============================================================================
-
-    # Collect and display the results
-    result = df_transcript.collect()
+    # Collect and display the segment-level results
+    result = df_segments.collect()
     result.show(format="fancy", max_width=40)
 
     # ==============================================================================
@@ -260,12 +268,9 @@ if __name__ == "__main__":
     print("Transcription Summary")
     print("=" * 60)
 
-    # Get unique transcripts
+    # Reuse the collected results for summary (no redundant model inference)
     summary_df = (
-        daft.from_glob_path(SOURCE_URI)
-        .with_column("audio_file", file(col("path")))
-        .with_column("result", transcriber.transcribe(col("audio_file")))
-        .select("path", unnest(col("result")))
+        df_transcript_result.to_daft()
         .select("path", "transcript", col("info").struct.get("language").alias("language"))
     )
 
