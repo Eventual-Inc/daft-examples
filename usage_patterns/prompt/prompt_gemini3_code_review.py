@@ -14,37 +14,40 @@ load_dotenv()
 
 pwd = os.path.dirname(os.path.abspath(__file__))
 
+
 class Evaluation(BaseModel):
-    quality_score: int = Field(description="The quality of the code on a scale of 1 to 10")
+    quality_score: int = Field(
+        description="The quality of the code on a scale of 1 to 10"
+    )
     improvements: list[str] = Field(description="Suggestions for improvements")
     reasoning: str = Field(description="The reasoning behind the evaluation")
 
 
 daft.set_provider(
-    "openai", 
-    api_key=os.environ.get("GEMINI_API_KEY"), 
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    "openai",
+    api_key=os.environ.get("GEMINI_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
 )
 
 df = (
     # Discover Python Files
     daft.from_glob_path(os.path.join(pwd, "*.py"))
-
     # Prompt the Gemini 3 model to review the code using the chat completions API
     .with_column(
         "review",
         prompt(
-            messages = [
-                daft.lit("Evaluate the quality of the following python code and suggest improvements"), 
-                file(daft.col("path"))
+            messages=[
+                daft.lit(
+                    "Evaluate the quality of the following python code and suggest improvements"
+                ),
+                file(daft.col("path")),
             ],
             system_message="You are a principal python developer.",
-            model="gemini-3-pro-preview", 
+            model="gemini-3-pro-preview",
             use_chat_completions=True,
             return_format=Evaluation,
         ),
     )
-
     .select("path", unnest(col("review")))
 )
 

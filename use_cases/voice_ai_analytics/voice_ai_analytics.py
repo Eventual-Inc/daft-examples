@@ -101,10 +101,10 @@ if __name__ == "__main__":
     # Transcribe the audio files
     if not os.path.exists(os.path.join(DEST_URI, "transcripts.parquet")):
         from transcribe_faster_whisper import FasterWhisperTranscriber
-        
+
         # Instantiate Transcription UDF
         fwt = FasterWhisperTranscriber()
-        
+
         # Transcribe the audio files
         df_transcript = (
             # Discover the audio files

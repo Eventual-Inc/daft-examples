@@ -178,9 +178,6 @@ def run_full_pipeline(source_uri: str, category: str, subset: str, model_id: str
         df = df.limit(limit)
 
     df = preprocess(df, category=category, subset=subset, model_id=model_id, params=params)
-    
-    
-
     df = run_inference(df, model_id, with_image=True)
     df = run_inference(df, model_id, with_image=False)
     df = classify_quadrants(df)

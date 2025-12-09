@@ -12,34 +12,32 @@ from dotenv import load_dotenv
 load_dotenv()
 
 daft.set_provider(
-    "openai", 
-    api_key=os.environ.get("OPENROUTER_API_KEY"), 
-    base_url="https://openrouter.ai/api/v1"
+    "openai",
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1",
 )
 
 # Create a dataframe with the quotes
 df = (
     daft.read_huggingface("nvidia/Nemotron-Personas-USA")
-
     # Craft Prompt Template
     .with_column(
-        "prompt", 
+        "prompt",
         format(
             "Asumming the persona of <persona>{}</persona> answer the following question: <question>{}</question> ",
             daft.col("professional_persona"),
-            daft.lit("Who will win the race to AGI?")
-        )
+            daft.lit("Who will win the race to AGI?"),
+        ),
     )
-
     # Prompt with Chat Completions
     .with_column(
         "response",
         prompt(
-            messages = daft.col("prompt"),
+            messages=daft.col("prompt"),
             system_message="Impersonating the persona provided, authentically represent your perspective to the prompt posed.",
-            model="google/gemini-2.5-flash", 
+            model="google/gemini-2.5-flash",
             use_chat_completions=True,
-            max_tokens = 100,
+            max_tokens=100,
         ),
     )
 )

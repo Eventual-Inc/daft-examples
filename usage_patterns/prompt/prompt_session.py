@@ -31,7 +31,7 @@ df = daft.from_pydict(
             "I am going to be the king of the pirates!",
             "I'm going to be the next Hokage!",
         ],
-        "temperature": [0.2, 0.9], # Experiment with different temperatures
+        "temperature": [0.2, 0.9],  # Experiment with different temperatures
     }
 )
 
@@ -43,7 +43,7 @@ df = df.with_column(
         system_message="Classify the anime from the quote and return the show, character name, and explanation.",
         provider=sess.get_provider("OpenRouter"),
         model="nvidia/nemotron-nano-9b-v2:free",
-        #temperature=daft.col("temperature"),
+        # temperature=daft.col("temperature"),
     ),
 )
 

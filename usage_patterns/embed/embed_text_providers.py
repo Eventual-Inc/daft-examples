@@ -12,8 +12,7 @@ load_dotenv()
 df = daft.read_huggingface("togethercomputer/RedPajama-Data-1T")
 
 df = (
-    df
-    .with_column(
+    df.with_column(
         "embeddings_transformers",
         embed_text(
             daft.col("text"),
@@ -22,9 +21,9 @@ df = (
         ),
     )
     .with_column(
-        "embeddings_openai", 
+        "embeddings_openai",
         embed_text(
-            daft.col("text"), 
+            daft.col("text"),
             provider="openai",  # Ensure OpenAI API key is set
             model="text-embedding-3-small",
         ),
@@ -33,11 +32,10 @@ df = (
         "embeddings_lm_studio",
         embed_text(
             daft.col("text"),
-            provider="lm_studio", # Ensure LM Studio Server is running with the model loaded
+            provider="lm_studio",  # Ensure LM Studio Server is running with the model loaded
             model="text-embedding-nomic-embed-text-v1.5",
         ),
     )
 )
 
 df.limit(3).show()
-

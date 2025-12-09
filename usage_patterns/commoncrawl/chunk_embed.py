@@ -19,14 +19,13 @@ SpacyReturnType = DataType.list(
     )
 )
 
+
 @daft.cls()
 class SpacyChunker:
     def __init__(self, model="en_core_web_sm"):
         self.nlp = spacy.load(model)
 
-    @daft.method(
-        return_dtype=SpacyReturnType
-    )
+    @daft.method(return_dtype=SpacyReturnType)
     def chunk_text(self, text: str):
         doc = self.nlp(text)
         return [
@@ -39,7 +38,6 @@ class SpacyChunker:
             }
             for i, sent in enumerate(doc.sents)
         ]
-        
 
 
 if __name__ == "__main__":
@@ -113,4 +111,6 @@ if __name__ == "__main__":
         ),
     )
 
-    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(format="fancy", max_width=20)
+    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(
+        format="fancy", max_width=20
+    )

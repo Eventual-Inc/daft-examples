@@ -12,15 +12,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 daft.set_provider(
-    "openai", 
-    api_key=os.environ.get("OPENROUTER_API_KEY"), 
-    base_url="https://openrouter.ai/api/v1"
+    "openai",
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1",
 )
+
 
 class Anime(BaseModel):
     show: str = Field(description="The name of the anime show")
     character: str = Field(description="The name of the character who says the quote")
     explanation: str = Field(description="Why the character says the quote")
+
 
 # Create a dataframe with the quotes
 df = daft.from_pydict(

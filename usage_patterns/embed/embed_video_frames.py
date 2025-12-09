@@ -6,7 +6,7 @@
 import daft
 from daft.functions import embed_image
 
-VIDEOS = [  
+VIDEOS = [
     "https://www.youtube.com/watch?v=y5hs7q_LaLM&pp=ygULZGFmdCBlbmdpbmU",
 ]
 DEST_URI = ".data/embed_video_frames"
