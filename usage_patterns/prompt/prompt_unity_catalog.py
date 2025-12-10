@@ -16,6 +16,7 @@ load_dotenv()
 DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
 DATABRICKS_ENDPOINT = os.getenv("DATABRICKS_ENDPOINT")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TABLE_NAME = os.getenv("TABLE_NAME")
 
 # Configure UnityCatalog
 unity = UnityCatalog(
@@ -26,6 +27,8 @@ unity = UnityCatalog(
 # Configure OpenAI Provider
 daft.set_provider("openai", api_key=OPENAI_API_KEY)
 
+coco_table = unity.load_table(TABLE_NAME)
 
-df = daft.read_huggingface("NebulaByte/E-Commerce_Customer_Support_Conversations") # 1000 rows
-df.write_parquet("/Users/everettkleven/Desktop/data/datasets")
+tbl = Table.from_unity(coco_table)
+df = daft.read_table(tbl)
+
