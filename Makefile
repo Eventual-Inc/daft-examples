@@ -47,5 +47,6 @@ test-prompt:
 test-udfs:
 	uv run usage_patterns/udfs/daft_cls_with_types.py
 	uv run usage_patterns/udfs/daft_func.py
+	uv run usage_patterns/udfs/udf_faster_whisper.py
 
 test-all: test-classify test-commoncrawl test-embed test-io test-prompt test-udfs
