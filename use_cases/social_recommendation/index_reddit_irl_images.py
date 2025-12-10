@@ -67,9 +67,9 @@ if __name__ == "__main__":
         default_io_config=IOConfig(
             s3=S3Config(
                 region_name="us-west-2",
-                key_id=os.getenv("S3_ACCESS_KEY_ID"),
-                access_key=os.getenv("S3_SECRET_ACCESS_KEY"),
-                session_token=os.getenv("S3_SESSION_TOKEN"),
+                key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+                session_token=os.getenv("AWS_SESSION_TOKEN"),
             )
         )
     )
