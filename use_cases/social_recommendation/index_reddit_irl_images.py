@@ -85,11 +85,10 @@ if __name__ == "__main__":
         .where(col("url").length() > 0) 
         .with_column("bytes", download(daft.col("url"), on_error="null"))
         .where(col("bytes").not_null())
-        .with_column("mono_id", monotonically_increasing_id())
     )
 
     if MONO_ID is not None:
-        df = df.where(col("mono_id") > int(MONO_ID))
+        df = df.with_column("mono_id", monotonically_increasing_id()).where(col("mono_id") > int(MONO_ID))
 
     df = (
         df
