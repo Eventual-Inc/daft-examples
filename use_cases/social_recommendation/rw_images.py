@@ -1,7 +1,7 @@
 import os
 import daft 
 from daft import col, lit
-from daft.functions import format
+from daft.functions import format, monotonically_increasing_id
 from daft.io import IOConfig, S3Config
 import numpy as np
 from PIL import Image
@@ -47,11 +47,10 @@ class ImageWriter:
 
 if __name__ == "__main__":
     CATEGORY = os.getenv("CATEGORY", "general_visual_qna")
-    SUBSET = os.getenv("SUBSET", "cocoqa")
 
-    SOURCE_URI = f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
     DEST_URI = f"s3://daft-public-datasets/the_cauldron/all_images"
     UNITY_TABLE = "jaytest-unity.demo.all_images"
+
 
     # Configure UnityCatalog
     unity = UnityCatalog(
@@ -87,13 +86,20 @@ if __name__ == "__main__":
     #unity_table = unity.load_table(UNITY_TABLE)
     #unity_table.table_info()
 
-    df = daft.read_parquet(SOURCE_URI)
-    df = df.with_column("subset", lit(SUBSET))
-    df = df.with_column("category", lit(CATEGORY))
-    df = df.with_column("image_hash", col("image").encode_image("png").hash())
-    df = df.with_column("image_path", format("{}/{}_{}_xxhash{}.png", lit(DEST_URI), lit(CATEGORY), lit(SUBSET), col("image_hash")))
-    df = df.with_column("image_written", image_writer.write_images(col("image"), col("image_path")))
     
-    df_unity = df.select(col("image_written").alias("uri"), col("subset"), col("category"), col("image_hash")).write_deltalake(f"{DEST_URI}/index.deltalake", mode="overwrite")
+    for SUBSET in ["vqav2", "tallyqa", "aokvqa"]:
+        SOURCE_URI = f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
+
+        df = daft.read_parquet(SOURCE_URI)
+        print(df.count_rows())
+        df = df.with_column("id", monotonically_increasing_id()).where(col("id") > 29524)
+        df = df.with_column("subset", lit(SUBSET))
+        df = df.with_column("category", lit(CATEGORY))
+        df = df.with_column("image_hash", col("image").encode_image("png").hash())
+        df = df.with_column("image_path", format("{}/{}_{}_xxhash{}.png", lit(DEST_URI), lit(CATEGORY), lit(SUBSET), col("image_hash")))
+        df = df.with_column("image_written", image_writer.write_images(col("image"), col("image_path")))
+        
+        
+        df.select(col("image_written").alias("uri"), col("subset"), col("category"), col("image_hash")).write_deltalake(f"{DEST_URI}/_index.deltalake", mode="overwrite")
     
 

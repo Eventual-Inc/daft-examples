@@ -14,4 +14,5 @@ dependencies = [
     "pydantic",
     "python-dotenv",
     "aioboto3",
+    "IPython",
 ]
