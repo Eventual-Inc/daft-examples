@@ -78,6 +78,9 @@ If you don't have `uv`, check out this [installation guide](https://docs.astral.
 - [`io/read_pdfs.py`](usage_patterns/io/read_pdfs.py) - Discover and download PDF files from URLs
 - [`io/read_video_files.py`](usage_patterns/io/read_video_files.py) - Extract video metadata, keyframes, and audio from video files
 
+### Data Transformations
+- [`data_transformations/explore_filter_aggregate.py`](usage_patterns/data_transformations/explore_filter_aggregate.py) - Data exploration, filtering, column transformations, and aggregations with Daft (Contributor: GitHub Copilot)
+
 ## Use Cases
 
 ### Transcription
