@@ -83,8 +83,6 @@ if __name__ == "__main__":
         df
         .with_column("created_utc", col("created_utc").cast(daft.DataType.timestamp("ms", "UTC")))
         .where(col("url").length() > 0) 
-        .with_column("bytes", download(daft.col("url"), on_error="null"))
-        .where(col("bytes").not_null())
     )
 
     if MONO_ID is not None:
@@ -92,6 +90,8 @@ if __name__ == "__main__":
 
     df = (
         df
+        .with_column("bytes", download(daft.col("url"), on_error="null"))
+        .where(col("bytes").not_null())
         .with_column("image_xxhash", col("bytes").hash())
         .with_column("image_path", format("{}/{}_xxhash{}_id{}.png", lit(DEST_URI), lit("reddit-irl"), col("image_xxhash"), col("id")))
         .with_column("image_written", image_writer.write_images(col("bytes"), col("image_path")))
