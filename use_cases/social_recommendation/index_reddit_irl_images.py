@@ -44,8 +44,7 @@ if __name__ == "__main__":
     SOURCE_URI = "s3://daft-public-datasets/reddit-irl/source"
     DEST_URI = "s3://daft-public-datasets/reddit-irl/all_images"
     LIMIT = os.getenv("LIMIT", None)
-    MONO_ID = os.getenv("MONO_ID", None)
-    WRITE_MODE = os.getenv("WRITE_MODE", "append")
+
 
     columns = [
         "type", 
@@ -74,22 +73,27 @@ if __name__ == "__main__":
         )
     )
 
+    # Initialize image writer
     image_writer = ImageWriter()
 
-    # Pipeline
-    df = daft.read_parquet(f"{SOURCE_URI}/*.parquet")
+    # Read from the source table
+    source_df = daft.read_parquet(f"{SOURCE_URI}/*.parquet")
 
-    df = (
-        df
-        .with_column("created_utc", col("created_utc").cast(daft.DataType.timestamp("ms", "UTC")))
-        .where(col("url").length() > 0) 
+    # Read the existing index
+    dest_df = daft.read_parquet(f"{DEST_URI}/_reddit_irl_images_index.parquet/*.parquet")
+
+    # Anti-join: keep only rows from source that DON'T exist in dest df
+    source_df = source_df.join(
+        dest_df.select("id"), 
+        on="id",
+        how="anti",
+        strateg="hash",
     )
 
-    if MONO_ID is not None:
-        df = df.with_column("mono_id", monotonically_increasing_id()).where(col("mono_id") > int(MONO_ID))
-
     df = (
-        df
+        source_df
+        .with_column("created_utc", col("created_utc").cast(daft.DataType.timestamp("ms", "UTC")))
+        .where(col("url").length() > 0) 
         .with_column("bytes", download(daft.col("url"), on_error="null"))
         .where(col("bytes").not_null())
         .with_column("image_xxhash", col("bytes").hash())
@@ -101,5 +105,5 @@ if __name__ == "__main__":
     if LIMIT:
         df = df.limit(int(LIMIT))
     
-    # Write
-    df.select(*columns).write_parquet(f"{DEST_URI}/_reddit_irl_images_index.parquet", write_mode=WRITE_MODE)
+    # Write to the index
+    df.select(*columns).write_parquet(f"{DEST_URI}/_reddit_irl_images_index.parquet", write_mode="append")
