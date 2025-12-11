@@ -43,7 +43,7 @@ index_df = (
         "image_xxhash", 
         col("path").regexp_extract(r"_xxhash([0-9]+)_id", 1).cast(daft.DataType.uint64())
     )
-).show()
+)
 
 # --------------------------------------------------------------
 # Read source metadata to enrich the index
