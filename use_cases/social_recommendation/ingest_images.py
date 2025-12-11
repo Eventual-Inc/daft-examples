@@ -67,7 +67,7 @@ df = (
         "image_path",
         format("{}/{}_xxhash{}_id{}.png", lit(DEST_URI), lit("reddit-irl"), col("image_xxhash"), col("id"))
     )
-    .with_column("image_written", upload(col("bytes"), location=col("image_path")), max_connections=64)
+    .with_column("image_written", upload(col("bytes"), location=col("image_path"), max_connections=64))
 )
 
 # Execute --------------------------------------------------------------
