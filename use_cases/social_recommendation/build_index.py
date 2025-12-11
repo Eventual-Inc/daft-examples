@@ -38,11 +38,12 @@ files_df = daft.from_glob_path(f"{IMAGES_URI}/*.png")
 # Extract metadata from path and include file info from glob
 index_df = (
     files_df
-    .with_column("id", col("path").regexp_extract(r"_id(\d+)\.png$", 1))
+    .with_column("id", col("path").regexp_extract(r"_id([a-zA-Z0-9]+)\.png$", 1))
     .with_column(
         "image_xxhash", 
-        col("path").regexp_extract(r"_xxhash(-?\d+)_", 1).cast(daft.DataType.int64()))
-)
+        col("path").regexp_extract(r"_xxhash([0-9]+)_id", 1).cast(daft.DataType.uint64())
+    )
+).show()
 
 # --------------------------------------------------------------
 # Read source metadata to enrich the index
