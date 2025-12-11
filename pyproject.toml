@@ -15,4 +15,6 @@ dependencies = [
     "python-dotenv",
     "aioboto3",
     "IPython",
+    "ipykernel",
+    "ipywidgets",
 ]
