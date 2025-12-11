@@ -1,16 +1,10 @@
 import os
 import daft 
 from daft import col, lit
-from daft.functions import format, download, monotonically_increasing_id
+from daft.functions import format, download
 from daft.io import IOConfig, S3Config
-import numpy as np
-from PIL import Image
 import aioboto3
 
-from daft.unity_catalog import UnityCatalog
-from daft.catalog import Table
-#from dotenv import load_dotenv
-#load_dotenv()
 
 @daft.cls()
 class ImageWriter:
