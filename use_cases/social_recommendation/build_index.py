@@ -97,11 +97,6 @@ final_df.write_parquet(IMAGES_INDEX_URI, write_mode="overwrite")
 
 # --------------------------------------------------------------
 # Build and display statistics 
-print("\n" + "=" * 60)
-print("INDEX STATISTICS")
-print("=" * 60)
-
-# Read back the written index for accurate stats
 index_df = daft.read_parquet(f"{IMAGES_INDEX_URI}/*.parquet")
 
 # Overall stats
@@ -118,8 +113,8 @@ stats = index_df.agg(
     daft.functions.count_distinct(col("domain")).alias("unique_domains"),
 ).collect()
 
+print("\n" + "=" * 60)
 print("INDEX STATISTICS")
-print("=" * 60)
 stats.show()
 
 print("\n" + "=" * 60)

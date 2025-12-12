@@ -13,6 +13,11 @@ import daft
 from daft import col, lit
 from daft.functions import format, download, upload
 from daft.io import IOConfig, S3Config
+from dotenv import load_dotenv
+
+# --------------------------------------------------------------
+# Configuration
+load_dotenv()
 
 daft.set_planning_config(
     default_io_config=IOConfig(
@@ -25,24 +30,21 @@ daft.set_planning_config(
     )
 )
 
-
 SOURCE_URI = "s3://daft-public-datasets/reddit-irl/source"
 DEST_URI = "s3://daft-public-datasets/reddit-irl/all_images"
 LIMIT = os.getenv("LIMIT", None)
 
 # --------------------------------------------------------------
-# Read from the source table
+# PIPILINE
 source_df = daft.read_parquet(f"{SOURCE_URI}/*.parquet")
 
-# --------------------------------------------------------------
 # Glob existing images from s3
 existing_files = (
     daft.from_glob_path(f"{DEST_URI}/*.png")
     .with_column("id", col("path").regexp_extract(r"_id([a-zA-Z0-9]+)\.png$", 1))
 )
 
-# --------------------------------------------------------------
-# Anti-join: keep only rows from source that DON'T already have images in S3
+# Filter out rows that have processed already
 df = source_df.join(
     existing_files.select("id"),
     on="id",
@@ -50,12 +52,6 @@ df = source_df.join(
     strategy="hash",
 )
 
-# --------------------------------------------------------------
-# Optionally apply limit
-if LIMIT:
-    df = df.limit(int(LIMIT))
-
-# --------------------------------------------------------------
 # Download images from urls and upload to s3
 df = (
     df
@@ -70,7 +66,10 @@ df = (
     .with_column("image_written", upload(col("bytes"), location=col("image_path"), max_connections=64))
 )
 
-# Execute --------------------------------------------------------------
+
+if LIMIT:
+    df = df.limit(int(LIMIT))
+
 result_df = df.select("id", "image_written").collect()
 
 print(f"Wrote {result_df.count_rows()} images to {DEST_URI}")
