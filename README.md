@@ -11,7 +11,7 @@
 This repository is organized into three sections:
 
 1. **[Usage Patterns](#usage-patterns)** - Small atomic demonstrations of core features. 
-2. **[Use Cases](#use-cases)** - Entire Pipelines or end-to-end workflows built in Daft. 
+2. **[Use Cases](#use-cases)** - Entire Pipelines built in Daft. 
 3. **[Notebooks](#notebooks)** - End to End tutorials on working with Daft in an interactive Jupyter Notebook
 
 To get started, run the following in your terminal.
@@ -86,6 +86,7 @@ If you don't have `uv`, check out this [installation guide](https://docs.astral.
 - [`transcribe/transcribe_faster_whisper.py`](use_cases/transcription/transcribe_faster_whisper.py) - Transcribe audio with Faster Whisper and Voice Activity Detection (VAD)
 
 ### Voice AI Analytics
+
 - [`voice_ai_analytics/voice_ai_analytics.py`](use_cases/voice_ai_analytics/voice_ai_analytics.py) - Complete pipeline: transcription, summarization, translation to Chinese, segment embeddings, and RAG Q&A
 - [`voice_ai_analytics/voice_ai_analytics_openai.py`](use_cases/voice_ai_analytics/voice_ai_analytics_openai.py) - Voice analytics with OpenAI Whisper, GPT-5 summarization, and Spanish translation
 - [`voice_ai_analytics/voice_ai_tutorial.py`](use_cases/voice_ai_analytics/voice_ai_tutorial.py) - Voice AI analytics tutorial: transcription, summarization, Chinese translation, and embeddings
