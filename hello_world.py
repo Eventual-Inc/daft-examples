@@ -21,18 +21,22 @@
 import daft
 
 
-def commoncrawl_example(data: daft.DataFrame, num_rows: int = 1_000_000):
-    data = data.limit(num_rows)
+def commoncrawl_example():
+    data = daft.from_pydict({"content": [
+        "Einstein was a brilliant scientist."
+        "Shakespeare was a brilliant writer",
+        "Mozart was a brilliant pianist.",
+    ]})
     data = data.with_column(
         "summary",
-        daft.prompt(
+        daft.ai.prompt(
             system_message="You are an expert web scraper summarizer.",
             content=data["content"],
         )
     )
     data = data.with_column(
         "taxonomy",
-        daft.classify(
+        daft.ai.classify(
             system_message="You are an expert web scraper classifier.",
             content=data["content"],
             labels=["science", "literature", "music"],
@@ -40,7 +44,7 @@ def commoncrawl_example(data: daft.DataFrame, num_rows: int = 1_000_000):
     )
     data = data.with_column(
         "embedding",
-        daft.embed_text(content=data["content"], model="qwen/0.8b")
+        daft.ai.embed_text(content=data["content"], model="qwen/0.8b")
     )
     return data
 
