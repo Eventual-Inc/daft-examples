@@ -1,27 +1,22 @@
 # This is a simple hello world example showcasing Daft Cloud
 #
-# In this example, we will work with the Commoncrawl dataset (web scraping data)
-# and run some simple LLM-powered summarization/classifcation
-#
 # To try this example locally, run this as you would a Python script. This script is
 # configured to run a very small subset of 3 rows of fake data:
 #
 # `uv run hello_world.py`
 #
-# Now to run the full job on the actualy CommonCrawl dataset, use the Daft CLI and point
-# your function at our publicly hosted CommonCrawl dataset:
-#
-# `daft run hello_world.py:classify_commoncrawl_taxonomy --data daft-public://commoncrawl`
-#
-# This now runs your workload as a managed job in Daft Cloud on 1M rows instead. The
-# result is computed and stored by default as JSON files which you can retrieve when your run
-# completes
+# Now to run on Daft Cloud, navigate to the UI at `cloud.daft.ai`. Your results will
+# be stored as JSON-lines files and be retrievable afterwards.
 
+import os
 
 import daft
+from daft.functions import prompt, embed_text
 
 
-def commoncrawl_example():
+# This function can be run on Daft Cloud
+# Simply reference it like so: `hello_world.py:example`
+def example():
     data = daft.from_pydict({"content": [
         "Einstein was a brilliant scientist."
         "Shakespeare was a brilliant writer",
@@ -29,31 +24,24 @@ def commoncrawl_example():
     ]})
     data = data.with_column(
         "summary",
-        daft.ai.prompt(
+        prompt(
             system_message="You are an expert web scraper summarizer.",
-            content=data["content"],
-        )
-    )
-    data = data.with_column(
-        "taxonomy",
-        daft.ai.classify(
-            system_message="You are an expert web scraper classifier.",
-            content=data["content"],
-            labels=["science", "literature", "music"],
+            messages=data["content"],
         )
     )
     data = data.with_column(
         "embedding",
-        daft.ai.embed_text(content=data["content"], model="qwen/0.8b")
+        embed_text(text=data["content"])
     )
     return data
 
-
+# Run this as a script on your local laptop:
+# Set your provider to hit Daft's managed inference platform
 if __name__ == "__main__":
-    data = daft.from_pydict({"content": [
-        "Einstein was a brilliant scientist."
-        "Shakespeare was a brilliant writer",
-        "Mozart was a brilliant pianist.",
-    ]})
-    result = commoncrawl_example(data=data)
+    daft.set_provider(
+        "openai",
+        base_url="https://inference.daft.ai",
+        api_key=os.getenv("DAFT_API_KEY"),
+    )
+    result = example()
     result.show()
