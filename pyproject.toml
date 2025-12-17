@@ -5,7 +5,7 @@ description = "Examples for Daft Cloud"
 readme = "README.md"
 requires-python = "==3.12.12"
 dependencies = [
-    "daft[openai]>=0.6.14",
+    "daft[openai]>=0.7.0",
     "ev-sdk>=0.1.5",
     "ray==2.47.1",
     "duckdb",
