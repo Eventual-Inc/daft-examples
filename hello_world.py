@@ -22,6 +22,7 @@ def example():
         prompt(
             system_message="You are an expert web scraper summarizer.",
             messages=data["content"],
+            model="gpt-4.1-mini",
         )
     )
     data = data.with_column(
