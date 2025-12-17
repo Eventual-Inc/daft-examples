@@ -26,6 +26,6 @@ def example():
     )
     data = data.with_column(
         "embedding",
-        embed_text(text=data["content"])
+        embed_text(text=data["content"], model="Qwen3-Embedding-0.6B")
     )
     return data
