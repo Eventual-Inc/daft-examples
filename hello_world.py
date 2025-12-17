@@ -1,14 +1,9 @@
 # This is a simple hello world example showcasing Daft Cloud
 #
-# To try this example locally, run this as you would a Python script. This script is
-# configured to run a very small subset of 3 rows of fake data:
-#
-# `uv run hello_world.py`
-#
-# Now to run on Daft Cloud, navigate to the UI at `cloud.daft.ai`. Your results will
-# be stored as JSON-lines files and be retrievable afterwards.
-
-import os
+# To run on Daft Cloud, navigate to the UI at `cloud.daft.ai` and launch a
+# run from this script/function
+# 
+# Your results will be stored as JSON-lines files in Daft Cloud.
 
 import daft
 from daft.functions import prompt, embed_text
@@ -34,14 +29,3 @@ def example():
         embed_text(text=data["content"])
     )
     return data
-
-# Run this as a script on your local laptop:
-# Set your provider to hit Daft's managed inference platform
-if __name__ == "__main__":
-    daft.set_provider(
-        "openai",
-        base_url="https://inference.daft.ai",
-        api_key=os.getenv("DAFT_API_KEY"),
-    )
-    result = example()
-    result.show()
