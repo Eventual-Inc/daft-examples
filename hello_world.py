@@ -22,10 +22,11 @@ def example():
         prompt(
             system_message="You are an expert web scraper summarizer.",
             messages=data["content"],
+            model="openai/gpt-4.1-mini",
         )
     )
     data = data.with_column(
         "embedding",
-        embed_text(text=data["content"])
+        embed_text(text=data["content"], model="Qwen/Qwen3-Embedding-0.6B")
     )
     return data
