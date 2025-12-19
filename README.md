@@ -70,8 +70,9 @@ If you don't have `uv`, check out this [installation guide](https://docs.astral.
 - [`commoncrawl/show.py`](usage_patterns/commoncrawl/show.py) - Query and display MIME types from Common Crawl datasets
 
 ### UDFs
-- [`udfs/cls_with_types.py`](usage_patterns/udfs/cls_with_types.py) - Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions
-- [`udfs/udf.py`](usage_patterns/udfs/udf.py) - Simple UDF example to extract file names from File objects
+- [`udfs/daft_cls_with_types.py`](usage_patterns/udfs/daft_cls_with_types.py) - Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions
+- [`udfs/daft_func.py`](usage_patterns/udfs/daft_func.py) - Simple UDF example to extract file names from File objects
+- [`udfs/udf_faster_whisper.py`](usage_patterns/udfs/udf_faster_whisper.py) - Run Faster Whisper model on Daft UDFs for audio transcription with VAD
 
 ### I/O
 - [`io/read_audio_file.py`](usage_patterns/io/read_audio_file.py) - Read and resample audio files, write to MP3 format
