@@ -1,0 +1,84 @@
+name: Test on Daft Cloud
+
+# This workflow tests examples on Daft Cloud infrastructure
+# Prerequisites:
+#   1. Daft Cloud API access configured
+#   2. DAFT_CLOUD_API_KEY secret added to repository
+#   3. Examples adapted to use 'daft' provider
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  test-on-daft-cloud:
+    name: Test ${{ matrix.example }} on Daft Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Uncomment when Daft Cloud testing is ready
+    # if: ${{ secrets.DAFT_CLOUD_API_KEY != '' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - '01_hello_world_prompt.py'
+          - '02_semantic_search.py'
+          - '03_data_enrichment.py'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Configure Daft Cloud provider
+        run: |
+          cat > .env << EOF
+          DAFT_CLOUD_API_KEY=${{ secrets.DAFT_CLOUD_API_KEY }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          EOF
+
+      - name: Run example on Daft Cloud
+        run: |
+          # TODO: Add Daft Cloud execution logic
+          # Example: daft-cloud run quickstart/${{ matrix.example }}
+          echo "Daft Cloud testing not yet implemented"
+          echo "Example: quickstart/${{ matrix.example }}"
+        env:
+          DAFT_PROVIDER: "daft"
+
+      - name: Verify results
+        run: |
+          echo "TODO: Verify example executed successfully on Daft Cloud"
+          echo "TODO: Check logs, outputs, metrics"
+
+  # Future: Add monitoring metrics collection
+  collect-metrics:
+    name: Collect Usage Metrics
+    runs-on: ubuntu-latest
+    needs: test-on-daft-cloud
+    if: always()
+
+    steps:
+      - name: Collect metrics
+        run: |
+          echo "TODO: Collect and report metrics:"
+          echo "  - Execution time per example"
+          echo "  - Token usage"
+          echo "  - Compute costs"
+          echo "  - Success/failure rates"
+
+      - name: Report to monitoring
+        run: |
+          echo "TODO: Send metrics to monitoring system"
+          echo "TODO: Alert on regressions"

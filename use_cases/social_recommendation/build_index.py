@@ -19,21 +19,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SOURCE_URI = "s3://daft-public-datasets/reddit-irl/source"
-IMAGES_URI = "s3://daft-public-datasets/reddit-irl/all_images"
-IMAGES_INDEX_URI = f"{IMAGES_URI}/_reddit_irl_images_index.parquet"
+IMAGES_URI = "s3://srinu-dump/conceptual-captions-12m-webdataset-images-v3/"
+IMAGES_INDEX_URI = f"{IMAGES_URI}/_all_images_index.parquet"
 
 daft.set_planning_config(default_io_config=IOConfig(
     s3=S3Config(
         region_name="us-west-2",
         key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        session_token=os.getenv("AWS_SESSION_TOKEN"),
+        #session_token=os.getenv("AWS_SESSION_TOKEN"),
     )
 ))
 
 # --------------------------------------------------------------
 # Build index from what exists in S3
-files_df = daft.from_glob_path(f"{IMAGES_URI}/*.png")
+files_df = daft.from_glob_path(f"{IMAGES_URI}/*.png").write_parquet(f"{IMAGES_URI}/_all_images_index.parquet")
 
 # Extract metadata from path and include file info from glob
 index_df = (

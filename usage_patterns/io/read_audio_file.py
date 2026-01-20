@@ -124,7 +124,8 @@ if __name__ == "__main__":
     from daft.functions import file, format
 
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
-    SOURCE_URI = "/Users/everettkleven/Desktop/*.mp3"
+    # If you want to run locally, uncomment and point at your own files:
+    # SOURCE_URI = "/path/to/audio/*.mp3"
     DEST_URI = "/Users/everettkleven/Desktop/.data/audio/"
     TARGET_SR = 16000
 

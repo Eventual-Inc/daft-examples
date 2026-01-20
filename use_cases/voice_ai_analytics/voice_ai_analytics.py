@@ -54,6 +54,7 @@ if __name__ == "__main__":
     # Define Parameters
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
     DEST_URI = ".data/transcribe/faster-whisper/"
+    FILE_LIMIT = 3  # Limit number of audio files to process (set to None for all files)
     LLM_MODEL_ID = "openai/gpt-oss-120b"
     EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
     CONTEXT = "Daft: Unified Engine for Data Analytics, Engineering & ML/AI (github.com/Eventual-Inc/Daft) YouTube channel video. Transcriptions can have errors like 'DAF' referring to 'Daft'."
@@ -268,7 +269,7 @@ if __name__ == "__main__":
     # Join the texts together into a context string
     df_context_str = df_context.with_column(
         "context",
-        col("retrieved_texts").str.join(separator="\n\n"),
+        col("retrieved_texts").list_join(delimiter="\n\n"),
     ).select("question", "context")
 
     # Answer questions using retrieved context
