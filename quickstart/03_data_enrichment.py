@@ -3,6 +3,7 @@
 # dependencies = ["daft[openai]==0.7.1", "pydantic", "python-dotenv"]
 # ///
 import os
+from pathlib import Path
 import daft
 from daft import col
 from daft.functions import prompt, unnest, monotonically_increasing_id
@@ -11,20 +12,31 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+OUTPUT_DIR = Path(
+    os.environ.get(
+        "DAFT_EXAMPLES_OUTPUT_DIR", ".data/quickstart/03_data_enrichment/enriched-comments"
+    )
+)
+
+
 class Meta(BaseModel):
     sentiment: str
     topics: list[str]
     has_pii: bool
 
+
 class Redacted(BaseModel):
     safe_text: str
     pii_types: list[str]
+
 
 daft.set_execution_config(enable_dynamic_batching=True)
 daft.set_provider("openai", api_key=os.environ.get("OPENAI_API_KEY"))
 
 df = (
-    daft.read_parquet("https://huggingface.co/api/datasets/SocialGrep/the-reddit-irl-dataset/parquet/comments/train/0.parquet")
+    daft.read_parquet(
+        "https://huggingface.co/api/datasets/SocialGrep/the-reddit-irl-dataset/parquet/comments/train/0.parquet"
+    )
     .limit(5)
     .with_column("id", monotonically_increasing_id())
     .select("id", col("body").alias("text"))
@@ -60,4 +72,5 @@ df = (
 print("\n=== Sample Enriched Rows ===")
 df.show(5)
 
-df.write_parquet("./enriched-comments/")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+df.write_parquet(str(OUTPUT_DIR))

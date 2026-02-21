@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Classifer(BaseModel):
     title: str
     author: str
@@ -18,27 +19,26 @@ class Classifer(BaseModel):
     keywords: list[str]
     abstract: str
 
+
 daft.set_execution_config(enable_dynamic_batching=True)
 daft.set_provider("openai", api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Load documents and generate vector embeddings
 df = (
-    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/papers/*.pdf").limit(10)
+    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/papers/*.pdf")
+    .limit(10)
     .with_column(
-        "metadata", 
+        "metadata",
         prompt(
             messages=file(col("path")),
             system_message="Read the paper and extract the classifer metadata.",
-            return_format=Classifer, 
-            model="gpt-5-mini", 
-        )
+            return_format=Classifer,
+            model="gpt-5-mini",
+        ),
     )
     .with_column(
-        "abstract_embedding", 
-        embed_text(
-            daft.col("metadata")["abstract"], 
-            model="text-embedding-3-large"
-        )
+        "abstract_embedding",
+        embed_text(daft.col("metadata")["abstract"], model="text-embedding-3-large"),
     )
     .with_column("id", monotonically_increasing_id())
     .select("id", "path", unnest(col("metadata")), "abstract_embedding")
@@ -54,7 +54,7 @@ if os.environ.get("TURBOPUFFER_API_KEY"):
         namespace="ai_papers",
         api_key=os.environ.get("TURBOPUFFER_API_KEY"),
         distance_metric="cosine_distance",
-        region='us-west-2',
+        region="us-west-2",
         schema={
             "id": "int64",
             "path": "string",
@@ -64,5 +64,5 @@ if os.environ.get("TURBOPUFFER_API_KEY"):
             "keywords": "list[string]",
             "abstract": "string",
             "abstract_embedding": "vector",
-        }
+        },
     )

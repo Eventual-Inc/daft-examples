@@ -21,27 +21,3 @@ test = [
     "pytest-cov>=4.1.0",
     "python-dotenv>=1.0.0",
 ]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-markers = [
-    "unit: Unit tests that don't require external dependencies",
-    "integration: Integration tests that may require external services",
-    "slow: Tests that take a long time to run",
-    "requires_credentials: Tests that require API credentials",
-    "requires_openai: Tests that require OpenAI API key",
-    "requires_turbopuffer: Tests that require Turbopuffer API key",
-]
-
-[tool.coverage.run]
-source = ["quickstart", "usage_patterns", "use_cases"]
-omit = ["*/tests/*", "*/test_*.py", "*/__init__.py"]
-
-[tool.coverage.report]
-fail_under = 70
-precision = 2
-show_missing = true
-skip_covered = false

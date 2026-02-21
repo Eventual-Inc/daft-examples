@@ -18,14 +18,14 @@ Run:
 # ///
 
 import daft
-from daft.functions import audio_file, audio_metadata, resample
+from daft.functions import audio_file, audio_metadata, resample, unnest
 
 df = (
     daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/audio/*.mp3")
     .with_column("file", audio_file(daft.col("path")))
     .with_column("metadata", audio_metadata(daft.col("file")))
     .with_column("resampled", resample(daft.col("file"), sample_rate=16000))
-    .select("path", "file", "size", "metadata", "resampled")
+    .select("path", "file", "size", unnest(daft.col("metadata")), "resampled")
 )
 
 df.show(3)

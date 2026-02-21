@@ -20,12 +20,10 @@ import daft
 from daft.functions import video_file, video_metadata, video_keyframes
 
 df = (
-	daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/videos/*.mp4")
-	.with_column("file", video_file(daft.col("path")))
-	.with_column("metadata", video_metadata(daft.col("file")))
-	.select("path", "file", "size", "metadata")
+    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/videos/*.mp4")
+    .with_column("file", video_file(daft.col("path")))
+    .with_column("metadata", video_metadata(daft.col("file")))
+    .select("path", "file", "size", "metadata")
 )
 
 df.show(3)
-
-
