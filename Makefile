@@ -1,51 +1,21 @@
-.PHONY: setup test-classify test-commoncrawl test-embed test-io test-prompt test-udfs test-all
+.PHONY: setup test test-quickstart test-examples test-no-creds
 
-# Environment setup
 setup:
-	uv venv .venv
-	uv pip install daft openai pillow numpy ipykernel ipywidgets
-	cp .env.example .env
+	uv sync --extra test
+	@test -f .env || cp .env.example .env
 
-# usage_patterns/classify
-test-classify:
-	uv run usage_patterns/classify/classify_image.py
-	uv run usage_patterns/classify/classify_text.py
+# Run all tests (scripts without credentials are auto-skipped)
+test:
+	uv run -m pytest tests -q
 
-# usage_patterns/commoncrawl
-test-commoncrawl:
-	uv run usage_patterns/commoncrawl/chunk_embed.py
-	uv run usage_patterns/commoncrawl/show.py
+# Run only quickstart tier
+test-quickstart:
+	uv run -m pytest tests/test_examples.py -q -k quickstart
 
-# usage_patterns/embed
-test-embed:
-	uv run usage_patterns/embed/cosine_similarity.py
-	uv run usage_patterns/embed/embed_images.py
-	uv run usage_patterns/embed/embed_pdf.py
-	uv run usage_patterns/embed/embed_text_providers.py
-	uv run usage_patterns/embed/embed_video_frames.py
+# Run only example tier
+test-examples:
+	uv run -m pytest tests/test_examples.py -q -k example
 
-# usage_patterns/io
-test-io:
-	uv run usage_patterns/io/read_audio_file.py
-	uv run usage_patterns/io/read_pdfs.py
-	uv run usage_patterns/io/read_video_files.py
-
-# usage_patterns/prompt
-test-prompt:
-	uv run usage_patterns/prompt/prompt.py
-	uv run usage_patterns/prompt/prompt_chat_completions.py
-	uv run usage_patterns/prompt/prompt_files_images.py
-	uv run usage_patterns/prompt/prompt_github.py
-	uv run usage_patterns/prompt/prompt_openai_web_search.py
-	uv run usage_patterns/prompt/prompt_pdfs.py
-	uv run usage_patterns/prompt/prompt_qa.py
-	uv run usage_patterns/prompt/prompt_session.py
-	uv run usage_patterns/prompt/prompt_structured_outputs.py
-	uv run usage_patterns/prompt/prompt_gemini3_code_review.py
-
-# usage_patterns/udfs
-test-udfs:
-	uv run usage_patterns/udfs/daft_cls_with_types.py
-	uv run usage_patterns/udfs/daft_func.py
-
-test-all: test-classify test-commoncrawl test-embed test-io test-prompt test-udfs
+# Run only scripts that need no credentials (good for CI without secrets)
+test-no-creds:
+	uv run -m pytest tests/test_examples.py -q -m "not credentials"

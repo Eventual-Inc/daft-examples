@@ -16,3 +16,8 @@ df = (
 )
 
 df.show(3)
+
+
+@daft.func
+def process_video(foo: int):
+    

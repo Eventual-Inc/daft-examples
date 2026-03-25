@@ -8,7 +8,6 @@ import daft
 from daft import DataType, col
 from daft.functions import unnest, file as daft_file
 
-
 @daft.func(
     return_dtype=DataType.list(
         DataType.struct(
@@ -20,41 +19,40 @@ from daft.functions import unnest, file as daft_file
                 "end_line": DataType.int64(),
             }
         )
-    )
+    ),
+    on_error="log"
 )
 def extract_functions(file: daft.File):
     """Extract all function definitions from a Python file."""
     import ast
-
+    
     with file.open() as f:
         file_content = f.read().decode("utf-8")
-
+    
     tree = ast.parse(file_content)
     results = []
-
+    
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             signature = f"def {node.name}({ast.unparse(node.args)})"
             if node.returns:
                 signature += f" -> {ast.unparse(node.returns)}"
-
-            results.append(
-                {
-                    "name": node.name,
-                    "signature": signature,
-                    "docstring": ast.get_docstring(node),
-                    "start_line": node.lineno,
-                    "end_line": node.end_lineno,
-                }
-            )
-
+            
+            results.append({
+                "name": node.name,
+                "signature": signature,
+                "docstring": ast.get_docstring(node),
+                "start_line": node.lineno,
+                "end_line": node.end_lineno,
+            })
+    
     return results
 
 
 if __name__ == "__main__":
     from daft import col
-
-    # Discover Python files
+    
+    # Discover Python files from my local Daft Clone
     df = (
         daft.from_glob_path("~/git/Daft/daft/functions/**/*.py")
         .with_column("file", daft_file(col("path")))
@@ -62,5 +60,5 @@ if __name__ == "__main__":
         .explode("functions")
         .select("path", "size", unnest(col("functions")))
     )
-
+    
     df.show(3)
