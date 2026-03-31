@@ -1,15 +1,14 @@
 # /// script
 # description = "Similarity Search"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "numpy", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
 # ///
-import daft
-from daft.functions import embed_text, cosine_distance
 from dotenv import load_dotenv
 
+import daft
+from daft.functions import cosine_distance, embed_text
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     # Create a knowledge base with documents
@@ -37,18 +36,14 @@ if __name__ == "__main__":
     # Embed the query
     query = query.with_column(
         "query_embedding",
-        embed_text(
-            daft.col("query_text"), provider="openai", model="text-embedding-3-small"
-        ),
+        embed_text(daft.col("query_text"), provider="openai", model="text-embedding-3-small"),
     )
 
     # Cross join to compare query against all documents
     results = query.join(documents, how="cross")
 
     # Calculate cosine distance (lower is more similar)
-    results = results.with_column(
-        "distance", cosine_distance(daft.col("query_embedding"), daft.col("embedding"))
-    )
+    results = results.with_column("distance", cosine_distance(daft.col("query_embedding"), daft.col("embedding")))
 
     # Sort by distance and show top results
     results = results.sort("distance").select("query_text", "text", "distance")

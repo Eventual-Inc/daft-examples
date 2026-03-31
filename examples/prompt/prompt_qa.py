@@ -1,15 +1,14 @@
 # /// script
 # description = "Synthetic Q&A generation pipeline with question generation, answering, and verification"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "python-dotenv", "pydantic"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pydantic"]
 # ///
-import daft
-from daft.functions import prompt, format
 from dotenv import load_dotenv
 
+import daft
+from daft.functions import format, prompt
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     # Start with seed topics

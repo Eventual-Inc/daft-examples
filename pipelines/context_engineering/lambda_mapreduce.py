@@ -1,7 +1,7 @@
 # /// script
 # description = "Lambda MapReduce: 6 long-context reasoning patterns expressed as native Daft query plans"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "python-dotenv"]
 # ///
 
 """
@@ -30,15 +30,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import textwrap
 import time
-from typing import Iterator, TypedDict
+from collections.abc import Iterator
+from typing import TypedDict
+
+import pymupdf
 
 import daft
-import pymupdf
 from daft import DataFrame, col, lit
 from daft.functions import format, prompt, unnest
-
 
 # ==============================================================================
 # SPLIT: PDF → pages (document structure IS the split)
@@ -62,9 +62,7 @@ def extract_pdf(file: daft.File) -> Iterator[PdfPage]:
                 yield PdfPage(page_number=pno, page_text=text)
 
 
-def load_papers(
-    source: str, max_papers: int = 2, max_pages: int | None = None
-) -> DataFrame:
+def load_papers(source: str, max_papers: int = 2, max_pages: int | None = None) -> DataFrame:
     """SPLIT: Load PDFs and extract pages into a flat DataFrame."""
     df = (
         daft.from_glob_path(source)
@@ -97,7 +95,11 @@ def pattern_search(df: DataFrame, query: str, model: str) -> DataFrame:
         .with_column(
             "is_relevant",
             prompt(
-                format("Question: {}\n\nDoes this excerpt likely contain the answer? Reply YES or NO only.\n\nExcerpt:\n{}", lit(query), col("preview")),
+                format(
+                    "Question: {}\n\nDoes this excerpt likely contain the answer? Reply YES or NO only.\n\nExcerpt:\n{}",
+                    lit(query),
+                    col("preview"),
+                ),
                 model=model,
             ),
         )
@@ -142,7 +144,10 @@ def pattern_summarize(df: DataFrame, model: str) -> DataFrame:
         .with_column(
             "result",
             prompt(
-                format("Merge these partial summaries into one concise, coherent summary. Preserve all key facts:\n\n{}", col("context")),
+                format(
+                    "Merge these partial summaries into one concise, coherent summary. Preserve all key facts:\n\n{}",
+                    col("context"),
+                ),
                 model=model,
             ),
         )
@@ -162,9 +167,12 @@ def pattern_classify(df: DataFrame, model: str) -> DataFrame:
         .with_column(
             "label",
             prompt(
-                lit("Classify this text into exactly one category "
+                lit(
+                    "Classify this text into exactly one category "
                     "(Methods, Results, Introduction, Discussion, Related Work). "
-                    "Reply with ONLY the category name:\n\n") + col("page_text"),
+                    "Reply with ONLY the category name:\n\n"
+                )
+                + col("page_text"),
                 model=model,
             ),
         )
@@ -190,8 +198,8 @@ def pattern_extract(df: DataFrame, model: str) -> DataFrame:
         .with_column(
             "result",
             prompt(
-                lit("Extract all key facts, entities, numbers, and findings. "
-                    "One fact per line:\n\n") + col("page_text"),
+                lit("Extract all key facts, entities, numbers, and findings. One fact per line:\n\n")
+                + col("page_text"),
                 model=model,
             ),
         )
@@ -218,7 +226,11 @@ def pattern_qa(df: DataFrame, query: str, model: str) -> DataFrame:
         .with_column(
             "is_relevant",
             prompt(
-                format("Question: {}\n\nDoes this excerpt contain relevant information? Reply YES or NO only.\n\nExcerpt:\n{}", lit(query), col("preview")),
+                format(
+                    "Question: {}\n\nDoes this excerpt contain relevant information? Reply YES or NO only.\n\nExcerpt:\n{}",
+                    lit(query),
+                    col("preview"),
+                ),
                 model=model,
             ),
         )
@@ -239,7 +251,11 @@ def pattern_qa(df: DataFrame, query: str, model: str) -> DataFrame:
         .with_column(
             "result",
             prompt(
-                format("Question: {}\n\nSynthesise these partial answers into one complete, accurate answer:\n\n{}", lit(query), col("context")),
+                format(
+                    "Question: {}\n\nSynthesise these partial answers into one complete, accurate answer:\n\n{}",
+                    lit(query),
+                    col("context"),
+                ),
                 model=model,
             ),
         )
@@ -259,8 +275,8 @@ def pattern_analyze(df: DataFrame, model: str) -> DataFrame:
         .with_column(
             "result",
             prompt(
-                lit("Analyze the following text. Identify key themes, arguments, "
-                    "and implications:\n\n") + col("page_text"),
+                lit("Analyze the following text. Identify key themes, arguments, and implications:\n\n")
+                + col("page_text"),
                 model=model,
             ),
         )
@@ -271,7 +287,10 @@ def pattern_analyze(df: DataFrame, model: str) -> DataFrame:
         .with_column(
             "result",
             prompt(
-                format("Combine these partial analyses into one comprehensive, well-structured analysis:\n\n{}", col("context")),
+                format(
+                    "Combine these partial analyses into one comprehensive, well-structured analysis:\n\n{}",
+                    col("context"),
+                ),
                 model=model,
             ),
         )
@@ -329,6 +348,7 @@ def main():
     args = parser.parse_args()
 
     import os
+
     from dotenv import load_dotenv
 
     load_dotenv()

@@ -1,12 +1,11 @@
 # /// script
 # description = "Prompt with Markdown files"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "numpy", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
 # ///
-import daft
-from daft import lit, col
-from daft.functions import prompt, file
 from dotenv import load_dotenv
+
+import daft
 
 
 @daft.func()
@@ -20,10 +19,9 @@ def discover_github_urls(repo_url: str) -> list[str]:
     Returns:
         List of raw GitHub URLs for files in the repository
     """
-    import re
-    from urllib.parse import urlparse
-    import urllib.request
     import json
+    import re
+    import urllib.request
 
     # Parse the GitHub URL to extract owner, repo, branch, and path
     # Example: https://github.com/LeCoupa/awesome-cheatsheets/tree/88e5be6e4b01edf6c36c8f78b246c8fba70aa058/languages
@@ -36,9 +34,7 @@ def discover_github_urls(repo_url: str) -> list[str]:
     owner, repo, branch, path = match.groups()
 
     # Use GitHub API to list files
-    api_url = (
-        f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
-    )
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}"
 
     try:
         req = urllib.request.Request(api_url)

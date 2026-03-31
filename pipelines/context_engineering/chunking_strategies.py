@@ -1,14 +1,16 @@
 # /// script
 # description = "Context Engineering: Compare fixed-size, sentence-based, and paragraph chunking strategies for PDF text"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "python-dotenv", "pymupdf"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pymupdf"]
 # ///
 
 import os
-import daft
-from daft import col, lit, DataType
-from daft.functions import embed_text, cosine_distance, file, format
+
 from dotenv import load_dotenv
+
+import daft
+from daft import DataType, col, lit
+from daft.functions import cosine_distance, embed_text, file
 
 
 @daft.func(return_dtype=DataType.string())
@@ -16,10 +18,9 @@ def extract_text(pdf_file: daft.File) -> str:
     """Extract all text from a PDF using pymupdf."""
     import pymupdf
 
-    with pdf_file.to_tempfile() as tmp:
-        with pymupdf.Document(filename=str(tmp.name), filetype="pdf") as doc:
-            pages = [page.get_text("text") for page in doc]
-            return "\n\n".join(pages)
+    with pdf_file.to_tempfile() as tmp, pymupdf.Document(filename=str(tmp.name), filetype="pdf") as doc:
+        pages = [page.get_text("text") for page in doc]
+        return "\n\n".join(pages)
 
 
 @daft.func(return_dtype=DataType.list(DataType.string()))
@@ -42,7 +43,6 @@ def paragraph_chunk(text: str, min_length: int = 80) -> list[str]:
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider("openai", api_key=os.getenv("OPENAI_API_KEY"))
@@ -68,8 +68,7 @@ if __name__ == "__main__":
     # ==============================================================================
 
     df_fixed = (
-        df
-        .with_column("chunks", fixed_size_chunk(col("text"), lit(500), lit(100)))
+        df.with_column("chunks", fixed_size_chunk(col("text"), lit(500), lit(100)))
         .explode("chunks")
         .select(col("path"), col("chunks").alias("chunk_text"))
     )
@@ -82,8 +81,7 @@ if __name__ == "__main__":
     # ==============================================================================
 
     df_sentences = (
-        df
-        .with_column(
+        df.with_column(
             "chunks",
             col("text").regexp_split(r"(?<=[.!?])(?:\s+)(?=[A-Z])"),
         )
@@ -100,8 +98,7 @@ if __name__ == "__main__":
     # ==============================================================================
 
     df_paragraphs = (
-        df
-        .with_column("chunks", paragraph_chunk(col("text"), lit(80)))
+        df.with_column("chunks", paragraph_chunk(col("text"), lit(80)))
         .explode("chunks")
         .select(col("path"), col("chunks").alias("chunk_text"))
     )
@@ -114,13 +111,16 @@ if __name__ == "__main__":
     # ==============================================================================
 
     df_fixed_emb = df_fixed.with_column(
-        "embedding", embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
+        "embedding",
+        embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
     )
     df_sentence_emb = df_sentences.with_column(
-        "embedding", embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
+        "embedding",
+        embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
     )
     df_paragraph_emb = df_paragraphs.with_column(
-        "embedding", embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
+        "embedding",
+        embed_text(col("chunk_text"), model=EMBEDDING_MODEL),
     )
 
     # ==============================================================================
@@ -130,7 +130,8 @@ if __name__ == "__main__":
     QUERY = "What is the main contribution of this paper?"
 
     query = daft.from_pydict({"query_text": [QUERY]}).with_column(
-        "query_embedding", embed_text(col("query_text"), model=EMBEDDING_MODEL),
+        "query_embedding",
+        embed_text(col("query_text"), model=EMBEDDING_MODEL),
     )
 
     TOP_K = 3

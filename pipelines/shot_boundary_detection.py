@@ -1,14 +1,14 @@
 # /// script
 # description = "Summarize podcasts"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
 # ///
-import daft
-from daft.functions import embed_image
-from daft import col, Window, DataType as dt
-
 import numpy as np
-import matplotlib.pyplot as plt
+
+import daft
+from daft import DataType as dt
+from daft import Window, col
+from daft.functions import embed_image
 
 
 @daft.func(return_dtype=dt.float32())

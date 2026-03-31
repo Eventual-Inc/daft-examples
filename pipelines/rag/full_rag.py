@@ -1,14 +1,15 @@
 # /// script
 # description = "Full RAG example"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "python-dotenv"]
 # ///
 
 import pymupdf  # type: ignore
+from dotenv import load_dotenv  # type: ignore
+
 import daft
 from daft import DataType, col
-from daft.functions import embed_text, cosine_distance, file, prompt, unnest, format
-from dotenv import load_dotenv  # type: ignore
+from daft.functions import cosine_distance, embed_text, file, format, prompt, unnest
 
 
 @daft.func(
@@ -77,10 +78,7 @@ if __name__ == "__main__":
     )
 
     top_matches = (
-        ranked.select("query_text", "path", "page_number", "page_text", "distance")
-        .limit(TOP_K)
-        .collect()
-        .to_pydict()
+        ranked.select("query_text", "path", "page_number", "page_text", "distance").limit(TOP_K).collect().to_pydict()
     )
 
     if not top_matches["path"]:
@@ -92,9 +90,7 @@ if __name__ == "__main__":
         top_matches["page_number"],
         top_matches["page_text"],
     ):
-        context_sections.append(
-            f"Source: {path_value} (page {page_number_value})\n{page_text_value.strip()}"
-        )
+        context_sections.append(f"Source: {path_value} (page {page_number_value})\n{page_text_value.strip()}")
 
     context_blob = "\n\n---\n\n".join(context_sections)
 

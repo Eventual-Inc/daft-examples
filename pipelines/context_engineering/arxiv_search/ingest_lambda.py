@@ -1,14 +1,15 @@
 # /// script
 # description = "Ingest Arxiv Papers to S3 (Lambda-ready)"
-# requires-python = ">=3.10, <3.13"
+# requires-python = ">=3.12, <3.13"
 # dependencies = ["boto3", "feedparser", "python-dotenv"]
 # ///
 
-import os
 import json
-import feedparser
-import boto3
+import os
 from datetime import datetime
+
+import boto3
+import feedparser
 from dotenv import load_dotenv
 
 load_dotenv()

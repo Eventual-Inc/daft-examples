@@ -1,16 +1,16 @@
 # /// script
 # description = "Ingest Reddit comments to S3 as parquet"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[huggingface]>=0.7.5", "python-dotenv"]
+# dependencies = ["daft[huggingface]>=0.7.6", "python-dotenv"]
 # ///
-import daft
-from dotenv import load_dotenv
-from daft.io import IOConfig, S3Config
 import os
 
+from dotenv import load_dotenv
+
+import daft
+from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     # --------------------------------------------------------------

@@ -1,13 +1,14 @@
 # /// script
 # description = "Search Arxiv Papers using Turbopuffer"
-# requires-python = ">=3.10, <3.13"
+# requires-python = ">=3.12, <3.13"
 # dependencies = ["openai", "turbopuffer", "python-dotenv"]
 # ///
 
 import os
 import time
-from dotenv import load_dotenv
+
 import turbopuffer as tp
+from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()

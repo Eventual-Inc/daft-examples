@@ -1,13 +1,14 @@
 # /// script
 # description = "Chunk and embed Common Crawl text with spaCy and sentence-transformers"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
+
+import spacy
 
 import daft
 from daft import DataType
 from daft.functions import unnest
-import spacy
 
 SpacyReturnType = DataType.list(
     DataType.struct(
@@ -43,13 +44,14 @@ class SpacyChunker:
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
     import os
+
+    from dotenv import load_dotenv
 
     import daft
     from daft import col
+    from daft.functions import decode, embed_text
     from daft.io import IOConfig, S3Config
-    from daft.functions import embed_text, decode
 
     SOURCE_URI = "s3://commoncrawl/crawl-data/CC-MAIN-2025-33/segments/1754151579063.98/warc/CC-MAIN-20250815204238-20250815234238-00999.warc.gz"
     DEST_URI = ".data/common_crawl/chunk_embed"
@@ -105,7 +107,7 @@ if __name__ == "__main__":
 
     # Embed Sentences
     df_embed = df_prep.with_column(
-        f"text_embeddings",
+        "text_embeddings",
         embed_text(
             col("spacy_results")["sent_text"],
             model="sentence-transformers/all-MiniLM-L6-v2",
@@ -113,6 +115,4 @@ if __name__ == "__main__":
         ),
     )
 
-    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(
-        format="fancy", max_width=20
-    )
+    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(format="fancy", max_width=20)

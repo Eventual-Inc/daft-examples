@@ -1,14 +1,12 @@
 # /// script
 # description = "Classify text"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "transformers", "torch"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "transformers", "torch"]
 # ///
 import daft
 from daft.functions import classify_text
 
-
 if __name__ == "__main__":
-
     df = daft.from_pydict(
         {
             "text": [

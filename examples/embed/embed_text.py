@@ -1,15 +1,14 @@
 # /// script
 # description = "Embed text"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5",  "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6",  "python-dotenv"]
 # ///
-import daft
-from daft.functions import embed_text
 from dotenv import load_dotenv
 
+import daft
+from daft.functions import embed_text
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     df = daft.read_huggingface("togethercomputer/RedPajama-Data-1T")

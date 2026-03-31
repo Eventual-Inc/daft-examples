@@ -1,15 +1,14 @@
 # /// script
 # description = "Prompt a model"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai,transformers]>=0.7.5","python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai,transformers]>=0.7.6","python-dotenv"]
 # ///
 from dotenv import load_dotenv
-import daft
-from daft.functions import embed_image, download
 
+import daft
+from daft.functions import download, embed_image
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     df = (

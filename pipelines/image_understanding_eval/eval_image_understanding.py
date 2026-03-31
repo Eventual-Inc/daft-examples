@@ -1,7 +1,7 @@
 # /// script
 # description = "Image Understanding Evaluation Pipeline: structured VLM outputs, ablation study, quadrant classification, and VLM-as-a-Judge diagnostic feedback"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pydantic", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pydantic", "python-dotenv"]
 # ///
 """
 Image Understanding Evaluation Pipeline
@@ -21,19 +21,18 @@ Usage:
     python eval_image_understanding.py --subset chartqa --limit 100
 """
 
-import os
 import json
-from pydantic import BaseModel, Field
+import os
 
+from pydantic import BaseModel, Field
 
 import daft
 from daft import col
 from daft.functions import (
+    format,
     prompt,
     when,
-    format,
 )
-
 
 JUDGE_SYSTEM_PROMPT = """
 You are an impartial judge reviewing the results of a textbook academic questions multiple choice benchmark.
@@ -48,29 +47,21 @@ Finally, assign whether the model's answer with the image is correct and whether
 class TextbookAcademicQuestions(BaseModel):
     """Structured output for multiple choice answers."""
 
-    choice: str = Field(
-        ..., description="The letter of the correct choice (e.g., A, B, C, D)"
-    )
+    choice: str = Field(..., description="The letter of the correct choice (e.g., A, B, C, D)")
 
 
 class JudgeResponse(BaseModel):
     """Structured diagnostic feedback from the VLM judge."""
 
-    reasoning: str = Field(
-        ..., description="Why did the model choose the answer it did?"
-    )
-    hypothesis: str = Field(
-        ..., description="What caused the divergence from the correct answer?"
-    )
+    reasoning: str = Field(..., description="Why did the model choose the answer it did?")
+    hypothesis: str = Field(..., description="What caused the divergence from the correct answer?")
     attribution: str = Field(
         ...,
         description="Was this a 'question' issue or an 'image' understanding issue or 'other'?",
     )
 
 
-def preprocess(
-    df: daft.DataFrame, category: str, subset: str, model_id: str, params: dict
-) -> daft.DataFrame:
+def preprocess(df: daft.DataFrame, category: str, subset: str, model_id: str, params: dict) -> daft.DataFrame:
     """Preprocess images and text from The Cauldron format."""
 
     # Track Evaluation Inputs (Prompt Arguments)
@@ -91,9 +82,7 @@ def preprocess(
     return df
 
 
-def run_inference(
-    df: daft.DataFrame, model_id: str, with_image: bool = True, params: dict = {}
-) -> daft.DataFrame:
+def run_inference(df: daft.DataFrame, model_id: str, with_image: bool = True, params: dict = {}) -> daft.DataFrame:
     """Run structured output inference with or without images."""
     if with_image:
         messages = [col("image"), col("texts")["user"]]
@@ -151,9 +140,7 @@ def run_judge(df, model_id: str):
         col("texts")["assistant"],
     )
 
-    return df.where(
-        (col("quadrant") == "Image Hurt") | (col("quadrant") == "Both Incorrect")
-    ).with_column(
+    return df.where((col("quadrant") == "Image Hurt") | (col("quadrant") == "Both Incorrect")).with_column(
         "judge_response",
         prompt(
             messages=[col("image"), judge_template],
@@ -163,6 +150,7 @@ def run_judge(df, model_id: str):
             return_format=JudgeResponse,
         ),
     )
+
 
 def run_full_pipeline(
     source_uri: str,
@@ -193,9 +181,7 @@ def run_full_pipeline(
         limit = int(limit)
         df = df.limit(limit)
 
-    df = preprocess(
-        df, category=category, subset=subset, model_id=model_id, params=params
-    )
+    df = preprocess(df, category=category, subset=subset, model_id=model_id, params=params)
 
     df = run_inference(df, model_id, with_image=True)
     df = run_inference(df, model_id, with_image=False)
@@ -210,8 +196,9 @@ def run_full_pipeline(
 
 
 if __name__ == "__main__":
-    from daft.io import IOConfig, S3Config
     from dotenv import load_dotenv
+
+    from daft.io import IOConfig, S3Config
 
     load_dotenv()
 
@@ -221,9 +208,7 @@ if __name__ == "__main__":
     MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen3-VL-4B-Instruct")
     PARAMS = {"temperature": 0.0, "max_tokens": 2}
 
-    SOURCE_URI = (
-        f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
-    )
+    SOURCE_URI = f"s3://daft-public-datasets/the_cauldron/original/{CATEGORY}/{SUBSET}/*.parquet"
     DEST_URI = "s3://daft-public-datasets/the_cauldron/evals/image_ablation"
 
     # Set the provider to Daft

@@ -1,14 +1,16 @@
 # /// script
 # description = "A minimal Daft enrichment pipeline: load rows into a DataFrame, normalize text deterministically, call LLMs to extract typed metadata and redact PII (validated via Pydantic schemas), then flatten and write a clean table for downstream search/analytics."
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai, huggingface]>=0.7.5", "pydantic", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai, huggingface]>=0.7.6", "pydantic", "python-dotenv"]
 # ///
 import os
+
+from dotenv import load_dotenv
+from pydantic import BaseModel
+
 import daft
 from daft import col
-from daft.functions import prompt, unnest, monotonically_increasing_id
-from pydantic import BaseModel
-from dotenv import load_dotenv
+from daft.functions import monotonically_increasing_id, prompt, unnest
 
 
 class Meta(BaseModel):
@@ -23,7 +25,6 @@ class Redacted(BaseModel):
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_execution_config(enable_dynamic_batching=True)

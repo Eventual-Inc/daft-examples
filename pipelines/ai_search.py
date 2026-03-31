@@ -1,14 +1,16 @@
 # /// script
 # description = "This example shows how using LLMs and embedding models, Daft chunks documents, extracts metadata, generates vectors, and writes them to any vector database..."
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv", "pydantic", "turbopuffer"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "python-dotenv", "pydantic", "turbopuffer"]
 # ///
 import os
-import daft
-from daft import col, lit
-from daft.functions import embed_text, prompt, file, unnest
-from pydantic import BaseModel
+
 from dotenv import load_dotenv
+from pydantic import BaseModel
+
+import daft
+from daft import col
+from daft.functions import embed_text, file, prompt, unnest
 
 
 class Classifer(BaseModel):
@@ -20,7 +22,6 @@ class Classifer(BaseModel):
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider("openai", api_key=os.environ.get("OPENAI_API_KEY"))

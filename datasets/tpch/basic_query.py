@@ -1,7 +1,7 @@
 # /// script
 # description = "Load and query TPC-H lineitem data"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6"]
 # ///
 
 import daft
@@ -24,9 +24,7 @@ if __name__ == "__main__":
         .agg(
             col("l_quantity").sum().alias("sum_qty"),
             col("l_extendedprice").sum().alias("sum_base_price"),
-            (col("l_extendedprice") * (1 - col("l_discount")))
-            .sum()
-            .alias("sum_disc_price"),
+            (col("l_extendedprice") * (1 - col("l_discount"))).sum().alias("sum_disc_price"),
             col("l_orderkey").count().alias("count_order"),
             col("l_quantity").mean().alias("avg_qty"),
             col("l_extendedprice").mean().alias("avg_price"),
@@ -39,9 +37,7 @@ if __name__ == "__main__":
     print("\n=== Revenue by Shipping Mode ===")
     revenue = (
         df.groupby("l_shipmode")
-        .agg(
-            (col("l_extendedprice") * (1 - col("l_discount"))).sum().alias("total_revenue")
-        )
+        .agg((col("l_extendedprice") * (1 - col("l_discount"))).sum().alias("total_revenue"))
         .sort("total_revenue", desc=True)
     )
     revenue.show()

@@ -1,14 +1,12 @@
 # /// script
 # description = "Classify image"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "transformers","torch","torchvision"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "transformers","torch","torchvision"]
 # ///
 import daft
 from daft.functions import classify_image, decode_image
 
-
 if __name__ == "__main__":
-
     df = (
         # Discover a few images from HuggingFace
         daft.from_glob_path("hf://datasets/datasets-examples/doc-image-3/images")
@@ -17,9 +15,7 @@ if __name__ == "__main__":
         # Decode the image bytes into a daft Image DataType
         .with_column("image_type", decode_image(daft.col("image_bytes")))
         # Convert Image to RGB and resize the image to 288x288
-        .with_column(
-            "image_resized", daft.col("image_type").convert_image("RGB").resize(224, 224)
-        )
+        .with_column("image_resized", daft.col("image_type").convert_image("RGB").resize(224, 224))
         # Classify the image
         .with_column(
             "image_label",

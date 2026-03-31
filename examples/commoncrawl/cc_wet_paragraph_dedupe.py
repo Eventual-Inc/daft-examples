@@ -1,7 +1,7 @@
 # /// script
 # description = "Near-duplicate paragraph-level dedupe over Common Crawl WET using MinHash + LSH banding + connected components."
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws,pandas]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws,pandas]>=0.7.6", "python-dotenv"]
 # ///
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import daft
 from daft import DataFrame, col
 from daft.functions import monotonically_increasing_id
 from daft.io import IOConfig, S3Config
-
 
 # ---------------------------
 # Parameters (tune as needed)
@@ -128,9 +127,7 @@ def _pairs_equal(a: DataFrame, b: DataFrame) -> bool:
 
 def _symmetrize(edges: DataFrame) -> DataFrame:
     """Make edge list undirected by adding reverse edges."""
-    return edges.select("u", "v").union_all(
-        edges.select(col("v").alias("u"), col("u").alias("v"))
-    )
+    return edges.select("u", "v").union_all(edges.select(col("v").alias("u"), col("u").alias("v")))
 
 
 def large_star(edges: DataFrame) -> DataFrame:
@@ -141,9 +138,7 @@ def large_star(edges: DataFrame) -> DataFrame:
     neigh = neigh.with_column("m", col("nbrs").list.min())
     neigh = neigh.with_column(
         "m",
-        col("m")
-        .is_null()
-        .if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
+        col("m").is_null().if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
     )
 
     return (
@@ -164,9 +159,7 @@ def small_star(edges: DataFrame) -> DataFrame:
     """Small-star: orient each edge so u is larger endpoint, then connect all neighbors to min."""
     directed = (
         edges.select(
-            (col("u") < col("v"))
-            .if_else(_edge_struct(col("v"), col("u")), _edge_struct(col("u"), col("v")))
-            .alias("e")
+            (col("u") < col("v")).if_else(_edge_struct(col("v"), col("u")), _edge_struct(col("u"), col("v"))).alias("e")
         )
         .select(col("e")["*"])
         .where(col("u") != col("v"))
@@ -178,16 +171,11 @@ def small_star(edges: DataFrame) -> DataFrame:
     neigh = neigh.with_column("m", col("nbrs").list.min())
     neigh = neigh.with_column(
         "m",
-        col("m")
-        .is_null()
-        .if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
+        col("m").is_null().if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
     )
 
     return (
-        neigh.explode("nbrs")
-        .select(col("nbrs").alias("u"), col("m").alias("v"))
-        .where(col("u") != col("v"))
-        .distinct()
+        neigh.explode("nbrs").select(col("nbrs").alias("u"), col("m").alias("v")).where(col("u") != col("v")).distinct()
     )
 
 
@@ -209,11 +197,7 @@ def connected_components(edges: DataFrame) -> DataFrame:
     b_final = b
 
     # Build initial representative mapping from stabilized edges (may still have multiple local minima)
-    nodes = (
-        b_final.select(col("u").alias("u"))
-        .union_all(b_final.select(col("v").alias("u")))
-        .distinct()
-    )
+    nodes = b_final.select(col("u").alias("u")).union_all(b_final.select(col("v").alias("u"))).distinct()
     rep_map = b_final.groupby("u").agg(col("v").min().alias("rep"))
     assignments = (
         nodes.join(rep_map, on="u", how="left")
@@ -242,9 +226,7 @@ def connected_components(edges: DataFrame) -> DataFrame:
                 .is_null()
                 .if_else(
                     col("label"),
-                    (col("label") <= col("nbr_min")).if_else(
-                        col("label"), col("nbr_min")
-                    ),
+                    (col("label") <= col("nbr_min")).if_else(col("label"), col("nbr_min")),
                 ),
             )
             .select(col("u"), col("label"))
@@ -291,28 +273,20 @@ if __name__ == "__main__":
     df_mh = (
         df_para.with_column(
             "norm",
-            col("paragraph").normalize(
-                remove_punct=True, lowercase=True, nfd_unicode=True, white_space=True
-            ),
+            col("paragraph").normalize(remove_punct=True, lowercase=True, nfd_unicode=True, white_space=True),
         )
         .with_column(
             "min_hashes",
-            col("norm").minhash(
-                num_hashes=K, ngram_size=NGRAM_SIZE, seed=42, hash_function="xxhash"
-            ),
+            col("norm").minhash(num_hashes=K, ngram_size=NGRAM_SIZE, seed=42, hash_function="xxhash"),
         )
         .select("node_id", "WARC-Record-ID", "paragraph", "min_hashes")
     )
 
     # 4) LSH banding -> candidate edges
     df_bands = df_mh.with_column("bands", col("min_hashes").list.chunk(R))
-    df_bands = df_bands.with_column("band_idx", get_band_idx(col("bands"), B)).explode(
-        "bands", "band_idx"
-    )
+    df_bands = df_bands.with_column("band_idx", get_band_idx(col("bands"), B)).explode("bands", "band_idx")
 
-    df_grouped = df_bands.groupby(col("band_idx"), col("bands")).agg(
-        col("node_id").agg_list().alias("nodes")
-    )
+    df_grouped = df_bands.groupby(col("band_idx"), col("bands")).agg(col("node_id").agg_list().alias("nodes"))
 
     # Edges: connect each node in a bucket to the bucket's minimum node id
     df_edges = (
@@ -329,16 +303,12 @@ if __name__ == "__main__":
     assignments = connected_components(df_edges)
 
     # 6) Join assignments back and keep only reps (deduped paragraphs)
-    df_labeled = df_mh.join(
-        assignments, left_on="node_id", right_on="u", how="left"
-    ).select("node_id", "WARC-Record-ID", "paragraph", "rep")
+    df_labeled = df_mh.join(assignments, left_on="node_id", right_on="u", how="left").select(
+        "node_id", "WARC-Record-ID", "paragraph", "rep"
+    )
 
-    deduped = df_labeled.where(col("node_id") == col("rep")).select(
-        "WARC-Record-ID", "paragraph"
-    )
-    duplicates = df_labeled.where(col("node_id") != col("rep")).select(
-        "WARC-Record-ID", "paragraph", "rep"
-    )
+    deduped = df_labeled.where(col("node_id") == col("rep")).select("WARC-Record-ID", "paragraph")
+    duplicates = df_labeled.where(col("node_id") != col("rep")).select("WARC-Record-ID", "paragraph", "rep")
 
     # Materialize + write outputs
     print("Writing outputs to:", OUT_DIR)

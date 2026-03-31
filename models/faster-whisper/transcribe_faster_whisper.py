@@ -1,14 +1,16 @@
 # /// script
 # description = "Transcribe + VAD with Faster Whisper"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "faster-whisper"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "faster-whisper"]
 # ///
 from dataclasses import asdict
+
+from faster_whisper import BatchedInferencePipeline, WhisperModel
+from faster_whisper_schema import TranscriptionResult
+
 import daft
 from daft import col
 from daft.functions import file, unnest
-from faster_whisper import WhisperModel, BatchedInferencePipeline
-from faster_whisper_schema import TranscriptionResult
 
 
 @daft.cls()

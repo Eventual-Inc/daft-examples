@@ -1,13 +1,13 @@
 # /// script
 # description = "Analyze Common Crawl content distribution - MIME types, domains, and statistics"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
+
+from common import get_common_crawl_io
 
 import daft
 from daft import col
-
-from common import get_common_crawl_io
 
 
 def main() -> None:
@@ -31,9 +31,7 @@ def main() -> None:
     mime_dist.show(10)
 
     print("\n=== Content Size Statistics ===")
-    df.with_column("content_size", col("warc_content").length()).select(
-        "content_size"
-    ).describe()
+    df.with_column("content_size", col("warc_content").length()).select("content_size").describe()
 
     print("\n=== Sample URLs by Content Type ===")
     (

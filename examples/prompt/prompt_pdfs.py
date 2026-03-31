@@ -1,16 +1,15 @@
 # /// script
 # description = "Prompt with PDF files"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "numpy", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
 # ///
-import daft
-from daft import lit, col
-from daft.functions import prompt, file
 from dotenv import load_dotenv
 
+import daft
+from daft import col, lit
+from daft.functions import file, prompt
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     # Discover Markdown Files in your Documents Folder

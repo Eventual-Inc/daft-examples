@@ -1,18 +1,17 @@
 # /// script
 # description = "Synthetic Q&A generation pipeline with question generation, answering, and verification"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[unity, deltalake, openai]>=0.7.5", "pydantic", "numpy", "pillow", "python-dotenv", "tenacity"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[unity, deltalake, openai]>=0.7.6", "pydantic", "numpy", "pillow", "python-dotenv", "tenacity"]
 # ///
 import os
+
+from dotenv import load_dotenv
+
 import daft
 from daft.catalog import Table
 from daft.unity_catalog import UnityCatalog
-from daft.functions import prompt
-from dotenv import load_dotenv
-
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     # Define Configuration
@@ -30,7 +29,7 @@ if __name__ == "__main__":
     # Configure OpenAI Provider
     daft.set_provider("openai", api_key=OPENAI_API_KEY)
 
-    coco_table = unity.load_table(TABLE_NAME)
+    coco_table = unity.load_table(UC_TABLE_NAME)
 
     tbl = Table.from_unity(coco_table)
     df = daft.read_table(tbl)

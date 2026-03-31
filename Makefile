@@ -1,8 +1,23 @@
-.PHONY: setup test test-quickstart test-examples test-no-creds
+.PHONY: setup test test-quickstart test-examples test-no-creds lint format check
 
 setup:
-	uv sync --extra test
+	uv sync --extra test --extra lint
 	@test -f .env || cp .env.example .env
+
+# ── Lint & Format ──────────────────────────────────────────────────────
+
+lint:
+	uv run ruff check .
+
+format:
+	uv run ruff format .
+	uv run ruff check --fix .
+
+check: lint
+	uv run ruff format --check .
+	@echo "All checks passed."
+
+# ── Tests ──────────────────────────────────────────────────────────────
 
 # Run all tests (scripts without credentials are auto-skipped)
 test:

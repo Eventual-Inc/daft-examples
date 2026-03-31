@@ -1,13 +1,13 @@
 # /// script
 # description = "Load metadata (WAT) from Common Crawl - page information without content"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
+
+from common import get_common_crawl_io
 
 import daft
 from daft import col
-
-from common import get_common_crawl_io
 
 
 def main() -> None:

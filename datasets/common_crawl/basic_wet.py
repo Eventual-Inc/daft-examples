@@ -1,13 +1,13 @@
 # /// script
 # description = "Load plain text (WET) from Common Crawl - extracted text from web pages"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
+
+from common import get_common_crawl_io
 
 import daft
 from daft import col
-
-from common import get_common_crawl_io
 
 
 def main() -> None:
@@ -32,9 +32,7 @@ def main() -> None:
     )
 
     print("\n=== Text Length Distribution ===")
-    df.with_column("text_length", col("warc_content").length()).select(
-        "text_length"
-    ).describe()
+    df.with_column("text_length", col("warc_content").length()).select("text_length").describe()
 
 
 if __name__ == "__main__":

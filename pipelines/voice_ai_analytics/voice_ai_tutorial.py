@@ -1,14 +1,14 @@
 # /// script
 # description = "Voice AI analytics tutorial: transcription, summarization, Chinese translation, and embeddings"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
 from dataclasses import asdict
 
-import daft
-from faster_whisper import WhisperModel, BatchedInferencePipeline
-
+from faster_whisper import BatchedInferencePipeline, WhisperModel
 from faster_whisper_schema import TranscriptionResult
+
+import daft
 
 # Define Constants
 SAMPLE_RATE = 16000
@@ -43,12 +43,12 @@ class FasterWhisperTranscriber:
 
 if __name__ == "__main__":
     import os
+
     from dotenv import load_dotenv
 
     from daft import col
-    from daft.functions import format, file, unnest
-    from daft.functions import prompt, embed_text
     from daft.ai.openai.provider import OpenAIProvider
+    from daft.functions import embed_text, file, format, prompt, unnest
 
     # Define Parameters
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
@@ -89,9 +89,7 @@ if __name__ == "__main__":
         .select("path", "audio_file", unnest(col("result")))
     ).collect()
 
-    print(
-        "\n\nRunning Transcription with Voice Activity Detection (VAD) using Faster Whisper..."
-    )
+    print("\n\nRunning Transcription with Voice Activity Detection (VAD) using Faster Whisper...")
 
     # Show the transcript.
     df_transcript.select(

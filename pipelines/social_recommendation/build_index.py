@@ -1,7 +1,7 @@
 # /// script
 # description = "Build/rebuild the image index from S3"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.5", "python-dotenv"]
+# dependencies = ["daft>=0.7.6", "python-dotenv"]
 # ///
 """
 Job 2: Index Builder
@@ -17,14 +17,14 @@ The S3 bucket is the source of truth - the index is a derived view.
 """
 
 import os
+
+from dotenv import load_dotenv
+
 import daft
 from daft import col
 from daft.io import IOConfig, S3Config
-from dotenv import load_dotenv
-
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     SOURCE_URI = "s3://daft-public-datasets/reddit-irl/source"
@@ -44,14 +44,10 @@ if __name__ == "__main__":
 
     # --------------------------------------------------------------
     # Build index from what exists in S3
-    files_df = daft.from_glob_path(f"{IMAGES_URI}/*.png").write_parquet(
-        f"{IMAGES_URI}/_all_images_index.parquet"
-    )
+    files_df = daft.from_glob_path(f"{IMAGES_URI}/*.png").write_parquet(f"{IMAGES_URI}/_all_images_index.parquet")
 
     # Extract metadata from path and include file info from glob
-    index_df = files_df.with_column(
-        "id", col("path").regexp_extract(r"_id([a-zA-Z0-9]+)\.png$", 1)
-    ).with_column(
+    index_df = files_df.with_column("id", col("path").regexp_extract(r"_id([a-zA-Z0-9]+)\.png$", 1)).with_column(
         "image_xxhash",
         col("path").regexp_extract(r"_xxhash([0-9]+)_id", 1).cast(daft.DataType.uint64()),
     )

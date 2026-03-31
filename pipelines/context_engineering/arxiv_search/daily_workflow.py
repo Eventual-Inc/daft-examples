@@ -1,21 +1,22 @@
 # /// script
 # description = "Daily Arxiv Summarization and Indexing Workflow"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[turbopuffer, openai]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[turbopuffer, openai]>=0.7.6", "python-dotenv"]
 # ///
 
 import os
+
+from dotenv import load_dotenv
+
 import daft
 from daft import col
-from daft.functions import prompt, embed_text
-from dotenv import load_dotenv
+from daft.functions import embed_text, prompt
 
 
 def main():
     load_dotenv()
 
     # Config
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     TURBOPUFFER_API_KEY = os.getenv("TURBOPUFFER_API_KEY")
 
     S3_BUCKET = os.getenv("S3_BUCKET", "daft-arxiv-demo")
@@ -91,9 +92,7 @@ def main():
     # Daft defaults to OpenAI if not specified differently in set_provider, but env var must be there.
     df = df.with_column(
         "embedding",
-        embed_text(
-            col("search_text"), provider="openai", model="text-embedding-3-small"
-        ),
+        embed_text(col("search_text"), provider="openai", model="text-embedding-3-small"),
     )
 
     # 4. Execute & Index to Turbopuffer

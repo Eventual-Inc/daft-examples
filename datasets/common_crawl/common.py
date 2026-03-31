@@ -1,7 +1,7 @@
 # /// script
 # description = "Shared helpers for Common Crawl example scripts"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
 
 """Shared helpers for Common Crawl example scripts."""

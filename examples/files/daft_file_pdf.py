@@ -1,11 +1,14 @@
 # /// script
 # description = "Extract the content of a PDF file"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[huggingface]>=0.7.5", "pymupdf"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[huggingface]>=0.7.6", "pymupdf"]
 # ///
-import daft
-from typing import Iterator, TypedDict
+from collections.abc import Iterator
+from typing import TypedDict
+
 import pymupdf
+
+import daft
 
 
 class PdfPage(TypedDict):
@@ -18,7 +21,7 @@ class PdfPage(TypedDict):
 def extract_pdf(file: daft.File) -> Iterator[PdfPage]:
     """Extracts the content of a PDF file."""
     pymupdf.TOOLS.mupdf_display_errors(False)  # Suppress non-fatal MuPDF warnings
-    
+
     with file.to_tempfile() as tmp:
         doc = pymupdf.Document(filename=str(tmp.name), filetype="pdf")
         for pno, page in enumerate(doc):
@@ -28,7 +31,6 @@ def extract_pdf(file: daft.File) -> Iterator[PdfPage]:
                 page_image_bytes=page.get_pixmap().tobytes(),
             )
             yield row
-
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 # /// script
 # description = "Perform web searches using OpenAI with web_search tools"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pydantic", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pydantic", "python-dotenv"]
 # ///
-import daft
-from daft.functions import prompt, file, unnest
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
+import daft
+from daft.functions import file, prompt, unnest
 
 
 class Citation(BaseModel):
@@ -21,7 +22,6 @@ class SearchResults(BaseModel):
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     df = (

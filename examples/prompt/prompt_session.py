@@ -1,18 +1,18 @@
 # /// script
 # description = "Prompt an OpenRouter model by passing a Provider through a Session"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5","pydantic","python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
 # ///
 import os
+
 from dotenv import load_dotenv
+
 import daft
 from daft.ai.openai.provider import OpenAIProvider
 from daft.functions import prompt
 from daft.session import Session
 
-
 if __name__ == "__main__":
-
     load_dotenv()
 
     # Create an OpenRouter provider

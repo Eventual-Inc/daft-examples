@@ -1,15 +1,14 @@
 # /// script
 # description = "Summarize podcasts"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
 from dataclasses import asdict
 
-import daft
-from daft import DataType
-from faster_whisper import WhisperModel, BatchedInferencePipeline
-
+from faster_whisper import BatchedInferencePipeline, WhisperModel
 from faster_whisper_schema import TranscriptionResult
+
+import daft
 
 # Define Constants
 SAMPLE_RATE = 16000
@@ -44,12 +43,12 @@ class FasterWhisperTranscriber:
 
 if __name__ == "__main__":
     import os
+
     from dotenv import load_dotenv
 
-    from daft import col, Window
-    from daft.functions import format, file, unnest, rank
-    from daft.functions import prompt, embed_text
+    from daft import Window, col
     from daft.ai.openai.provider import OpenAIProvider
+    from daft.functions import embed_text, file, format, prompt, rank, unnest
 
     # Define Parameters
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
@@ -86,9 +85,7 @@ if __name__ == "__main__":
         df_segments = daft.read_parquet(segments_path)
     else:
         if transcripts_exist or segments_exist:
-            print(
-                "Found partial cache. Re-running transcription pipeline to refresh outputs."
-            )
+            print("Found partial cache. Re-running transcription pipeline to refresh outputs.")
         else:
             print("No cached transcripts detected. Running transcription pipeline.")
 
@@ -185,9 +182,9 @@ if __name__ == "__main__":
         # ==============================================================================
 
         # Store Transcripts with Summaries
-        df_summaries.select(
-            "path", "info", "transcript", "summary", "summary_chinese"
-        ).write_parquet(transcripts_path, write_mode="overwrite")
+        df_summaries.select("path", "info", "transcript", "summary", "summary_chinese").write_parquet(
+            transcripts_path, write_mode="overwrite"
+        )
         # Store Segments
         df_segments.select(
             "path",
@@ -255,9 +252,7 @@ if __name__ == "__main__":
     # Use window functions to rank and select top K per question
     window = Window().partition_by("question").order_by(col("similarity").asc())
 
-    df_ranked = df_with_distance.with_column("rank", rank().over(window)).where(
-        col("rank") <= TOP_K
-    )
+    df_ranked = df_with_distance.with_column("rank", rank().over(window)).where(col("rank") <= TOP_K)
 
     # Aggregate retrieved segments into context for each question
     df_context = df_ranked.groupby("question").agg(

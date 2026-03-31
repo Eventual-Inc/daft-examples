@@ -1,10 +1,11 @@
 # /// script
 # description = "Benchmark Daft performance on TPC-H data"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6"]
 # ///
 
 import time
+
 import daft
 from daft import col
 
@@ -58,6 +59,4 @@ if __name__ == "__main__":
 
     print("\n=== Performance Summary ===")
     print(f"Total execution time: {count_time + agg_time + group_time + filter_time:.2f}s")
-    print(
-        f"Throughput: {row_count / (count_time + agg_time + group_time + filter_time):.0f} rows/sec"
-    )
+    print(f"Throughput: {row_count / (count_time + agg_time + group_time + filter_time):.0f} rows/sec")

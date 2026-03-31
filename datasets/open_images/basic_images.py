@@ -1,12 +1,12 @@
 # /// script
 # description = "Load and inspect Google Open Images validation dataset"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6"]
 # ///
 
 import daft
 from daft import col
-from daft.functions import decode_image, image_width, image_height
+from daft.functions import decode_image, image_height, image_width
 
 if __name__ == "__main__":
     # Load image paths

@@ -1,11 +1,13 @@
 # /// script
 # description = "Run vision models on Open Images dataset"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws,openai]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws,openai]>=0.7.6", "python-dotenv"]
 # ///
 
 import os
+
 from dotenv import load_dotenv
+
 import daft
 from daft import col
 from daft.functions import file, prompt
@@ -21,9 +23,7 @@ if __name__ == "__main__":
     daft.set_provider("openai", api_key=os.environ.get("OPENAI_API_KEY"))
 
     # Load images
-    df = daft.from_glob_path(
-        "s3://daft-public-data/open-images/validation-images/*.jpg"
-    ).limit(5)
+    df = daft.from_glob_path("s3://daft-public-data/open-images/validation-images/*.jpg").limit(5)
     df = df.with_column("image", file(col("path")))
 
     print("\n=== Image Captioning with GPT-4 Vision ===")

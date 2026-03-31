@@ -1,17 +1,16 @@
 # /// script
 # description = "Show top MIME types from Common Crawl"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "python-dotenv"]
 # ///
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
 
 import daft
 from daft.io import IOConfig, S3Config
 
-
 if __name__ == "__main__":
-
     load_dotenv()
 
     if os.environ.get("AWS_ACCESS_KEY_ID"):

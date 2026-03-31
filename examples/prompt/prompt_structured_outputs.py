@@ -1,13 +1,15 @@
 # /// script
 # description = "Embed Video Frames from a Youtube Video"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5","pydantic","python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
 # ///
 import os
-import daft
-from daft.functions import unnest, prompt
-from pydantic import BaseModel, Field
+
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
+import daft
+from daft.functions import prompt, unnest
 
 
 class Anime(BaseModel):
@@ -17,7 +19,6 @@ class Anime(BaseModel):
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider(

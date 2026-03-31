@@ -1,18 +1,18 @@
 # /// script
 # description = "Generate a report on the image understanding performance of a model"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
 import os
+
+from dotenv import load_dotenv
+
 import daft
 from daft import col
 from daft.functions import when
 from daft.io import IOConfig, S3Config
-from dotenv import load_dotenv
-
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     SOURCE_URI = "s3://daft-public-datasets/the_cauldron/evals/image_ablation"
@@ -61,9 +61,7 @@ if __name__ == "__main__":
     )
 
     df_accuracy = df_accuracy.concat(
-        df_total.select(
-            "subset", "accuracy_with_image", "accuracy_without_image", "total_count"
-        )
+        df_total.select("subset", "accuracy_with_image", "accuracy_without_image", "total_count")
     )
     df_accuracy.show(format="fancy", max_width=20)
 
@@ -118,21 +116,15 @@ if __name__ == "__main__":
     more_analytics = (
         df_pivot_total.with_column(
             "total_count",
-            col("Image Helped")
-            + col("Image Hurt")
-            + col("Both Incorrect")
-            + col("Both Correct"),
+            col("Image Helped") + col("Image Hurt") + col("Both Incorrect") + col("Both Correct"),
         ).with_columns(
             {
-                "image_help_rate": col("Image Helped")
-                / (col("Image Helped") + col("Both Correct")),
-                "image_hurt_rate": col("Image Hurt")
-                / (col("Image Hurt") + col("Both Correct")),
-                "net_image_helpfulness": (col("Image Helped") - col("Image Hurt"))
-                / col("total_count"),
+                "image_help_rate": col("Image Helped") / (col("Image Helped") + col("Both Correct")),
+                "image_hurt_rate": col("Image Hurt") / (col("Image Hurt") + col("Both Correct")),
+                "net_image_helpfulness": (col("Image Helped") - col("Image Hurt")) / col("total_count"),
             }
         )
     ).collect()
-    more_analytics.select(
-        "image_help_rate", "image_hurt_rate", "net_image_helpfulness"
-    ).show(format="fancy", max_width=20)
+    more_analytics.select("image_help_rate", "image_hurt_rate", "net_image_helpfulness").show(
+        format="fancy", max_width=20
+    )

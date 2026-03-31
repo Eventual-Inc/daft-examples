@@ -1,16 +1,16 @@
 # /// script
 # description = "Prompt an OpenAI model"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5","pydantic","python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
 # ///
 import os
-import daft
-from daft.functions import format, prompt
+
 from dotenv import load_dotenv
 
+import daft
+from daft.functions import format, prompt
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider(

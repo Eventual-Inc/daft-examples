@@ -1,14 +1,13 @@
 # /// script
 # description = "Voice analytics with OpenAI Whisper transcription, GPT summarization, and Spanish translation"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
 # ///
-import io
-import pathlib
+
+from openai import AsyncOpenAI
 
 import daft
 from daft import DataType
-from openai import AsyncOpenAI
 
 
 @daft.cls()
@@ -42,10 +41,7 @@ class OpenAITranscription:
                 timestamp_granularities=["segment"],
             )
 
-        segments = [
-            {"seg_text": t.text, "seg_start": t.start, "seg_end": t.end}
-            for t in transcriptions.segments
-        ]
+        segments = [{"seg_text": t.text, "seg_start": t.start, "seg_end": t.end} for t in transcriptions.segments]
         transcript = " ".join([t.text for t in transcriptions.segments])
 
         return {"transcript": transcript, "segments": segments}
@@ -53,9 +49,10 @@ class OpenAITranscription:
 
 if __name__ == "__main__":
     # Run this script with `uv run speech/speech_analytics_openai.py`
-    from daft import col
-    from daft.functions import embed_text, prompt, format, file
     from dotenv import load_dotenv
+
+    from daft import col
+    from daft.functions import embed_text, file, format, prompt
 
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
     DEST_URI = ".data/voice_ai"
@@ -72,16 +69,12 @@ if __name__ == "__main__":
         .where(col("path").endswith(".mp3"))
         .limit(FILE_LIMIT)
         # Transcribe the audio files
-        .with_column(
-            "transcript_segments", oai_transcriptor.transcribe(file(col("path")))
-        )
+        .with_column("transcript_segments", oai_transcriptor.transcribe(file(col("path"))))
         # Summarize the transcript
         .with_column(
             "transcript_summary",
             prompt(
-                format(
-                    "Summarize the following podcast transcript: {}", col("transcript")
-                ),
+                format("Summarize the following podcast transcript: {}", col("transcript")),
                 model="gpt-5-nano",
                 provider="openai",
             ),
@@ -90,9 +83,7 @@ if __name__ == "__main__":
         .with_column(
             "transcript_spanish",
             prompt(
-                format(
-                    "Translate the following text to Spanish: {}", col("transcript")
-                ),
+                format("Translate the following text to Spanish: {}", col("transcript")),
                 model="gpt-5-nano",
                 provider="openai",
             ),
@@ -100,9 +91,7 @@ if __name__ == "__main__":
         # Embed the transcript and summary
         .with_column(
             "transcript_embeddings",
-            embed_text(
-                col("transcript"), model="text-embedding-ada-002", provider="openai"
-            ),
+            embed_text(col("transcript"), model="text-embedding-ada-002", provider="openai"),
         )
         .with_column(
             "transcript_summary_embeddings",

@@ -1,7 +1,7 @@
 # /// script
 # description = "Download images from source URLs and write to S3"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.5", "python-dotenv"]
+# dependencies = ["daft>=0.7.6", "python-dotenv"]
 # ///
 """
 Job 1: Image Ingestion
@@ -14,15 +14,15 @@ The S3 bucket is the source of truth. URIs encode the id and xxhash:
 """
 
 import os
-import daft
-from daft import col, lit
-from daft.functions import format, download, upload
-from daft.io import IOConfig, S3Config
+
 from dotenv import load_dotenv
 
+import daft
+from daft import col, lit
+from daft.functions import download, format, upload
+from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
-
     # --------------------------------------------------------------
     # Configuration
     load_dotenv()

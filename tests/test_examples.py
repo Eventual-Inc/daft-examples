@@ -62,6 +62,5 @@ def test_script_runs(script: Script):
     )
 
     assert result.returncode == 0, (
-        f"{script.path} failed (exit {result.returncode})\n"
-        f"--- stderr ---\n{result.stderr[-2000:]}"
+        f"{script.path} failed (exit {result.returncode})\n--- stderr ---\n{result.stderr[-2000:]}"
     )

@@ -1,11 +1,12 @@
 # /// script
 # description = "Extract key moments from transcripts and clip audio for short-form content"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "sentence-transformers"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "sentence-transformers"]
 # ///
+from pydantic import BaseModel, Field
+
 import daft
 from daft import DataType
-from pydantic import BaseModel, Field
 
 # Define Constants
 SAMPLE_RATE = 16000
@@ -19,9 +20,7 @@ class KeyMoment(BaseModel):
         ...,
         description="Use this field as a notepad to reason about moments worth clipping for short form content.",
     )
-    moment_summary: str = Field(
-        ..., description="A concise one-sentence summary of the key moment."
-    )
+    moment_summary: str = Field(..., description="A concise one-sentence summary of the key moment.")
     moment_start_sec: float = Field(
         ...,
         description="The start time of the first segment in the group of segments in seconds. Reference the provided segment start timestamps.",
@@ -45,9 +44,7 @@ def print_segments_w_timestamps(
 ) -> str:
     """Print segments with timestamps"""
 
-    segment_string = "\n".join(
-        [f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments]
-    )
+    segment_string = "\n".join([f"{seg['start']} - {seg['end']}: {seg['text']}" for seg in segments])
 
     if print_segments:
         print(segment_string)
@@ -56,9 +53,7 @@ def print_segments_w_timestamps(
 
 
 @daft.func(
-    return_dtype=DataType.struct(
-        {"start_sec_snapped": DataType.float64(), "end_sec_snapped": DataType.float64()}
-    ),
+    return_dtype=DataType.struct({"start_sec_snapped": DataType.float64(), "end_sec_snapped": DataType.float64()}),
 )
 def snap_to_segment_bounds(
     segments: list[dict],
@@ -90,29 +85,27 @@ def clip_audio(
 ) -> str:
     """Clip audio"""
 
-    import soundfile as sf
     from pathlib import Path
 
+    import soundfile as sf
+
     # Convert seconds -> frame indices using the file's native samplerate
-    with audio_file.open() as f:
-        with sf.SoundFile(f) as snd:
-            sample_rate = snd.samplerate
-            total_frames = len(snd)
+    with audio_file.open() as f, sf.SoundFile(f) as snd:
+        sample_rate = snd.samplerate
+        total_frames = len(snd)
 
-            # Clamp to valid range and convert to integer frame indices
-            start_frame = int(round(max(0.0, start_time) * sample_rate))
-            end_time_capped = max(start_time, end_time)
-            end_frame = int(
-                round(min(end_time_capped, total_frames / sample_rate) * sample_rate)
-            )
+        # Clamp to valid range and convert to integer frame indices
+        start_frame = int(round(max(0.0, start_time) * sample_rate))
+        end_time_capped = max(start_time, end_time)
+        end_frame = int(round(min(end_time_capped, total_frames / sample_rate) * sample_rate))
 
-            if end_frame < start_frame:
-                end_frame = start_frame
+        if end_frame < start_frame:
+            end_frame = start_frame
 
-            # Read the desired window
-            snd.seek(start_frame)
-            num_frames = end_frame - start_frame
-            audio = snd.read(frames=num_frames, dtype=DTYPE, always_2d=True)
+        # Read the desired window
+        snd.seek(start_frame)
+        num_frames = end_frame - start_frame
+        audio = snd.read(frames=num_frames, dtype=DTYPE, always_2d=True)
 
     # Extract just the filename (without path) from path
     original_filename = Path(path).stem
@@ -140,12 +133,12 @@ def clip_audio(
 
 if __name__ == "__main__":
     import os
+
     from dotenv import load_dotenv
 
     from daft import col
-    from daft.functions import format, file, unnest
-    from daft.functions import prompt, embed_text
     from daft.ai.openai.provider import OpenAIProvider
+    from daft.functions import file, format, prompt, unnest
 
     # Define Parameters
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
@@ -175,6 +168,7 @@ if __name__ == "__main__":
     # Transcribe the audio files
     if not os.path.exists(os.path.join(DEST_URI, "transcripts.parquet")):
         import sys
+
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "models", "faster-whisper"))
         from transcribe_faster_whisper import FasterWhisperTranscriber
 

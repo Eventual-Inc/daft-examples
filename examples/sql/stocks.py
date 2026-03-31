@@ -1,14 +1,15 @@
 # /// script
 # description = "Window functions for stocks - demonstrates various window functions on real stock data"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "yfinance>=0.2.0", "pandas>=2.0.0"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "yfinance>=0.2.0", "pandas>=2.0.0"]
 # ///
+
+
+import yfinance as yf
 
 import daft
 from daft import Window, col
-from daft.functions import rank, dense_rank
-import yfinance as yf
-from datetime import datetime, timedelta
+from daft.functions import rank
 
 # -----------------------------------------------------------------------------
 # Data Loading: Fetch Historical Stock Data
@@ -58,13 +59,11 @@ def load_stock_data(tickers=["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], period="1
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-
     # Load the data
     df = load_stock_data()
 
     # Show the data
     df.sort(["ticker", "date"]).limit(10).show()
-
 
     # -----------------------------------------------------------------------------
     # Example 1: Calculate Daily Returns (Price Change %)
@@ -78,19 +77,10 @@ if __name__ == "__main__":
 
     df_with_returns = df.with_column(
         "daily_return",
-        (
-            (col("close") - col("close").lag(1).over(by_ticker_date))
-            / col("close").lag(1).over(by_ticker_date)
-            * 100
-        ),
+        ((col("close") - col("close").lag(1).over(by_ticker_date)) / col("close").lag(1).over(by_ticker_date) * 100),
     ).sort(["ticker", "date"])
 
-    print(
-        df_with_returns.select("ticker", "date", "close", "daily_return")
-        .limit(15)
-        .collect()
-    )
-
+    print(df_with_returns.select("ticker", "date", "close", "daily_return").limit(15).collect())
 
     # -----------------------------------------------------------------------------
     # Example 2: Moving Averages (5-day and 20-day)
@@ -101,17 +91,11 @@ if __name__ == "__main__":
     print("=" * 80)
 
     by_ticker_date_5day = (
-        Window()
-        .partition_by("ticker")
-        .order_by("date")
-        .rows_between(-4, 0)  # Current row + 4 preceding = 5 days
+        Window().partition_by("ticker").order_by("date").rows_between(-4, 0)  # Current row + 4 preceding = 5 days
     )
 
     by_ticker_date_20day = (
-        Window()
-        .partition_by("ticker")
-        .order_by("date")
-        .rows_between(-19, 0)  # Current row + 19 preceding = 20 days
+        Window().partition_by("ticker").order_by("date").rows_between(-19, 0)  # Current row + 19 preceding = 20 days
     )
 
     df_with_ma = (
@@ -121,7 +105,6 @@ if __name__ == "__main__":
     )
 
     print(df_with_ma.select("ticker", "date", "close", "ma_5", "ma_20").limit(25).collect())
-
 
     # -----------------------------------------------------------------------------
     # Example 3: Rank Stocks by Daily Volume
@@ -139,12 +122,7 @@ if __name__ == "__main__":
         .sort(["date", "volume_rank"])
     )
 
-    print(
-        df_with_volume_rank.select("date", "ticker", "volume", "volume_rank")
-        .limit(20)
-        .collect()
-    )
-
+    print(df_with_volume_rank.select("date", "ticker", "volume", "volume_rank").limit(20).collect())
 
     # -----------------------------------------------------------------------------
     # Example 4: Cumulative Trading Volume per Stock
@@ -154,16 +132,11 @@ if __name__ == "__main__":
     print("EXAMPLE 4: Cumulative Trading Volume")
     print("=" * 80)
 
-    df_with_cumulative = df.with_column(
-        "cumulative_volume", col("volume").sum().over(by_ticker_date)
-    ).sort(["ticker", "date"])
-
-    print(
-        df_with_cumulative.select("ticker", "date", "volume", "cumulative_volume")
-        .limit(20)
-        .collect()
+    df_with_cumulative = df.with_column("cumulative_volume", col("volume").sum().over(by_ticker_date)).sort(
+        ["ticker", "date"]
     )
 
+    print(df_with_cumulative.select("ticker", "date", "volume", "cumulative_volume").limit(20).collect())
 
     # -----------------------------------------------------------------------------
     # Example 5: Identify Highest Volatility Days (using high-low range)
@@ -173,13 +146,11 @@ if __name__ == "__main__":
     print("EXAMPLE 5: Most Volatile Days per Stock (Top 5)")
     print("=" * 80)
 
-    df_with_volatility = df.with_column(
-        "daily_range", col("high") - col("low")
-    ).with_column("daily_range_pct", (col("high") - col("low")) / col("low") * 100)
-
-    by_ticker_volatility = (
-        Window().partition_by("ticker").order_by("daily_range_pct", desc=True)
+    df_with_volatility = df.with_column("daily_range", col("high") - col("low")).with_column(
+        "daily_range_pct", (col("high") - col("low")) / col("low") * 100
     )
+
+    by_ticker_volatility = Window().partition_by("ticker").order_by("daily_range_pct", desc=True)
 
     df_top_volatile = (
         df_with_volatility.with_column("volatility_rank", rank().over(by_ticker_volatility))
@@ -187,12 +158,7 @@ if __name__ == "__main__":
         .sort(["ticker", "volatility_rank"])
     )
 
-    print(
-        df_top_volatile.select(
-            "ticker", "date", "low", "high", "daily_range_pct", "volatility_rank"
-        ).collect()
-    )
-
+    print(df_top_volatile.select("ticker", "date", "low", "high", "daily_range_pct", "volatility_rank").collect())
 
     # -----------------------------------------------------------------------------
     # Example 6: Stock Performance Rankings (Total Return over Period)
@@ -203,37 +169,31 @@ if __name__ == "__main__":
     print("=" * 80)
 
     by_ticker_date_first = (
-        Window()
-        .partition_by("ticker")
-        .order_by("date")
-        .rows_between(-999999, 0)  # Unbounded - all previous rows
+        Window().partition_by("ticker").order_by("date").rows_between(-999999, 0)  # Unbounded - all previous rows
     )
 
-    df_with_first_close = df.with_column(
-        "first_close", col("close").min().over(by_ticker_date_first)
-    ).with_column(
+    df_with_first_close = df.with_column("first_close", col("close").min().over(by_ticker_date_first)).with_column(
         "total_return_pct", (col("close") - col("first_close")) / col("first_close") * 100
     )
 
     # Get the most recent date for each stock
     by_ticker_last_date = Window().partition_by("ticker").order_by("date", desc=True)
 
-    df_latest_performance = df_with_first_close.with_column(
-        "date_rank", rank().over(by_ticker_last_date)
-    ).filter(col("date_rank") == 1)
+    df_latest_performance = df_with_first_close.with_column("date_rank", rank().over(by_ticker_last_date)).filter(
+        col("date_rank") == 1
+    )
 
     by_performance = Window().order_by("total_return_pct", desc=True)
 
-    df_performance_ranking = df_latest_performance.with_column(
-        "performance_rank", rank().over(by_performance)
-    ).sort("performance_rank")
+    df_performance_ranking = df_latest_performance.with_column("performance_rank", rank().over(by_performance)).sort(
+        "performance_rank"
+    )
 
     print(
         df_performance_ranking.select(
             "performance_rank", "ticker", "date", "first_close", "close", "total_return_pct"
         ).collect()
     )
-
 
     # -----------------------------------------------------------------------------
     # Example 7: Golden Cross / Death Cross Detection
@@ -257,16 +217,9 @@ if __name__ == "__main__":
         )
     )
 
-    df_crossovers = df_with_signals.filter(col("golden_cross") | col("death_cross")).sort(
-        ["ticker", "date"]
-    )
+    df_crossovers = df_with_signals.filter(col("golden_cross") | col("death_cross")).sort(["ticker", "date"])
 
-    print(
-        df_crossovers.select(
-            "ticker", "date", "close", "ma_5", "ma_20", "golden_cross", "death_cross"
-        ).collect()
-    )
-
+    print(df_crossovers.select("ticker", "date", "close", "ma_5", "ma_20", "golden_cross", "death_cross").collect())
 
     # -----------------------------------------------------------------------------
     # Example 8: Rolling Max and Min (52-week high/low)
@@ -277,9 +230,7 @@ if __name__ == "__main__":
     print("=" * 80)
 
     # Approximate 52 weeks as 252 trading days
-    by_ticker_52week = (
-        Window().partition_by("ticker").order_by("date").rows_between(-251, 0)
-    )
+    by_ticker_52week = Window().partition_by("ticker").order_by("date").rows_between(-251, 0)
 
     df_with_52week = (
         df.with_column("week_52_high", col("high").max().over(by_ticker_52week))
@@ -307,7 +258,6 @@ if __name__ == "__main__":
             "distance_from_high_pct",
         ).collect()
     )
-
 
     print("\n" + "=" * 80)
     print("WINDOW FUNCTIONS DEMONSTRATED:")

@@ -1,18 +1,18 @@
 # /// script
 # description = "Context Engineering: Few-Shot Example Selection Pipeline"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "python-dotenv", "pydantic"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pydantic"]
 # ///
 
 import os
-import daft
-from daft import col, lit, Window
-from daft.functions import embed_text, prompt, format, rank
+
 from dotenv import load_dotenv
 
+import daft
+from daft import Window, col
+from daft.functions import embed_text, format, prompt, rank
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider("openai", api_key=os.environ.get("OPENAI_API_KEY"))
@@ -112,7 +112,8 @@ if __name__ == "__main__":
     window = Window().partition_by("query").order_by(col("distance").asc())
 
     df_top_k = df_with_distance.with_column(
-        "rank", rank().over(window),
+        "rank",
+        rank().over(window),
     ).where(col("rank") <= K)
 
     # ══════════════════════════════════════════════════════════════════════

@@ -1,18 +1,18 @@
 # /// script
 # description = "Chunk Common Crawl text and generate embeddings for semantic search"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
 import os
-from dotenv import load_dotenv
+
 import spacy
+from dotenv import load_dotenv
 
 import daft
 from daft import DataType, col
 from daft.functions import unnest
 from daft.io import IOConfig, S3Config
-
 
 # ---------------------------
 # Parameters
@@ -105,9 +105,7 @@ if __name__ == "__main__":
     df_prep = (
         df_warc.with_column("warc_content", col("warc_content").try_decode("utf-8"))
         .drop_null(col("warc_content"))
-        .with_column(
-            "spacy_results", spacy_chunk_text.chunk_text(text=col("warc_content"))
-        )
+        .with_column("spacy_results", spacy_chunk_text.chunk_text(text=col("warc_content")))
         .explode("spacy_results")
     )
 
@@ -124,8 +122,6 @@ if __name__ == "__main__":
     )
 
     print("\n=== Chunked & Embedded Text ===")
-    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(
-        5, max_col_width=40
-    )
+    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(5, max_col_width=40)
 
     df_embed.write_parquet(f"{OUT_DIR}/embeddings")

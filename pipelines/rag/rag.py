@@ -1,10 +1,11 @@
 # /// script
 # description = "Minimal RAG Example"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "python-dotenv"]
 # ///
 
 import pymupdf
+
 import daft
 from daft import DataType
 
@@ -34,9 +35,10 @@ def extract_pdf(doc: daft.File):
 
 
 if __name__ == "__main__":
-    from daft import col
-    from daft.functions import unnest, embed_text, cosine_distance, file, prompt, format
     from dotenv import load_dotenv
+
+    from daft import col
+    from daft.functions import cosine_distance, embed_text, file, unnest
 
     load_dotenv()
 

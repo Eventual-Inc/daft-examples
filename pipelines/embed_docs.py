@@ -1,15 +1,16 @@
 # /// script
 # description = "Embed text from pdfs"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "sentence-transformers", "spacy", "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "sentence-transformers", "spacy", "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl", "python-dotenv"]
 # ///
 
-import daft
-from daft import col, DataType
-from daft.functions import embed_text, unnest
-import io
+
 import pymupdf
 import spacy
+
+import daft
+from daft import DataType, col
+from daft.functions import embed_text, unnest
 
 
 @daft.func(
@@ -105,21 +106,15 @@ if __name__ == "__main__":
     df = (
         df
         # Chunk page text into sentences
-        .with_column(
-            "text_normalized", col("text").normalize(nfd_unicode=True, white_space=True)
-        )
+        .with_column("text_normalized", col("text").normalize(nfd_unicode=True, white_space=True))
         .with_column("sentences", Chunker.chunk_text(col("text_normalized")))
         .explode("sentences")
         .select(col("path"), col("page_number"), unnest(col("sentences")))
-        .where(
-            col("sent_end") - col("sent_start") > 1
-        )  # remove sentences that are too short
+        .where(col("sent_end") - col("sent_start") > 1)  # remove sentences that are too short
         # Embed sentences
         .with_column(
-            f"text_embed_{MODEL_ID.split('/')[1]}",
-            embed_text(
-                col("sent_text"), provider="openai", model="text-embedding-3-small"
-            ),
+            "text_embedding",
+            embed_text(col("sent_text"), model="text-embedding-3-small"),
         )
     )
 

@@ -1,26 +1,25 @@
 # /// script
 # description = "Prompt a Gemini 3 model to review the code"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5","pydantic","python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
 # ///
 import os
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
 import daft
 from daft import col
-from daft.functions import format, prompt, file, unnest
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
+from daft.functions import file, prompt, unnest
 
 
 class Evaluation(BaseModel):
-    quality_score: int = Field(
-        description="The quality of the code on a scale of 1 to 10"
-    )
+    quality_score: int = Field(description="The quality of the code on a scale of 1 to 10")
     improvements: list[str] = Field(description="Suggestions for improvements")
     reasoning: str = Field(description="The reasoning behind the evaluation")
 
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     pwd = os.path.dirname(os.path.abspath(__file__))
@@ -39,9 +38,7 @@ if __name__ == "__main__":
             "review",
             prompt(
                 messages=[
-                    daft.lit(
-                        "Evaluate the quality of the following python code and suggest improvements"
-                    ),
+                    daft.lit("Evaluate the quality of the following python code and suggest improvements"),
                     file(daft.col("path")),
                 ],
                 system_message="You are a principal python developer.",

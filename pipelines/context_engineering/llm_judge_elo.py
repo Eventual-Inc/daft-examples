@@ -1,18 +1,18 @@
 # /// script
 # description = "Context Engineering: LLM-as-a-Judge ELO Ranking Pipeline"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "pydantic", "python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "pydantic", "python-dotenv", "numpy"]
 # ///
 
 import os
-import daft
-from daft import col, lit
-from daft.functions import monotonically_increasing_id, prompt, format
+
 from dotenv import load_dotenv
 
+import daft
+from daft import col, lit
+from daft.functions import format, monotonically_increasing_id, prompt
 
 if __name__ == "__main__":
-
     load_dotenv()
 
     daft.set_provider(
@@ -67,8 +67,6 @@ if __name__ == "__main__":
                         col("question"),
                     ),
                     model=model_id,
-
-
                 ),
             )
             .with_column("model", lit(model_id))

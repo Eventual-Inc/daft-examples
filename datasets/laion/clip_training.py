@@ -1,11 +1,13 @@
 # /// script
 # description = "Prepare LAION data for CLIP-style training"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws,openai]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws,openai]>=0.7.6", "python-dotenv"]
 # ///
 
 import os
+
 from dotenv import load_dotenv
+
 import daft
 from daft import col
 from daft.functions import embed_text
@@ -14,9 +16,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Load LAION metadata
-    df = daft.read_parquet(
-        "s3://daft-public-data/tutorials/laion-parquet/train-00000-of-00001-*.parquet"
-    )
+    df = daft.read_parquet("s3://daft-public-data/tutorials/laion-parquet/train-00000-of-00001-*.parquet")
 
     # Filter high quality data for training
     df_filtered = df.where(
@@ -28,9 +28,7 @@ if __name__ == "__main__":
         & (col("TEXT").length() > 10)
     )
 
-    print(
-        f"Filtered {df_filtered.count_rows()} training examples from {df.count_rows()} total"
-    )
+    print(f"Filtered {df_filtered.count_rows()} training examples from {df.count_rows()} total")
     df_filtered = df_filtered.with_column(
         "normalized_caption",
         col("TEXT").normalize(lowercase=True, remove_punct=False),

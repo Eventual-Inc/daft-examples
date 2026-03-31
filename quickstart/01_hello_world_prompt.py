@@ -1,15 +1,14 @@
 # /// script
 # description = "Prompt a model"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5","pydantic","python-dotenv", "numpy"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
 # ///
 from dotenv import load_dotenv
+
 import daft
 from daft.functions import prompt
 
-
 if __name__ == "__main__":
-
     load_dotenv()
 
     df = daft.from_pydict(

@@ -1,12 +1,13 @@
 # /// script
 # description = "take a bunch of filepaths, filter for Python files, extract Python functions, caption them all/generate a docstring, run embeddings."
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]>=0.7.5", "numpy", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
 # ///
+
+from pydantic import BaseModel
 
 import daft
 from daft import DataType
-from pydantic import BaseModel, Field
 
 FUNCTION_SCHEMA = DataType.struct(
     {
@@ -36,6 +37,7 @@ CLASSES_SCHEMA = DataType.list(
         }
     )
 )
+
 
 def _extract_function_metadata(node, file_content):
     import ast
@@ -80,7 +82,9 @@ def _extract_function_metadata(node, file_content):
 
 
 @daft.func(return_dtype=CLASSES_SCHEMA, on_error="log")
-def extract_classes(file: daft.File, ):
+def extract_classes(
+    file: daft.File,
+):
     """retrieve all classes (with their methods) from the file"""
     import ast
 
@@ -99,9 +103,7 @@ def extract_classes(file: daft.File, ):
             docstring = ast.get_docstring(node)
 
             # Get decorators
-            decorators = [
-                ast.get_source_segment(file_content, d) for d in node.decorator_list
-            ]
+            decorators = [ast.get_source_segment(file_content, d) for d in node.decorator_list]
 
             # Get bases
             bases = [ast.unparse(b) for b in node.bases]
@@ -128,7 +130,6 @@ def extract_classes(file: daft.File, ):
     return results
 
 
-
 @daft.func(return_dtype=DataType.list(FUNCTION_SCHEMA), on_error="log")
 def extract_functions(file: daft.File):
     """retrieve all functions from the file"""
@@ -148,9 +149,10 @@ def extract_functions(file: daft.File):
 
 
 if __name__ == "__main__":
-    from daft import col, lit
-    from daft.functions import file, unnest, embed_text, prompt
     from dotenv import load_dotenv
+
+    from daft import col, lit
+    from daft.functions import embed_text, file, prompt, unnest
 
     load_dotenv()
 
@@ -187,9 +189,7 @@ if __name__ == "__main__":
     methods_df = (
         methods_df.with_column(
             "prompt_input",
-            lit(
-                "Explain what this Python method does in one concise sentence. Focus on the purpose and logic.\n\n"
-            )
+            lit("Explain what this Python method does in one concise sentence. Focus on the purpose and logic.\n\n")
             + lit("Method: ")
             + col("name").fill_null("")
             + lit("\nSignature: ")
@@ -205,9 +205,7 @@ if __name__ == "__main__":
         )
         .with_column(
             "embedding",
-            embed_text(
-                col("caption"), model="text-embedding-3-small", provider="openai"
-            ),
+            embed_text(col("caption"), model="text-embedding-3-small", provider="openai"),
         )
     )
 
@@ -221,9 +219,7 @@ if __name__ == "__main__":
     functions_df = (
         functions_df.with_column(
             "prompt_input",
-            lit(
-                "Explain what this Python function does in one concise sentence. Focus on the purpose and logic.\n\n"
-            )
+            lit("Explain what this Python function does in one concise sentence. Focus on the purpose and logic.\n\n")
             + lit("Function: ")
             + col("name").fill_null("")
             + lit("\nSignature: ")
@@ -239,9 +235,7 @@ if __name__ == "__main__":
         )
         .with_column(
             "embedding",
-            embed_text(
-                col("caption"), model="text-embedding-3-small", provider="openai"
-            ),
+            embed_text(col("caption"), model="text-embedding-3-small", provider="openai"),
         )
     )
 

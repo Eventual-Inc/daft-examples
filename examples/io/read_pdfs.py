@@ -1,7 +1,7 @@
 # /// script
 # description = "Read pdf files into a dataframe"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6"]
 # ///
 
 import daft

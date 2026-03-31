@@ -1,12 +1,12 @@
 # /// script
 # description = "Load raw WARC data from Common Crawl - full HTTP responses with headers"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
 # ///
 
-import daft
-
 from common import get_common_crawl_io
+
+import daft
 
 
 def main() -> None:

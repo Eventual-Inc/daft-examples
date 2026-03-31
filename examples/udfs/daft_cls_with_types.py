@@ -1,12 +1,14 @@
 # /// script
 # description = "Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.5", "pydantic"]
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6", "pydantic"]
 # ///
 
-import daft
 import typing
+
 import pydantic
+
+import daft
 
 
 class DoSomethingResultPydantic(pydantic.BaseModel):
@@ -38,17 +40,13 @@ class NewUDFUsageExample:
 
     # With Python Type Hint Resolution
     @daft.method()
-    def do_something_typeddict(
-        self, x2: int, y2: int, some_arg: str
-    ) -> DoSomethingResultTypedDict:
+    def do_something_typeddict(self, x2: int, y2: int, some_arg: str) -> DoSomethingResultTypedDict:
         x3 = self.x1 + x2
         y3 = self.y1 - y2
         return {"x3": x3, "y3": y3, "some_arg": some_arg}
 
     @daft.method()
-    def do_something_pydantic(
-        self, x2: int, y2: int, some_arg: str
-    ) -> DoSomethingResultPydantic:
+    def do_something_pydantic(self, x2: int, y2: int, some_arg: str) -> DoSomethingResultPydantic:
         x3 = self.x1 + x2
         y3 = self.y1 - y2
         return DoSomethingResultPydantic(x3=x3, y3=y3, some_arg=some_arg)
@@ -71,15 +69,11 @@ if __name__ == "__main__":
     # Use the UDF
     df = df.with_column(
         "something_typeddict",
-        my_udf.do_something_typeddict(
-            daft.col("x1"), daft.col("y1"), daft.lit("some_arg")
-        ),
+        my_udf.do_something_typeddict(daft.col("x1"), daft.col("y1"), daft.lit("some_arg")),
     )
     df = df.with_column(
         "something_pydantic",
-        my_udf.do_something_pydantic(
-            daft.col("x1"), daft.col("y1"), daft.lit("some_arg")
-        ),
+        my_udf.do_something_pydantic(daft.col("x1"), daft.col("y1"), daft.lit("some_arg")),
     )
     df = df.with_column(
         "something_daft",
