@@ -1,6 +1,6 @@
 # /// script
 # description = "A minimal Daft enrichment pipeline: load rows into a DataFrame, normalize text deterministically, call LLMs to extract typed metadata and redact PII (validated via Pydantic schemas), then flatten and write a clean table for downstream search/analytics."
-# dependencies = ["daft[openai]==0.7.1", "pydantic", "python-dotenv"]
+# dependencies = ["daft[openai, huggingface]==0.7.1", "pydantic", "python-dotenv"]
 # ///
 import os
 import daft

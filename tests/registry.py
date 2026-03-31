@@ -41,14 +41,14 @@ SCRIPTS: list[Script] = [
     Script("examples/commoncrawl/cc_chunk_embed.py",    env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]),
     Script("examples/commoncrawl/cc_show.py",           env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]),
     Script("examples/commoncrawl/cc_wet_paragraph_dedupe.py", env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]),
-    Script("examples/commoncrawl/cc_wet_paragraph_dedupe_copy.py", skip="duplicate/scratch file"),
+
 
     # ── examples/embed ──────────────────────────────────────────────
     Script("examples/embed/cosine_similarity.py",       env=["OPENAI_API_KEY"]),
-    Script("examples/embed/cosine_similarity_2.py",     skip="duplicate/scratch file"),
+
     Script("examples/embed/embed_images.py"),
     Script("examples/embed/embed_text.py",              env=["OPENAI_API_KEY"]),
-    Script("examples/embed/embed_text_providers.py"),
+    Script("examples/embed/embed_text_providers.py",    env=["OPENAI_API_KEY"]),
     Script("examples/embed/embed_video_frames.py"),
 
     # ── examples/files ──────────────────────────────────────────────
@@ -61,8 +61,6 @@ SCRIPTS: list[Script] = [
     Script("examples/files/daft_videofile_stream.py"),
 
     # ── examples/io ─────────────────────────────────────────────────
-    Script("examples/io/read_audio_file.py"),
-    Script("examples/io/read_audio_file_2.py"),
     Script("examples/io/read_pdfs.py"),
     Script("examples/io/read_video_files.py"),
 
@@ -70,7 +68,7 @@ SCRIPTS: list[Script] = [
     Script("examples/prompt/prompt.py",                     env=["OPENAI_API_KEY"]),
     Script("examples/prompt/prompt_chat_completions.py",    env=["OPENROUTER_API_KEY"]),
     Script("examples/prompt/prompt_files_images.py",        env=["OPENAI_API_KEY"]),
-    Script("examples/prompt/prompt_gemini3_code_review.py", env=["GEMINI_API_KEY"]),
+    Script("examples/prompt/prompt_gemini3_code_review.py", env=["GOOGLE_API_KEY"]),
     Script("examples/prompt/prompt_openai_web_search.py",   env=["OPENAI_API_KEY"]),
     Script("examples/prompt/prompt_pdfs.py",                env=["OPENAI_API_KEY"]),
     Script("examples/prompt/prompt_qa.py",                  env=["OPENAI_API_KEY"]),
@@ -103,7 +101,10 @@ SCRIPTS: list[Script] = [
     Script("pipelines/context_engineering/arxiv_search/daily_workflow.py",   env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="pipeline"),
     Script("pipelines/context_engineering/arxiv_search/ingest_lambda.py",    env=["S3_BUCKET"], tier="pipeline"),
     Script("pipelines/context_engineering/arxiv_search/search.py",           env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="pipeline"),
-    Script("pipelines/context_engineering/llm_judge_elo.py",                 env=["OPENAI_API_KEY"], tier="pipeline"),
+    Script("pipelines/context_engineering/llm_judge_elo.py",                 env=["OPENROUTER_API_KEY"], tier="pipeline"),
+    Script("pipelines/context_engineering/chunking_strategies.py",          env=["OPENAI_API_KEY"], tier="pipeline"),
+    Script("pipelines/context_engineering/few_shot_example_selection.py",   env=["OPENAI_API_KEY"], tier="pipeline"),
+    Script("pipelines/context_engineering/lambda_mapreduce.py",             env=["OPENAI_API_KEY"], tier="pipeline"),
 
     Script("pipelines/image_understanding_eval/eval_image_understanding.py",    env=["OPENAI_API_KEY"], tier="pipeline", timeout=300),
     Script("pipelines/image_understanding_eval/image_understanding_report.py",  env=["OPENAI_API_KEY"], tier="pipeline"),
@@ -135,10 +136,6 @@ SCRIPTS: list[Script] = [
     Script("datasets/open_images/basic_images.py",      tier="dataset"),
     Script("datasets/open_images/image_processing.py",  tier="dataset"),
     Script("datasets/open_images/vision_models.py",     env=["OPENAI_API_KEY"], tier="dataset"),
-
-    Script("datasets/reddit_irl/basic_comments.py",     tier="dataset"),
-    Script("datasets/reddit_irl/basic_images.py",       tier="dataset"),
-    Script("datasets/reddit_irl/embeddings.py",         tier="dataset"),
 
     Script("datasets/tpch/basic_query.py",          env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="dataset"),
     Script("datasets/tpch/performance_test.py",     env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="dataset", timeout=300),

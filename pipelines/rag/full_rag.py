@@ -1,29 +1,26 @@
 # /// script
 # description = "Full RAG example"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.13", "openai", "pymupdf", "python-dotenv", "numpy"]
+# dependencies = ["daft[openai]", "pymupdf", "python-dotenv"]
 # ///
 
 import pymupdf  # type: ignore
 import daft
-from daft import DataType, col, lit
-from daft.functions import embed_text, cosine_distance, file, prompt, unnest
+from daft import DataType, col
+from daft.functions import embed_text, cosine_distance, file, prompt, unnest, format
 from dotenv import load_dotenv  # type: ignore
 
 
 @daft.func(
-    return_dtype=DataType.list(
-        DataType.struct(
-            {
-                "page_number": DataType.int32(),
-                "page_text": DataType.string(),
-            }
-        )
+    return_dtype=DataType.struct(
+        {
+            "page_number": DataType.int32(),
+            "page_text": DataType.string(),
+        }
     )
 )
 def extract_pdf_pages(pdf_file: daft.File):
-    """Extract text from each PDF page as Daft rows."""
-    pages = []
+    """Extract text from each PDF page."""
     with pdf_file.to_tempfile() as temp_file:
         document = None
         try:
@@ -31,59 +28,15 @@ def extract_pdf_pages(pdf_file: daft.File):
             for page_number, page in enumerate(document):
                 text = page.get_text("text")
                 if text and text.strip():
-                    pages.append(
-                        {
-                            "page_number": page_number,
-                            "page_text": text,
-                            "page_image": 
-                            "page_audio":
-                            "page_video": 
-                            "page_raw"
-                            "analytics":
-                            "metrics": {
-
-                            }
-                        }
-                    )
+                    yield {
+                        "page_number": page_number,
+                        "page_text": text,
+                    }
         except Exception as exc:
             print(f"Failed to extract PDF contents: {exc}")
         finally:
             if document is not None:
                 document.close()
-    return pages
-
-
-
-@daft.cls()
-class SpaCyChunkText:
-    def __init__(self, model="en_core_web_sm"):
-        self.nlp = spacy.load(model)
-
-    @daft.method(
-        return_dtype=DataType.list(
-            DataType.struct(
-                {
-                    "sent_id": DataType.int32(),
-                    "sent_start": DataType.int32(),
-                    "sent_end": DataType.int32(),
-                    "sent_text": DataType.string(),
-                    "sent_ents": DataType.list(DataType.string()),
-                }
-            )
-        )
-    )
-    def chunk_text(self, text: list[str]):
-        doc = self.nlp(text)
-        return [
-            {
-                "sent_id": i,
-                "sent_start": sent.start,
-                "sent_end": sent.end,
-                "sent_text": sent.text,
-                "sent_ents": [ent.text for ent in sent.ents] if sent.ents else [],
-            }
-            for i, sent in enumerate(doc.sents)
-        ]
 
 
 if __name__ == "__main__":
@@ -100,6 +53,7 @@ if __name__ == "__main__":
         daft.from_glob_path(PDF_URI)
         .with_column("pdf_file", file(col("path")))
         .with_column("pdf_pages", extract_pdf_pages(col("pdf_file")))
+        .select("path", unnest(col("pdf_pages")))
         .with_column(
             "page_embedding",
             embed_text(col("page_text"), provider="openai", model=TEXT_EMBEDDING_MODEL),
@@ -152,16 +106,13 @@ if __name__ == "__main__":
     ).with_column(
         "response",
         prompt(
-            messages= [
-                for x in y: 
-
-                 
-                    
-                
-            ],
+            messages=format(
+                "Using the following context, answer the question.\n\nContext:\n{}\n\nQuestion: {}",
+                col("context"),
+                col("question"),
+            ),
             model=GENERATION_MODEL,
             provider="openai",
-            reasoning={"effort": "medium"},
         ),
     )
 

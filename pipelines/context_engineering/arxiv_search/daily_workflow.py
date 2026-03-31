@@ -16,9 +16,6 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TURBOPUFFER_API_KEY = os.getenv("TURBOPUFFER_API_KEY")
 
-# Set Daft Turbopuffer config
-if TURBOPUFFER_API_KEY:
-    daft.set_config({"turbopuffer_api_key": TURBOPUFFER_API_KEY})
 
 S3_BUCKET = os.getenv("S3_BUCKET", "daft-arxiv-demo")
 S3_PREFIX = os.getenv("S3_PREFIX", "raw/")
@@ -105,15 +102,11 @@ def main():
     # For massive scale, we would partition and use a map_partitions approach or custom sink.
     print("Processing summaries and embeddings and writing to Turbopuffer...")
 
-    # Ensure authors are string-serialized for Turbopuffer attributes
-    df = df.with_column("authors_str", col("authors").cast(daft.DataType.string()))
-
     df.write_turbopuffer(
         namespace="arxiv-papers",
-        id_col="id",
-        vector_col="embedding",
-        # Pass remaining columns as attributes
-        attrs=["title", "short_summary", "link", "authors_str", "category"],
+        id_column="id",
+        vector_column="embedding",
+        api_key=TURBOPUFFER_API_KEY,
     )
     print("Successfully indexed to Turbopuffer!")
 

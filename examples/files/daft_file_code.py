@@ -52,9 +52,9 @@ def extract_functions(file: daft.File):
 if __name__ == "__main__":
     from daft import col
     
-    # Discover Python files from my local Daft Clone
+    # Discover Python files from this repo's examples
     df = (
-        daft.from_glob_path("~/git/Daft/daft/functions/**/*.py")
+        daft.from_glob_path("examples/**/*.py")
         .with_column("file", daft_file(col("path")))
         .with_column("functions", extract_functions(col("file")))
         .explode("functions")

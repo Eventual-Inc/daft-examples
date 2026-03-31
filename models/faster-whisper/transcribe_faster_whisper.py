@@ -37,7 +37,6 @@ class FasterWhisperTranscriber:
 if __name__ == "__main__":
     # Define Parameters & Constants
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
-    SOURCE_URI = "/Users/everettkleven/Desktop/*.mp3"
     SAMPLE_RATE = 16000
     DTYPE = "float32"
     BATCH_SIZE = 16

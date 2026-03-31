@@ -5,15 +5,12 @@
 # ///
 from dotenv import load_dotenv
 import daft
-from daft.functions import embed_text
+from daft.functions import embed_image, download
 
 load_dotenv()
 
-import daft
-from daft.functions import embed_image, download
-
 df = (
-    daft.from_glob_path("/Users/everettkleven/Downloads/*.png")
+    daft.from_glob_path("hf://datasets/datasets-examples/doc-image-3/images")
     .with_column("image", download(daft.col("path")).decode_image())
     .with_column(
         "image_embeddings",

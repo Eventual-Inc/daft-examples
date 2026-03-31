@@ -159,17 +159,6 @@ def run_judge(df, model_id: str):
         ),
     )
 
-def propose_new_question(df: daft.DataFrame, ) -> daft.DataFrame: 
-
-    new_question_system_prompt = format(
-        """ 
-        
-        """
-    )
-
-    # Aggregate diagnostic feedback for a subset of cases
-    
-
 def run_full_pipeline(
     source_uri: str,
     category: str,
@@ -178,15 +167,18 @@ def run_full_pipeline(
     params: dict = {},
     limit: int = None,
     dest_uri: str = None,
-    evolution_iterations: int = 0
 ) -> daft.DataFrame:
     """
     Run the complete evaluation pipeline.
 
     Args:
+        source_uri: Path to the parquet source data
+        category: The Cauldron category (e.g., 'textbook_academic_questions')
         subset: The Cauldron subset to evaluate (e.g., 'ai2d', 'chartqa')
         model_id: Model ID for the VLM
+        params: Additional model parameters
         limit: Optional row limit for testing
+        dest_uri: Optional output path for writing results
 
     Returns:
         Collected DataFrame with quadrant classifications
@@ -200,17 +192,14 @@ def run_full_pipeline(
         df, category=category, subset=subset, model_id=model_id, params=params
     )
 
-    if evolution_iterations 
-        df = run_inference(df, model_id, with_image=True)
-        df = run_inference(df, model_id, with_image=False)
-        df = classify_quadrants(df)
-        df.write_parquet(DEST_URI, write_mode="append")
+    df = run_inference(df, model_id, with_image=True)
+    df = run_inference(df, model_id, with_image=False)
+    df = classify_quadrants(df)
 
-    if run_judge:
-        df = run_judge(df, model_id)
-        df = propose_new_question(df)
+    if dest_uri:
+        df.write_parquet(dest_uri, write_mode="append")
 
-
+    df = run_judge(df, model_id)
 
     return df
 

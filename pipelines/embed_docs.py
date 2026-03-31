@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed text from pdfs"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pymupdf", "sentence_transformers", "spacy","pip", "python-dotenv"]
+# dependencies = ["daft[openai]", "pymupdf", "sentence-transformers", "spacy", "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl", "python-dotenv"]
 # ///
 
 import daft

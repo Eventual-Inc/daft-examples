@@ -1,7 +1,7 @@
 # /// script
 # description = "Summarize podcasts"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pandas","numpy", "transformers","torchvision","matplotlib","av","yt-dlp"]
+# dependencies = ["daft", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
 # ///
 import daft
 from daft.functions import embed_image
@@ -21,12 +21,7 @@ def l2_distance(a: np.ndarray | None, b: np.ndarray | None) -> float:
 
 
 if __name__ == "__main__":
-    VIDEOS = [  # Data Systems for Multimodal Madness
-        "/Users/everettkleven/Desktop/data/videos/Build_Scalable_Batch_Inference_Pipelines_in_3_Lines_Daft_GPT_vLLM.mp4",
-        "/Users/everettkleven/Desktop/data/videos/Daft_Team_Takes_On_Climbing_Dogpatch_Boulders_SF.mp4",
-        "/Users/everettkleven/Desktop/data/videos/Dynamic_Execution_for_Multimodal_Data_Processing_Daft_Launch_Week_Day_2.mp4",
-        "/Users/everettkleven/Desktop/data/videos/Near_100_GPU_Utilization_Embedding_Millions_of_Text_Documents_With_Qwen3.mp4",
-    ]
+    SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/videos/*.mp4"
     MODEL_NAME = "apple/aimv2-large-patch14-224-lit"
     B, T, H, W, C = (
         2,
@@ -39,9 +34,12 @@ if __name__ == "__main__":
     CUT_THRESHOLD = 0.1
     DISSOLVE_THRESHOLD = 1.0
 
+    # Resolve HF paths for read_video_frames (requires PyArrow-compatible paths)
+    video_paths = daft.from_glob_path(SOURCE_URI).select("path").collect().to_pydict()["path"]
+
     # Read Video Frames from MP4 Files
     df_frames = daft.read_video_frames(
-        VIDEOS,
+        video_paths,
         image_height=H,
         image_width=W,
     ).limit(ROW_LIMIT)

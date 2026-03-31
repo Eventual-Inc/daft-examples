@@ -1,11 +1,10 @@
 # /// script
-# description = "Perform web searches using OpenAI GPT-5 with web_search tools and store results in Supabase"
+# description = "Perform web searches using OpenAI with web_search tools"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft","openai","pydantic","python-dotenv","numpy", "uuid_utils"]
+# dependencies = ["daft[openai]", "pydantic", "python-dotenv"]
 # ///
-# from dotenv import load_dotenv
 import daft
-from daft.functions import embed_text, prompt, file, regexp_split, unnest
+from daft.functions import prompt, file, unnest
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -33,24 +32,12 @@ df = (
                 daft.lit("Find 5 closely related papers to the one attached"),
                 file(daft.col("path")),
             ],
-            model="gpt-4-turbo",
+            model="gpt-5-mini",
             tools=[{"type": "web_search"}],
             return_format=SearchResults,
             provider="openai",
-            unnest=True,
         ),
     )
-    .with_column(
-        "chunks", daft.col("summary").regexp_split(r"(?<=[.!?])\s+|\n+|(?=^#{1,6}\s)")
-    )
-    .with_column(
-        "embeddings",
-        embed_text(
-            daft.col("search_results"),
-            model="text-embedding-ada-002",
-            provider="openai",
-        ),
-    )
-    # .select("path", "size", unnest(daft.col("search_results")))
+    .select("path", unnest(daft.col("results")))
 )
 df.show(format="fancy", max_width=60)

@@ -1,7 +1,7 @@
 # /// script
 # description = "Synthetic Q&A generation pipeline with question generation, answering, and verification"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[unity, deltalake]", "pydantic", "openai", "numpy", "pillow", "python-dotenv"]
+# dependencies = ["daft[unity, deltalake]", "pydantic", "openai", "numpy", "pillow", "python-dotenv", "tenacity"]
 # ///
 import os
 import daft

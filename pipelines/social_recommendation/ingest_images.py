@@ -1,3 +1,8 @@
+# /// script
+# description = "Download images from source URLs and write to S3"
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft", "python-dotenv"]
+# ///
 """
 Job 1: Image Ingestion
 

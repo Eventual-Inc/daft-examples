@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed Video Frames from a Youtube Video"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pandas","numpy", "transformers", "torchvision","av","yt-dlp"]
+# dependencies = ["daft", "pandas","numpy", "transformers<5", "torchvision","av","yt-dlp"]
 # ///
 import daft
 from daft.functions import embed_image

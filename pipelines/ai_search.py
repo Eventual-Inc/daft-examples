@@ -1,6 +1,6 @@
 # /// script
 # description = "This example shows how using LLMs and embedding models, Daft chunks documents, extracts metadata, generates vectors, and writes them to any vector database..."
-# dependencies = ["daft[openai]", "pymupdf", "python-dotenv"]
+# dependencies = ["daft[openai]", "pymupdf", "python-dotenv", "pydantic", "turbopuffer"]
 # ///
 import os
 import daft

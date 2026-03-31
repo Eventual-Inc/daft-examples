@@ -16,13 +16,24 @@ class OpenAITranscription:
     def __init__(self):
         self.client = AsyncOpenAI()
 
-    @daft.method(unnest=True)
-    async def transcribe(
-        self, audio_file: daft.File
-    ) -> {
-        "transcript": str,
-        "segments": list[{"seg_text": str, "seg_start": float, "seg_end": float}],
-    }:
+    @daft.method(
+        return_dtype=DataType.struct(
+            {
+                "transcript": DataType.string(),
+                "segments": DataType.list(
+                    DataType.struct(
+                        {
+                            "seg_text": DataType.string(),
+                            "seg_start": DataType.float64(),
+                            "seg_end": DataType.float64(),
+                        }
+                    )
+                ),
+            }
+        ),
+        unnest=True,
+    )
+    async def transcribe(self, audio_file: daft.File):
         with audio_file.to_tempfile() as tmpfile:
             transcriptions = await self.client.audio.transcriptions.create(
                 model="whisper-1",
@@ -43,7 +54,7 @@ class OpenAITranscription:
 if __name__ == "__main__":
     # Run this script with `uv run speech/speech_analytics_openai.py`
     from daft import col
-    from daft.functions import embed_text, llm_generate, format, file
+    from daft.functions import embed_text, prompt, format, file
     from dotenv import load_dotenv
 
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
@@ -67,7 +78,7 @@ if __name__ == "__main__":
         # Summarize the transcript
         .with_column(
             "transcript_summary",
-            llm_generate(
+            prompt(
                 format(
                     "Summarize the following podcast transcript: {}", col("transcript")
                 ),
@@ -78,7 +89,7 @@ if __name__ == "__main__":
         # Translate Segment Subtitles to Spanish for Localization
         .with_column(
             "transcript_spanish",
-            llm_generate(
+            prompt(
                 format(
                     "Translate the following text to Spanish: {}", col("transcript")
                 ),
