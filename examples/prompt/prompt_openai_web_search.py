@@ -1,14 +1,12 @@
 # /// script
 # description = "Perform web searches using OpenAI with web_search tools"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]", "pydantic", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.5", "pydantic", "python-dotenv"]
 # ///
 import daft
 from daft.functions import prompt, file, unnest
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class Citation(BaseModel):
@@ -22,22 +20,26 @@ class SearchResults(BaseModel):
     citations: list[Citation] = Field(description="A list of citations")
 
 
-df = (
-    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/papers/*.pdf")
-    .limit(1)
-    .with_column(
-        "results",
-        prompt(
-            messages=[
-                daft.lit("Find 5 closely related papers to the one attached"),
-                file(daft.col("path")),
-            ],
-            model="gpt-5-mini",
-            tools=[{"type": "web_search"}],
-            return_format=SearchResults,
-            provider="openai",
-        ),
+if __name__ == "__main__":
+
+    load_dotenv()
+
+    df = (
+        daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/papers/*.pdf")
+        .limit(1)
+        .with_column(
+            "results",
+            prompt(
+                messages=[
+                    daft.lit("Find 5 closely related papers to the one attached"),
+                    file(daft.col("path")),
+                ],
+                model="gpt-5-mini",
+                tools=[{"type": "web_search"}],
+                return_format=SearchResults,
+                provider="openai",
+            ),
+        )
+        .select("path", unnest(daft.col("results")))
     )
-    .select("path", unnest(daft.col("results")))
-)
-df.show(format="fancy", max_width=60)
+    df.show(format="fancy", max_width=60)

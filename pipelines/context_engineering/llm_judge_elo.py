@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: LLM-as-a-Judge ELO Ranking Pipeline"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]", "pydantic", "python-dotenv", "numpy"]
+# dependencies = ["daft[openai]>=0.7.5", "pydantic", "python-dotenv", "numpy"]
 # ///
 
 import os

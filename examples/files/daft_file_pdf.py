@@ -1,7 +1,7 @@
 # /// script
 # description = "Extract the content of a PDF file"
-# requires-python = ">=3.11, <3.13"
-# dependencies = ["daft[huggingface]>=0.7.4", "pymupdf"]
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft[huggingface]>=0.7.5", "pymupdf"]
 # ///
 import daft
 from typing import Iterator, TypedDict

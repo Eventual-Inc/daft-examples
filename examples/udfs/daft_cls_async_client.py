@@ -1,7 +1,7 @@
 # /// script
 # description = "Async class UDF example with aiohttp"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.4", "aiohttp"]
+# dependencies = ["daft>=0.7.5", "aiohttp"]
 # ///
 
 
@@ -18,10 +18,13 @@ class APIClient:
             async with session.get(url) as resp:
                 return await resp.text()
 
-client = APIClient()
-df = daft.from_pydict({"endpoint": [
-    "https://httpbin.org/get",
-    "https://httpbin.org/ip",
-]})
-df = df.select(client.fetch(df["endpoint"]).alias("response"))
-df.show()
+
+if __name__ == "__main__":
+
+    client = APIClient()
+    df = daft.from_pydict({"endpoint": [
+        "https://httpbin.org/get",
+        "https://httpbin.org/ip",
+    ]})
+    df = df.select(client.fetch(df["endpoint"]).alias("response"))
+    df.show()

@@ -1,7 +1,7 @@
 # /// script
 # description = "Audio-oriented patterns using daft.File + soundfile (duration/sample_rate)"
-# requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[audio]>=0.7.1"]
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft[audio]>=0.7.5"]
 # ///
 
 import daft
@@ -19,12 +19,14 @@ def seek_and_read_audio_file(
         return audio_bytes
 
 
-df = (
-    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/audio/*.mp3")
-    .with_column("file", audio_file(daft.col("path")))
-    .with_column(
-        "audio", seek_and_read_audio_file(daft.col("file"), offset=4, whence=0)
-    )
-)
+if __name__ == "__main__":
 
-df.show(3)
+    df = (
+        daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/audio/*.mp3")
+        .with_column("file", audio_file(daft.col("path")))
+        .with_column(
+            "audio", seek_and_read_audio_file(daft.col("file"), offset=4, whence=0)
+        )
+    )
+
+    df.show(3)

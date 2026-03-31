@@ -1,3 +1,9 @@
+# /// script
+# description = "Faster Whisper transcription result schema definitions for Daft DataTypes"
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft>=0.7.5"]
+# ///
+
 from daft import DataType
 
 WordStruct = DataType.struct(

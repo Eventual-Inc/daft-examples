@@ -1,7 +1,7 @@
 # /// script
 # description = "Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pydantic"]
+# dependencies = ["daft>=0.7.5", "pydantic"]
 # ///
 
 import daft

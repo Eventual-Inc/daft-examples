@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice AI analytics tutorial: transcription, summarization, Chinese translation, and embeddings"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.14", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv", "openai"]
+# dependencies = ["daft[openai]>=0.7.5", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
 from dataclasses import asdict
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     from daft import col
     from daft.functions import format, file, unnest
-    from daft.functions.ai import prompt, embed_text
+    from daft.functions import prompt, embed_text
     from daft.ai.openai.provider import OpenAIProvider
 
     # Define Parameters

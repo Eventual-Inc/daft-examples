@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice analytics with OpenAI Whisper transcription, GPT summarization, and Spanish translation"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
+# dependencies = ["daft[openai]>=0.7.5", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
 # ///
 import io
 import pathlib

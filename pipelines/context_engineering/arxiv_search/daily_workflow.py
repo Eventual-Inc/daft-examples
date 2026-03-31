@@ -1,7 +1,7 @@
 # /// script
 # description = "Daily Arxiv Summarization and Indexing Workflow"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[turbopuffer]>=0.6.13", "openai", "python-dotenv"]
+# dependencies = ["daft[turbopuffer, openai]>=0.7.5", "python-dotenv"]
 # ///
 
 import os
@@ -10,19 +10,18 @@ from daft import col
 from daft.functions import prompt, embed_text
 from dotenv import load_dotenv
 
-load_dotenv()
-
-# Config
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TURBOPUFFER_API_KEY = os.getenv("TURBOPUFFER_API_KEY")
-
-
-S3_BUCKET = os.getenv("S3_BUCKET", "daft-arxiv-demo")
-S3_PREFIX = os.getenv("S3_PREFIX", "raw/")
-TARGET_DATE = os.getenv("TARGET_DATE", "2025-11-19")
-
 
 def main():
+    load_dotenv()
+
+    # Config
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    TURBOPUFFER_API_KEY = os.getenv("TURBOPUFFER_API_KEY")
+
+    S3_BUCKET = os.getenv("S3_BUCKET", "daft-arxiv-demo")
+    S3_PREFIX = os.getenv("S3_PREFIX", "raw/")
+    TARGET_DATE = os.getenv("TARGET_DATE", "2025-11-19")
+
     # 1. Read Data (S3 or Local Fallback)
     s3_path = f"s3://{S3_BUCKET}/{S3_PREFIX}{TARGET_DATE}/*.json"
     local_path = f".data/{S3_PREFIX}{TARGET_DATE}/*.json"

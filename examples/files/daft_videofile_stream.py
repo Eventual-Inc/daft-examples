@@ -12,18 +12,21 @@ Run:
 """
 # /// script
 # description = "Video-oriented patterns using daft.VideoFile and PyAV"
-# requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[video]>=0.7.1"]
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft[video]>=0.7.5"]
 # ///
 
 import daft
 from daft.functions import video_file, video_metadata, video_keyframes
 
-df = (
-    daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/videos/*.mp4")
-    .with_column("file", video_file(daft.col("path")))
-    .with_column("metadata", video_metadata(daft.col("file")))
-    .with_column("keyframes", video_keyframes(daft.col("file")))
-)
 
-df.collect()
+if __name__ == "__main__":
+
+    df = (
+        daft.from_glob_path("hf://datasets/Eventual-Inc/sample-files/videos/*.mp4")
+        .with_column("file", video_file(daft.col("path")))
+        .with_column("metadata", video_metadata(daft.col("file")))
+        .with_column("keyframes", video_keyframes(daft.col("file")))
+    )
+
+    df.collect()

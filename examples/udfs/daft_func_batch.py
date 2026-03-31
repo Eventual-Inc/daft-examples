@@ -1,7 +1,7 @@
 # /// script
 # description = "Simple UDF example to extract file names from File objects"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.4", "pyarrow"]
+# dependencies = ["daft>=0.7.5", "pyarrow"]
 # ///
 
 import daft
@@ -19,6 +19,9 @@ def z_score(values: Series) -> Series:
     centered = pc.subtract(arr, mean)
     return Series.from_arrow(pc.divide(centered, stddev))
 
-df = daft.from_pydict({"measurement": [10.0, 20.0, 30.0, 40.0, 50.0]})
-df = df.select(z_score(df["measurement"]).alias("z"))
-df.show()
+
+if __name__ == "__main__":
+
+    df = daft.from_pydict({"measurement": [10.0, 20.0, 30.0, 40.0, 50.0]})
+    df = df.select(z_score(df["measurement"]).alias("z"))
+    df.show()

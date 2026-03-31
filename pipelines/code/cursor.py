@@ -1,7 +1,7 @@
 # /// script
 # description = "take a bunch of filepaths, filter for Python files, extract Python functions, caption them all/generate a docstring, run embeddings."
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.14", "openai", "numpy", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.5", "numpy", "python-dotenv"]
 # ///
 
 import daft

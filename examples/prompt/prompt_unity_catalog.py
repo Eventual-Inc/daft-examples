@@ -1,7 +1,7 @@
 # /// script
 # description = "Synthetic Q&A generation pipeline with question generation, answering, and verification"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[unity, deltalake]", "pydantic", "openai", "numpy", "pillow", "python-dotenv", "tenacity"]
+# dependencies = ["daft[unity, deltalake, openai]>=0.7.5", "pydantic", "numpy", "pillow", "python-dotenv", "tenacity"]
 # ///
 import os
 import daft
@@ -10,24 +10,27 @@ from daft.unity_catalog import UnityCatalog
 from daft.functions import prompt
 from dotenv import load_dotenv
 
-load_dotenv()
 
-# Define Configuration
-DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
-DATABRICKS_ENDPOINT = os.getenv("DATABRICKS_ENDPOINT")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-UC_TABLE_NAME = os.getenv("UC_TABLE_NAME")
+if __name__ == "__main__":
 
-# Configure UnityCatalog
-unity = UnityCatalog(
-    endpoint=DATABRICKS_ENDPOINT,
-    token=DATABRICKS_TOKEN,
-)
+    load_dotenv()
 
-# Configure OpenAI Provider
-daft.set_provider("openai", api_key=OPENAI_API_KEY)
+    # Define Configuration
+    DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
+    DATABRICKS_ENDPOINT = os.getenv("DATABRICKS_ENDPOINT")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    UC_TABLE_NAME = os.getenv("UC_TABLE_NAME")
 
-coco_table = unity.load_table(TABLE_NAME)
+    # Configure UnityCatalog
+    unity = UnityCatalog(
+        endpoint=DATABRICKS_ENDPOINT,
+        token=DATABRICKS_TOKEN,
+    )
 
-tbl = Table.from_unity(coco_table)
-df = daft.read_table(tbl)
+    # Configure OpenAI Provider
+    daft.set_provider("openai", api_key=OPENAI_API_KEY)
+
+    coco_table = unity.load_table(TABLE_NAME)
+
+    tbl = Table.from_unity(coco_table)
+    df = daft.read_table(tbl)

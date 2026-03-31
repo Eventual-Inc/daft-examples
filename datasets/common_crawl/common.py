@@ -1,3 +1,9 @@
+# /// script
+# description = "Shared helpers for Common Crawl example scripts"
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
+# ///
+
 """Shared helpers for Common Crawl example scripts."""
 
 from __future__ import annotations

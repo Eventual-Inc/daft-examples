@@ -1,7 +1,7 @@
 # /// script
 # description = "Minimal RAG Example"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]", "pymupdf", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv"]
 # ///
 
 import pymupdf

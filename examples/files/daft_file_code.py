@@ -1,7 +1,7 @@
 # /// script
 # description = "Extract Python functions from code files using daft.File"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.14"]
+# dependencies = ["daft>=0.7.5"]
 # ///
 
 import daft

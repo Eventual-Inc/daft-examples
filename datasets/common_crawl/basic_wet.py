@@ -1,6 +1,7 @@
 # /// script
 # description = "Load plain text (WET) from Common Crawl - extracted text from web pages"
-# dependencies = ["daft[aws]", "python-dotenv"]
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft[aws]>=0.7.5", "python-dotenv"]
 # ///
 
 import daft

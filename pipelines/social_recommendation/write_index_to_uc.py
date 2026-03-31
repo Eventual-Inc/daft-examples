@@ -1,7 +1,7 @@
 # /// script
 # description = "Build/rebuild the image index from S3 and write to Unity Catalog"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[unity, deltalake]", "python-dotenv", "tenacity"]
+# dependencies = ["daft[unity, deltalake]>=0.7.5", "python-dotenv", "tenacity"]
 # ///
 """
 Job 2: Index Builder
@@ -23,24 +23,26 @@ from daft.unity_catalog import UnityCatalog
 from daft.io import IOConfig, S3Config, UnityConfig
 from dotenv import load_dotenv
 
-load_dotenv()
 
-TABLE = "jaytest-unity.demo.reddit_irl_images_index"
+if __name__ == "__main__":
 
-# Configure UnityCatalog
-unity = UnityCatalog(
-    endpoint=os.getenv("DATABRICKS_ENDPOINT"),
-    token=os.getenv("DATABRICKS_TOKEN"),
-)
+    load_dotenv()
 
+    TABLE = "jaytest-unity.demo.reddit_irl_images_index"
 
-# --------------------------------------------------------------
-# Build index from what exists in S3
-df = daft.read_deltalake(unity.load_table(TABLE), io_config=unity.to_io_config())
+    # Configure UnityCatalog
+    unity = UnityCatalog(
+        endpoint=os.getenv("DATABRICKS_ENDPOINT"),
+        token=os.getenv("DATABRICKS_TOKEN"),
+    )
 
-df.write_deltalake(
-    unity.load_table(TABLE),
-    mode="overwrite",
-    configuration={"cache_type": "memory"},
-    io_config=unity.to_io_config(),
-)
+    # --------------------------------------------------------------
+    # Build index from what exists in S3
+    df = daft.read_deltalake(unity.load_table(TABLE), io_config=unity.to_io_config())
+
+    df.write_deltalake(
+        unity.load_table(TABLE),
+        mode="overwrite",
+        configuration={"cache_type": "memory"},
+        io_config=unity.to_io_config(),
+    )

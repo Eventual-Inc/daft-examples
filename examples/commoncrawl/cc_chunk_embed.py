@@ -1,5 +1,7 @@
 # /// script
-# dependencies = ["daft>=0.6.13", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# description = "Chunk and embed Common Crawl text with spaCy and sentence-transformers"
+# requires-python = ">=3.10, <3.13"
+# dependencies = ["daft>=0.7.5", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
 import daft

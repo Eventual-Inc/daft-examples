@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: Compare fixed-size, sentence-based, and semantic paragraph chunking strategies for PDF text"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]", "python-dotenv", "pymupdf"]
+# dependencies = ["daft[openai]>=0.7.5", "python-dotenv", "pymupdf"]
 # ///
 
 import os

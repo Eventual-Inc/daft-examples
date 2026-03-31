@@ -1,7 +1,7 @@
 # /// script
 # description = "Lambda MapReduce: 6 long-context reasoning patterns expressed as native Daft query plans"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft[openai]", "pymupdf", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.5", "pymupdf", "python-dotenv"]
 # ///
 
 """

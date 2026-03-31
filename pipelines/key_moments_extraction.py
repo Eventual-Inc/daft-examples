@@ -1,7 +1,7 @@
 # /// script
 # description = "Extract key moments from transcripts and clip audio for short-form content"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.6.7", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "openai", "sentence-transformers"]
+# dependencies = ["daft[openai]>=0.7.5", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "sentence-transformers"]
 # ///
 import daft
 from daft import DataType
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     from daft import col
     from daft.functions import format, file, unnest
-    from daft.functions.ai import prompt, embed_text
+    from daft.functions import prompt, embed_text
     from daft.ai.openai.provider import OpenAIProvider
 
     # Define Parameters

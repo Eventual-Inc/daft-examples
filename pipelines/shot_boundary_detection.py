@@ -1,7 +1,7 @@
 # /// script
 # description = "Summarize podcasts"
 # requires-python = ">=3.10, <3.13"
-# dependencies = ["daft", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
+# dependencies = ["daft>=0.7.5", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
 # ///
 import daft
 from daft.functions import embed_image
