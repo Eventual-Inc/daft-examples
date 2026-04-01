@@ -25,13 +25,13 @@ precommit: lint
 # ── Tests ──────────────────────────────────────────────────────────────
 
 test:
-	uv run -m pytest tests -q
+	uv run -m pytest tests -q -n auto
 
 test-quickstart:
-	uv run -m pytest tests/test_examples.py -q -k quickstart
+	uv run -m pytest tests/test_examples.py -q -n auto -k quickstart
 
 test-examples:
-	uv run -m pytest tests/test_examples.py -q -k example
+	uv run -m pytest tests/test_examples.py -q -n auto -k example
 
 test-no-creds:
-	uv run -m pytest tests/test_examples.py -q -m "not credentials"
+	uv run -m pytest tests/test_examples.py -q -n auto -m "not credentials"
