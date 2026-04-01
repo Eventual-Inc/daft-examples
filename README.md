@@ -2,264 +2,186 @@
 
 *The fastest way to get started with [Daft](https://github.com/Eventual-Inc/Daft)*
 
-[![Test Quickstart](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test-quickstart.yml/badge.svg)](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test-quickstart.yml)
-[![Test Patterns](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test-patterns.yml/badge.svg)](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test-patterns.yml)
+[![CI](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test.yml/badge.svg)](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test.yml)
 
 ---
 
-## 🚀 Quickstart (< 5 minutes)
-
-New to Daft? Start here. These examples run in under 30 seconds and demonstrate core capabilities:
-
-| Example | Runtime | What you'll learn |
-|---------|---------|-------------------|
-| **[01. Hello World](quickstart/01_hello_world_prompt.py)** | <10s | Basic text classification with LLM prompts |
-| **[02. Semantic Search](quickstart/02_semantic_search.py)** | ~30s | PDF → embeddings → vector search pipeline |
-| **[03. Data Enrichment](quickstart/03_data_enrichment.py)** | ~20s | ETL with LLM-based data enrichment |
-| **[04. Audio Files](quickstart/04_audio_file.py)** | ~20s | Audio file processing with `daft.File` |
-| **[05. Video Files](quickstart/05_video_file.py)** | ~15s | Video metadata and frame extraction |
+## Quickstart
 
 ```bash
-# Clone and setup
 git clone https://github.com/Eventual-Inc/daft-examples.git
 cd daft-examples
 make setup
-
-# Run any example
 uv run quickstart/01_hello_world_prompt.py
 ```
 
-📖 **[Full quickstart guide →](quickstart/README.md)**
+| # | Example | What you'll learn |
+|---|---------|-------------------|
+| 01 | [Hello World](quickstart/01_hello_world_prompt.py) | LLM prompts and text classification |
+| 02 | [Semantic Search](quickstart/02_semantic_search.py) | PDF → embeddings → vector search |
+| 03 | [Data Enrichment](quickstart/03_data_enrichment.py) | ETL with LLM-based enrichment |
+| 04 | [Audio Files](quickstart/04_audio_file.py) | Audio processing with `daft.File` |
+| 05 | [Video Files](quickstart/05_video_file.py) | Video metadata and frame extraction |
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 daft-examples/
-├── quickstart/          # 🎯 Start here (5 examples, <30s each)
-├── patterns/            # 🧩 Atomic feature demonstrations
-│   ├── prompt/          # LLM prompting patterns
+├── quickstart/          # Start here (5 examples)
+├── examples/            # Atomic feature demonstrations
+│   ├── classify/        # Image and text classification
+│   ├── commoncrawl/     # Common Crawl processing
 │   ├── embed/           # Embeddings and similarity search
-│   ├── classify/        # Classification tasks
-│   ├── io/              # File I/O operations
-│   ├── daft_file/       # daft.File abstraction examples
-│   ├── udfs/            # User-defined functions
-│   └── commoncrawl/     # Common Crawl data processing
-├── use_cases/           # 🏗️ Complete end-to-end pipelines
-│   ├── voice_ai_analytics/
-│   ├── social_recommendation/
-│   ├── ai_visibility_tracking.py
-│   ├── key_moments_extraction.py
-│   ├── shot_boundary_detection.py
-│   ├── embed_docs.py
+│   ├── files/           # daft.File (audio, video, PDF, code)
+│   ├── io/              # File I/O (read PDFs, video frames)
+│   ├── prompt/          # LLM prompting patterns
+│   ├── sql/             # SQL and window functions
+│   └── udfs/            # User-defined functions
+├── pipelines/           # End-to-end multi-stage pipelines
+│   ├── context_engineering/
+│   ├── image_understanding_eval/
 │   ├── rag/
-│   ├── code/
-│   └── context_engineering/
-├── models/              # 🤖 Model integrations
-└── notebooks/           # 📓 Interactive tutorials
+│   ├── social_recommendation/
+│   └── voice_ai_analytics/
+├── datasets/            # Dataset processing (Common Crawl, LAION, TPC-H, Open Images)
+├── models/              # Model integration helpers
+├── notebooks/           # Interactive Jupyter tutorials
+└── tests/               # Test infrastructure
 ```
 
 ---
 
-## 🧩 Patterns
+## Examples
 
-Small, focused examples demonstrating specific Daft features. Perfect for learning individual capabilities.
+Small, focused scripts demonstrating individual Daft features.
 
 ### Prompt
-- **[prompt.py](patterns/prompt/prompt.py)** - Basic prompting with anime classification
-- **[prompt_structured_outputs.py](patterns/prompt/prompt_structured_outputs.py)** - Pydantic models for structured LLM outputs
-- **[prompt_chat_completions.py](patterns/prompt/prompt_chat_completions.py)** - Chat-style completions with personas
-- **[prompt_files_images.py](patterns/prompt/prompt_files_images.py)** - Multimodal prompting (text + images + PDFs)
-- **[prompt_pdfs.py](patterns/prompt/prompt_pdfs.py)** - PDF document analysis
-- **[prompt_session.py](patterns/prompt/prompt_session.py)** - Custom provider configuration
-- **[prompt_openai_web_search.py](patterns/prompt/prompt_openai_web_search.py)** - Web search integration
+| Script | Description |
+|--------|-------------|
+| [prompt.py](examples/prompt/prompt.py) | Basic prompting with classification |
+| [prompt_structured_outputs.py](examples/prompt/prompt_structured_outputs.py) | Pydantic models for structured LLM outputs |
+| [prompt_chat_completions.py](examples/prompt/prompt_chat_completions.py) | Chat-style completions with personas |
+| [prompt_files_images.py](examples/prompt/prompt_files_images.py) | Multimodal prompting (text + images + PDFs) |
+| [prompt_openai_web_search.py](examples/prompt/prompt_openai_web_search.py) | Web search tool integration |
+| [prompt_qa.py](examples/prompt/prompt_qa.py) | Synthetic Q&A generation and judging |
 
 ### Embeddings
-- **[embed_images.py](patterns/embed/embed_images.py)** - Image embeddings with Apple AIMv2
-- **[embed_text_providers.py](patterns/embed/embed_text_providers.py)** - Compare embedding providers
-- **[cosine_similarity.py](patterns/embed/cosine_similarity.py)** - Semantic similarity search
+| Script | Description |
+|--------|-------------|
+| [embed_text.py](examples/embed/embed_text.py) | Text embeddings with OpenAI |
+| [embed_images.py](examples/embed/embed_images.py) | Image embeddings with Apple AIMv2 |
+| [embed_text_providers.py](examples/embed/embed_text_providers.py) | Compare embedding providers |
+| [cosine_similarity.py](examples/embed/cosine_similarity.py) | Semantic similarity search |
 
-### Classification
-- **[classify_image.py](patterns/classify/classify_image.py)** - Image classification with CLIP
-- **[classify_text.py](patterns/classify/classify_text.py)** - Multi-label text classification
-
-### I/O & File Handling
-- **[read_audio_file.py](patterns/io/read_audio_file.py)** - Audio file reading and resampling
-- **[read_pdfs.py](patterns/io/read_pdfs.py)** - PDF discovery and download
-- **[read_video_files.py](patterns/io/read_video_files.py)** - Video metadata and keyframe extraction
-- **[daft_file/](patterns/daft_file/)** - Complete `daft.File` examples (audio, video, PDF, code)
+### Files and I/O
+| Script | Description |
+|--------|-------------|
+| [daft_file.py](examples/files/daft_file.py) | `daft.File` basics |
+| [daft_audiofile.py](examples/files/daft_audiofile.py) | Audio file metadata and resampling |
+| [daft_videofile.py](examples/files/daft_videofile.py) | Video file metadata and keyframes |
+| [read_pdfs.py](examples/io/read_pdfs.py) | PDF discovery and download |
+| [read_video_files.py](examples/io/read_video_files.py) | Video frame extraction with `daft.read_video_frames` |
 
 ### UDFs
-- **[daft_func.py](patterns/udfs/daft_func.py)** - Simple function-based UDFs
-- **[daft_cls_with_types.py](patterns/udfs/daft_cls_with_types.py)** - Class-based UDFs with TypedDict/Pydantic
-
-### Common Crawl
-- **[chunk_embed.py](patterns/commoncrawl/chunk_embed.py)** - Text chunking and embedding
-- **[show.py](patterns/commoncrawl/show.py)** - Query and filter MIME types
+| Script | Description |
+|--------|-------------|
+| [daft_func.py](examples/udfs/daft_func.py) | Simple function-based UDFs |
+| [daft_cls_model.py](examples/udfs/daft_cls_model.py) | Class-based UDFs with model loading |
+| [daft_cls_with_types.py](examples/udfs/daft_cls_with_types.py) | Class UDFs with TypedDict/Pydantic |
+| [daft_func_async.py](examples/udfs/daft_func_async.py) | Async UDFs |
 
 ---
 
-## 🏗️ Use Cases
+## Pipelines
 
 Complete end-to-end pipelines demonstrating real-world applications.
 
-### 🎤 Voice & Audio
-- **[voice_ai_analytics/](use_cases/voice_ai_analytics/)** - Transcription → summarization → translation → RAG Q&A
-- **[key_moments_extraction.py](use_cases/key_moments_extraction.py)** - Extract key moments from audio and generate clips
-
-### 🖼️ Vision & Multimodal
-- **[shot_boundary_detection.py](use_cases/shot_boundary_detection.py)** - Video scene detection using frame embeddings
-- **[image_understanding_eval/](use_cases/image_understanding_eval/)** - Multimodal structured outputs evaluation
-
-### 📚 RAG & Search
-- **[rag/](use_cases/rag/)** - Minimal RAG implementation (PDF → embeddings → semantic search)
-- **[context_engineering/arxiv_search/](use_cases/context_engineering/arxiv_search/)** - Semantic ArXiv paper search with Turbopuffer
-
-### 💻 Code Analysis
-- **[code/cursor.py](use_cases/code/cursor.py)** - Code analysis and IDE integration
-- **[embed_docs.py](use_cases/embed_docs.py)** - Python codebase analysis with embeddings
-
-### 🔍 Analytics & Benchmarking
-- **[ai_visibility_tracking.py](use_cases/ai_visibility_tracking.py)** - Track brand mentions across multiple LLMs
-- **[context_engineering/llm_judge_elo.py](use_cases/context_engineering/llm_judge_elo.py)** - LLM-as-judge ranking with ELO scores
-
-### 🔗 Social & Recommendations
-- **[social_recommendation/](use_cases/social_recommendation/)** - Reddit data ingestion and image recommendation pipeline
+| Pipeline | Description |
+|----------|-------------|
+| [chunking_strategies.py](pipelines/context_engineering/chunking_strategies.py) | Compare fixed-size, sentence, and paragraph chunking |
+| [few_shot_example_selection.py](pipelines/context_engineering/few_shot_example_selection.py) | Embedding-based few-shot example selection |
+| [lambda_mapreduce.py](pipelines/context_engineering/lambda_mapreduce.py) | Map-reduce summarization over PDFs |
+| [llm_judge_elo.py](pipelines/context_engineering/llm_judge_elo.py) | LLM-as-judge ELO ranking |
+| [full_rag.py](pipelines/rag/full_rag.py) | Full RAG: PDF extraction → embedding → retrieval → generation |
+| [rag.py](pipelines/rag/rag.py) | Minimal RAG pipeline |
+| [voice_ai_analytics.py](pipelines/voice_ai_analytics/voice_ai_analytics.py) | Transcription → summarization → translation → embeddings |
+| [key_moments_extraction.py](pipelines/key_moments_extraction.py) | Extract key moments from audio |
+| [shot_boundary_detection.py](pipelines/shot_boundary_detection.py) | Video scene detection with frame embeddings |
+| [embed_docs.py](pipelines/embed_docs.py) | Codebase analysis with SpaCy chunking and embeddings |
+| [ai_search.py](pipelines/ai_search.py) | PDF search with Turbopuffer |
 
 ---
 
-## 📓 Notebooks
+## Datasets
 
-Interactive tutorials for learning Daft:
+Processing patterns for public datasets.
 
-- **[getting_started_with_common_crawl.ipynb](notebooks/getting_started_with_common_crawl.ipynb)** - Common Crawl introduction
-- **[voice_ai_analytics.ipynb](notebooks/voice_ai_analytics.ipynb)** - Voice AI analytics walkthrough
-- **[window_functions.ipynb](notebooks/window_functions.ipynb)** - Window functions tutorial
-- **[mm_structured_outputs.ipynb](notebooks/mm_structured_outputs.ipynb)** - Multimodal structured outputs
-- **[minhash_dedupe_common_crawl.ipynb](notebooks/minhash_dedupe_common_crawl.ipynb)** - MinHash deduplication
+| Dataset | Scripts |
+|---------|---------|
+| [Common Crawl](datasets/common_crawl/) | WARC/WAT/WET parsing, text deduplication, chunk & embed |
+| [LAION](datasets/laion/) | Image-text pairs, CLIP training, metadata |
+| [Open Images](datasets/open_images/) | Image loading, resizing, vision models |
+| [TPC-H](datasets/tpch/) | SQL queries, performance benchmarks |
 
 ---
 
-## 🛠️ Setup & Requirements
+## Setup
+
+### Requirements
+
+- Python 3.12
+- [uv](https://docs.astral.sh/uv/)
+- FFmpeg (for audio/video examples)
 
 ### Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/Eventual-Inc/daft-examples.git
 cd daft-examples
-
-# Setup environment
 make setup
 ```
 
-### Running Examples
+### API Keys
 
-This project uses [uv scripts](https://docs.astral.sh/uv/guides/scripts/) for dependency isolation:
+Some examples require API keys. Create a `.env` file:
 
-```bash
-# Run any example
-uv run quickstart/01_hello_world_prompt.py
-uv run patterns/prompt/prompt.py
-uv run use_cases/ai_visibility_tracking.py
-```
-
-### System Dependencies
-
-Some examples require:
-- **FFmpeg** - For audio/video processing (required by `soundfile`, `PyAV`)
-- **API Keys** - Set in `.env` file:
-  - `OPENAI_API_KEY` - OpenAI models
-  - `OPENROUTER_API_KEY` - OpenRouter multi-model access
-  - `TURBOPUFFER_API_KEY` - Vector search
-  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` - S3 access
-
-Create `.env` from template:
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
 ```
 
----
+| Variable | Used by |
+|----------|---------|
+| `OPENAI_API_KEY` | Prompt, embedding, and RAG examples |
+| `OPENROUTER_API_KEY` | Multi-model LLM examples |
+| `TURBOPUFFER_API_KEY` | Vector search pipelines |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Common Crawl, TPC-H, Open Images |
 
-## 🎯 Dynamic Batching
+### Running
 
-Daft includes automatic batch size tuning for optimal throughput:
-
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                           Introducing Dynamic Batching: Auto-Tuning for Daft Pipelines                            ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-   stream in                           auto-tune loop                        work out
-┌───────────────┐    rows       ┌──────────────────────────┐     batch    ┌────────────┐              ┌─────────┐
-│   Source(s)   │ ────────────▶ │   Buffer + Dispatcher    │ ───────────▶ │  Operator  │ ───────────▶ | Results |
-└───────────────┘               │  collects until ready    │              │ (UDF/Model)│              └─────────┘
-                                │  lower..upper bounds     │              └─────┬──────┘
-                                └──────────────────────────┘                    │
-                                              ^  timing / memory / progress     │
-                                              │  stats per batch                │
-                                              │                                 ▼
-                                    ┌──────────────────────────┐       updates   ┌───────────┐
-                                    │      Batch Manager       │ ◀────────────── │  Metrics  │
-                                    │  hit latency target (W)  │ ──────────────▶ │  + Logs   │
-                                    │  grow/shrink batch (N)   │     new bounds  └───────────┘
-                                    └──────────────────────────┘
-
-                 small batches → fast first output + frequent progress
-                 big batches   → high throughput (without hand tuning)
-```
-
----
-
-## 📚 Resources
-
-- **[Daft Documentation](https://www.getdaft.io/docs/)** - Official docs
-- **[GitHub](https://github.com/Eventual-Inc/Daft)** - Main Daft repository
-- **[Discord](https://discord.gg/daft)** - Community support
-
----
-
-## 🧪 Testing & CI
-
-All examples are automatically tested via GitHub Actions:
-- **Quickstart examples** - Tested on every push and PR
-- **Patterns & use cases** - Tested daily to catch regressions
-- **CI status** - See badges above
-
-**Local testing:**
 ```bash
-# Test a single example
 uv run quickstart/01_hello_world_prompt.py
-
-# Test all quickstart examples
-for example in quickstart/*.py; do uv run "$example"; done
+uv run examples/prompt/prompt.py
+uv run pipelines/rag/full_rag.py
 ```
 
-**CI Documentation:** See [`.github/CI-SETUP.md`](.github/CI-SETUP.md) for:
-- Adding new examples to CI
-- Configuring secrets
-- Troubleshooting failures
-- Future Daft Cloud testing
+---
+
+## Development
+
+```bash
+make format    # Auto-format with ruff
+make lint      # Lint check
+make check     # Lint + format check (CI runs this)
+make test      # Run all tests
+make test-no-creds  # Run tests that don't need API keys
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for script format guidelines and style reference.
 
 ---
 
-## 🤝 Contributing
-
-Contributions welcome! Please open an issue or PR for:
-- New examples
-- Bug fixes
-- Documentation improvements
-- Feature requests
-
-**Before submitting:**
-1. Test your example locally: `uv run your_example.py`
-2. Ensure it runs in <2 minutes
-3. Add to appropriate CI workflow if needed
-4. Update README with your example
-
----
-
-## 📄 License
+## License
 
 Apache 2.0
