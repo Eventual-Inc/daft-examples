@@ -52,6 +52,7 @@ ignore = [
 "notebooks/*.ipynb" = ["F821", "E402"]  # cross-cell refs and imports
 "pipelines/social_recommendation/reddit.ipynb" = ["F821"]
 "pipelines/context_engineering/lambda_mapreduce_pdf_iceberg.py" = ["F821"]  # pyiceberg referenced in comment-like code
+"pipelines/context_engineering/context_kernel_demo.py" = ["E402"]  # sys.path hack before import
 
 [tool.ruff.lint.isort]
 known-first-party = ["daft"]

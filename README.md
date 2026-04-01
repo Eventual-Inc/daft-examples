@@ -173,7 +173,7 @@ uv run pipelines/rag/full_rag.py
 ```bash
 make format    # Auto-format with ruff
 make lint      # Lint check
-make check     # Lint + format check (CI runs this)
+make precommit # Lint + format check (runs automatically on git commit)
 make test      # Run all tests
 make test-no-creds  # Run tests that don't need API keys
 ```
