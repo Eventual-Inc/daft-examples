@@ -1,51 +1,37 @@
-.PHONY: setup test-classify test-commoncrawl test-embed test-io test-prompt test-udfs test-all
+.PHONY: setup test test-quickstart test-examples test-no-creds lint format precommit install-hooks
 
-# Environment setup
-setup:
-	uv venv .venv
-	uv pip install daft openai pillow numpy ipykernel ipywidgets
-	cp .env.example .env
+setup: install-hooks
+	uv sync --extra test --extra lint
+	@test -f .env || cp .env.example .env
 
-# usage_patterns/classify
-test-classify:
-	uv run usage_patterns/classify/classify_image.py
-	uv run usage_patterns/classify/classify_text.py
+install-hooks:
+	@mkdir -p .git/hooks
+	@echo '#!/bin/sh\nmake precommit' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
 
-# usage_patterns/commoncrawl
-test-commoncrawl:
-	uv run usage_patterns/commoncrawl/chunk_embed.py
-	uv run usage_patterns/commoncrawl/show.py
+# ── Lint & Format ──────────────────────────────────────────────────────
 
-# usage_patterns/embed
-test-embed:
-	uv run usage_patterns/embed/cosine_similarity.py
-	uv run usage_patterns/embed/embed_images.py
-	uv run usage_patterns/embed/embed_pdf.py
-	uv run usage_patterns/embed/embed_text_providers.py
-	uv run usage_patterns/embed/embed_video_frames.py
+lint:
+	uv run ruff check .
 
-# usage_patterns/io
-test-io:
-	uv run usage_patterns/io/read_audio_file.py
-	uv run usage_patterns/io/read_pdfs.py
-	uv run usage_patterns/io/read_video_files.py
+format:
+	uv run ruff format .
+	uv run ruff check --fix .
 
-# usage_patterns/prompt
-test-prompt:
-	uv run usage_patterns/prompt/prompt.py
-	uv run usage_patterns/prompt/prompt_chat_completions.py
-	uv run usage_patterns/prompt/prompt_files_images.py
-	uv run usage_patterns/prompt/prompt_github.py
-	uv run usage_patterns/prompt/prompt_openai_web_search.py
-	uv run usage_patterns/prompt/prompt_pdfs.py
-	uv run usage_patterns/prompt/prompt_qa.py
-	uv run usage_patterns/prompt/prompt_session.py
-	uv run usage_patterns/prompt/prompt_structured_outputs.py
-	uv run usage_patterns/prompt/prompt_gemini3_code_review.py
+precommit: lint
+	uv run ruff format --check .
+	@echo "All checks passed."
 
-# usage_patterns/udfs
-test-udfs:
-	uv run usage_patterns/udfs/daft_cls_with_types.py
-	uv run usage_patterns/udfs/daft_func.py
+# ── Tests ──────────────────────────────────────────────────────────────
 
-test-all: test-classify test-commoncrawl test-embed test-io test-prompt test-udfs
+test:
+	uv run -m pytest tests -q -n auto
+
+test-quickstart:
+	uv run -m pytest tests/test_examples.py -q -n auto -k quickstart
+
+test-examples:
+	uv run -m pytest tests/test_examples.py -q -n auto -k example
+
+test-no-creds:
+	uv run -m pytest tests/test_examples.py -q -n auto -m "not credentials"

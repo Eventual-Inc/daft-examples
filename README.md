@@ -1,20 +1,141 @@
-<div align="center">
-
 # Daft Examples
 
-<i>An examples hub for running Multimodal AI Workloads on [Daft](https://github.com/Eventual-Inc/Daft)</i>
+*The fastest way to get started with [Daft](https://github.com/Eventual-Inc/Daft)*
 
-</div>
+[![CI](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test.yml/badge.svg)](https://github.com/Eventual-Inc/daft-examples/actions/workflows/test.yml)
 
-## Getting Started
+---
 
-This repository is organized into three sections:
+## Quickstart
 
-1. **[Usage Patterns](#usage-patterns)** - Small atomic demonstrations of core features. 
-2. **[Use Cases](#use-cases)** - Entire Pipelines built in Daft. 
-3. **[Notebooks](#notebooks)** - End to End tutorials on working with Daft in an interactive Jupyter Notebook
+```bash
+git clone https://github.com/Eventual-Inc/daft-examples.git
+cd daft-examples
+make setup
+uv run quickstart/01_hello_world_prompt.py
+```
 
-To get started, run the following in your terminal.
+| # | Example | What you'll learn |
+|---|---------|-------------------|
+| 01 | [Hello World](quickstart/01_hello_world_prompt.py) | LLM prompts and text classification |
+| 02 | [Semantic Search](quickstart/02_semantic_search.py) | PDF → embeddings → vector search |
+| 03 | [Data Enrichment](quickstart/03_data_enrichment.py) | ETL with LLM-based enrichment |
+| 04 | [Audio Files](quickstart/04_audio_file.py) | Audio processing with `daft.File` |
+| 05 | [Video Files](quickstart/05_video_file.py) | Video metadata and frame extraction |
+
+---
+
+## Repository Structure
+
+```
+daft-examples/
+├── quickstart/          # Start here (5 examples)
+├── examples/            # Atomic feature demonstrations
+│   ├── classify/        # Image and text classification
+│   ├── commoncrawl/     # Common Crawl processing
+│   ├── embed/           # Embeddings and similarity search
+│   ├── files/           # daft.File (audio, video, PDF, code)
+│   ├── io/              # File I/O (read PDFs, video frames)
+│   ├── prompt/          # LLM prompting patterns
+│   ├── sql/             # SQL and window functions
+│   └── udfs/            # User-defined functions
+├── pipelines/           # End-to-end multi-stage pipelines
+│   ├── context_engineering/
+│   ├── image_understanding_eval/
+│   ├── rag/
+│   ├── social_recommendation/
+│   └── voice_ai_analytics/
+├── datasets/            # Dataset processing (Common Crawl, LAION, TPC-H, Open Images)
+├── models/              # Model integration helpers
+├── notebooks/           # Interactive Jupyter tutorials
+└── tests/               # Test infrastructure
+```
+
+---
+
+## Examples
+
+Small, focused scripts demonstrating individual Daft features.
+
+### Prompt
+| Script | Description |
+|--------|-------------|
+| [prompt.py](examples/prompt/prompt.py) | Basic prompting with classification |
+| [prompt_structured_outputs.py](examples/prompt/prompt_structured_outputs.py) | Pydantic models for structured LLM outputs |
+| [prompt_chat_completions.py](examples/prompt/prompt_chat_completions.py) | Chat-style completions with personas |
+| [prompt_files_images.py](examples/prompt/prompt_files_images.py) | Multimodal prompting (text + images + PDFs) |
+| [prompt_openai_web_search.py](examples/prompt/prompt_openai_web_search.py) | Web search tool integration |
+| [prompt_qa.py](examples/prompt/prompt_qa.py) | Synthetic Q&A generation and judging |
+
+### Embeddings
+| Script | Description |
+|--------|-------------|
+| [embed_text.py](examples/embed/embed_text.py) | Text embeddings with OpenAI |
+| [embed_images.py](examples/embed/embed_images.py) | Image embeddings with Apple AIMv2 |
+| [embed_text_providers.py](examples/embed/embed_text_providers.py) | Compare embedding providers |
+| [cosine_similarity.py](examples/embed/cosine_similarity.py) | Semantic similarity search |
+
+### Files and I/O
+| Script | Description |
+|--------|-------------|
+| [daft_file.py](examples/files/daft_file.py) | `daft.File` basics |
+| [daft_audiofile.py](examples/files/daft_audiofile.py) | Audio file metadata and resampling |
+| [daft_videofile.py](examples/files/daft_videofile.py) | Video file metadata and keyframes |
+| [read_pdfs.py](examples/io/read_pdfs.py) | PDF discovery and download |
+| [read_video_files.py](examples/io/read_video_files.py) | Video frame extraction with `daft.read_video_frames` |
+
+### UDFs
+| Script | Description |
+|--------|-------------|
+| [daft_func.py](examples/udfs/daft_func.py) | Simple function-based UDFs |
+| [daft_cls_model.py](examples/udfs/daft_cls_model.py) | Class-based UDFs with model loading |
+| [daft_cls_with_types.py](examples/udfs/daft_cls_with_types.py) | Class UDFs with TypedDict/Pydantic |
+| [daft_func_async.py](examples/udfs/daft_func_async.py) | Async UDFs |
+
+---
+
+## Pipelines
+
+Complete end-to-end pipelines demonstrating real-world applications.
+
+| Pipeline | Description |
+|----------|-------------|
+| [chunking_strategies.py](pipelines/context_engineering/chunking_strategies.py) | Compare fixed-size, sentence, and paragraph chunking |
+| [few_shot_example_selection.py](pipelines/context_engineering/few_shot_example_selection.py) | Embedding-based few-shot example selection |
+| [lambda_mapreduce.py](pipelines/context_engineering/lambda_mapreduce.py) | Map-reduce summarization over PDFs |
+| [llm_judge_elo.py](pipelines/context_engineering/llm_judge_elo.py) | LLM-as-judge ELO ranking |
+| [full_rag.py](pipelines/rag/full_rag.py) | Full RAG: PDF extraction → embedding → retrieval → generation |
+| [rag.py](pipelines/rag/rag.py) | Minimal RAG pipeline |
+| [voice_ai_analytics.py](pipelines/voice_ai_analytics/voice_ai_analytics.py) | Transcription → summarization → translation → embeddings |
+| [key_moments_extraction.py](pipelines/key_moments_extraction.py) | Extract key moments from audio |
+| [shot_boundary_detection.py](pipelines/shot_boundary_detection.py) | Video scene detection with frame embeddings |
+| [embed_docs.py](pipelines/embed_docs.py) | Codebase analysis with SpaCy chunking and embeddings |
+| [ai_search.py](pipelines/ai_search.py) | PDF search with Turbopuffer |
+
+---
+
+## Datasets
+
+Processing patterns for public datasets.
+
+| Dataset | Scripts |
+|---------|---------|
+| [Common Crawl](datasets/common_crawl/) | WARC/WAT/WET parsing, text deduplication, chunk & embed |
+| [LAION](datasets/laion/) | Image-text pairs, CLIP training, metadata |
+| [Open Images](datasets/open_images/) | Image loading, resizing, vision models |
+| [TPC-H](datasets/tpch/) | SQL queries, performance benchmarks |
+
+---
+
+## Setup
+
+### Requirements
+
+- Python 3.12
+- [uv](https://docs.astral.sh/uv/)
+- FFmpeg (for audio/video examples)
+
+### Installation
 
 ```bash
 git clone https://github.com/Eventual-Inc/daft-examples.git
@@ -22,77 +143,45 @@ cd daft-examples
 make setup
 ```
 
-# Running Examples
+### API Keys
 
-This project leverages [uv scripts](https://docs.astral.sh/uv/guides/scripts/) for dependency management isolation. This is because many of the scripts in this repository have different requirements. The venv that is created by the `setup` make target is just for type hints and notebooks. 
-
-You can run any script like:
+Some examples require API keys. Create a `.env` file:
 
 ```bash
-uv run usage_patterns/prompt/prompt.py
+cp .env.example .env
 ```
 
-If you don't have `uv`, check out this [installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+| Variable | Used by |
+|----------|---------|
+| `OPENAI_API_KEY` | Prompt, embedding, and RAG examples |
+| `OPENROUTER_API_KEY` | Multi-model LLM examples |
+| `TURBOPUFFER_API_KEY` | Vector search pipelines |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Common Crawl, TPC-H, Open Images |
 
+### Running
 
-### System dependencies
-- Some examples leverage libraries like [`soundfile`](https://github.com/bastibe/python-soundfile) or [`PyAv`](https://github.com/PyAV-Org/PyAV) to process audio and video files which requires [`ffmpeg`](https://ffmpeg.org/download.html).
+```bash
+uv run quickstart/01_hello_world_prompt.py
+uv run examples/prompt/prompt.py
+uv run pipelines/rag/full_rag.py
+```
 
+---
 
-## Usage Patterns 
+## Development
 
-### Prompt
-- [`prompt/prompt.py`](usage_patterns/prompt/prompt.py) - Basic prompt example using OpenRouter with anime quote classification
-- [`prompt/prompt_chat_completions.py`](usage_patterns/prompt/prompt_chat_completions.py) - Use chat completions with personas from Nemotron dataset via LM Studio
-- [`prompt/prompt_files_images.py`](usage_patterns/prompt/prompt_files_images.py) - Multimodal prompting with images and PDFs using Gemini 2.5 Flash via OpenRouter
-- [`prompt/prompt_github.py`](usage_patterns/prompt/prompt_github.py) - Analyze markdown files from GitHub repositories with GPT-5
-- [`prompt/prompt_openai_web_search.py`](usage_patterns/prompt/prompt_openai_web_search.py) - Perform web searches using OpenAI GPT-5 with web_search tools and store results in Supabase
-- [`prompt/prompt_pdfs.py`](usage_patterns/prompt/prompt_pdfs.py) - Analyze PDF documents with GPT-5-nano reasoning models
-- [`prompt/prompt_personas.py`](usage_patterns/prompt/prompt_personas.py) - Multi-persona business strategy analysis with web search and collective intelligence synthesis
-- [`prompt/prompt_session.py`](usage_patterns/prompt/prompt_session.py) - Use custom OpenRouter provider through Daft sessions
-- [`prompt/prompt_structured_outputs.py`](usage_patterns/prompt/prompt_structured_outputs.py) - Get structured outputs using Pydantic models with OpenRouter
-- [`prompt/prompt_synthetic_customer_discovery.py`](usage_patterns/prompt/prompt_synthetic_customer_discovery.py) - Generate synthetic customer discovery responses from diverse personas using structured outputs
+```bash
+make format    # Auto-format with ruff
+make lint      # Lint check
+make precommit # Lint + format check (runs automatically on git commit)
+make test      # Run all tests
+make test-no-creds  # Run tests that don't need API keys
+```
 
-### Embeddings
-- [`embed/embed_images.py`](usage_patterns/embed/embed_images.py) - Generate image embeddings using Apple's AIMv2 model
-- [`embed/embed_pdf.py`](usage_patterns/embed/embed_pdf.py) - Extract text from PDFs, chunk with spaCy, and embed sentences
-- [`embed/embed_text_providers.py`](usage_patterns/embed/embed_text_providers.py) - Compare text embeddings across providers (Transformers, OpenAI, LM Studio)
-- [`embed/embed_video_frames.py`](usage_patterns/embed/embed_video_frames.py) - Extract and embed video frames from YouTube videos
-- [`embed/shot_boundary_detection.py`](usage_patterns/embed/shot_boundary_detection.py) - Detect scene cuts and dissolves in videos using frame embeddings
-- [`embed/similarity_Search.py`](usage_patterns/embed/similarity_Search.py) - Semantic search using cosine distance between text embeddings
+See [CONTRIBUTING.md](CONTRIBUTING.md) for script format guidelines and style reference.
 
-### Classification
-- [`classify/classify_image.py`](usage_patterns/classify/classify_image.py) - Classify images using CLIP model with custom labels
-- [`classify/classify_text.py`](usage_patterns/classify/classify_text.py) - Multi-label text classification using BART model
+---
 
-### Common Crawl
-- [`commoncrawl/chunk_embed.py`](usage_patterns/commoncrawl/chunk_embed.py) - Process Common Crawl data: chunk text with spaCy and embed sentences
-- [`commoncrawl/show.py`](usage_patterns/commoncrawl/show.py) - Query and display MIME types from Common Crawl datasets
+## License
 
-### UDFs
-- [`udfs/cls_with_types.py`](usage_patterns/udfs/cls_with_types.py) - Class-based UDFs with TypedDict, Pydantic, batch processing, and async functions
-- [`udfs/udf.py`](usage_patterns/udfs/udf.py) - Simple UDF example to extract file names from File objects
-
-### I/O
-- [`io/read_audio_file.py`](usage_patterns/io/read_audio_file.py) - Read and resample audio files, write to MP3 format
-- [`io/read_pdfs.py`](usage_patterns/io/read_pdfs.py) - Discover and download PDF files from URLs
-- [`io/read_video_files.py`](usage_patterns/io/read_video_files.py) - Extract video metadata, keyframes, and audio from video files
-
-## Use Cases
-
-### Transcription
-- [`transcribe/faster_whisper_schema.py`](use_cases/transcription/faster_whisper_schema.py) - Schema definitions for Faster Whisper transcription results
-- [`transcribe/key_moments_extraction.py`](use_cases/transcription/key_moments_extraction.py) - Extract key moments from transcripts and clip audio for short-form content
-- [`transcribe/transcribe_faster_whisper.py`](use_cases/transcription/transcribe_faster_whisper.py) - Transcribe audio with Faster Whisper and Voice Activity Detection (VAD)
-
-### Voice AI Analytics
-
-- [`voice_ai_analytics/voice_ai_analytics.py`](use_cases/voice_ai_analytics/voice_ai_analytics.py) - Complete pipeline: transcription, summarization, translation to Chinese, segment embeddings, and RAG Q&A
-- [`voice_ai_analytics/voice_ai_analytics_openai.py`](use_cases/voice_ai_analytics/voice_ai_analytics_openai.py) - Voice analytics with OpenAI Whisper, GPT-5 summarization, and Spanish translation
-- [`voice_ai_analytics/voice_ai_tutorial.py`](use_cases/voice_ai_analytics/voice_ai_tutorial.py) - Voice AI analytics tutorial: transcription, summarization, Chinese translation, and embeddings
-
-### Notebooks
-- [`notebooks/getting_started_with_common_crawl.ipynb`](notebooks/getting_started_with_common_crawl.ipynb) - Interactive Common Crawl tutorial
-- [`notebooks/voice_ai_analytics.ipynb`](notebooks/voice_ai_analytics.ipynb) - Voice AI analytics walkthrough
-- [`notebooks/window_functions.ipynb`](notebooks/window_functions.ipynb) - Window functions examples and usage
-
+Apache 2.0

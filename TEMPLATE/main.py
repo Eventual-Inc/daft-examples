@@ -1,5 +1,7 @@
 # /// script
-# dependencies = ["daft"]
+# description = "Template for new Daft examples"
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft>=0.7.6"]
 # ///
 
 import daft
