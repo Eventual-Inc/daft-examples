@@ -3,11 +3,15 @@
 # requires-python = ">=3.12, <3.13"
 # dependencies = ["daft>=0.7.6", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
 # ///
+import os
+import shutil
+
 import numpy as np
 
 import daft
 from daft import DataType as dt
 from daft import Window, col
+from daft.file import File
 from daft.functions import embed_image
 
 
@@ -22,6 +26,7 @@ def l2_distance(a: np.ndarray | None, b: np.ndarray | None) -> float:
 
 if __name__ == "__main__":
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/videos/*.mp4"
+    LOCAL_DIR = ".data/videos"
     MODEL_NAME = "apple/aimv2-large-patch14-224-lit"
     B, T, H, W, C = (
         2,
@@ -34,12 +39,18 @@ if __name__ == "__main__":
     CUT_THRESHOLD = 0.1
     DISSOLVE_THRESHOLD = 1.0
 
-    # Resolve HF paths for read_video_frames (requires PyArrow-compatible paths)
-    video_paths = daft.from_glob_path(SOURCE_URI).select("path").collect().to_pydict()["path"]
+    # Download videos locally (read_video_frames uses PyArrow FS which doesn't support hf://)
+    os.makedirs(LOCAL_DIR, exist_ok=True)
+    paths = daft.from_glob_path(SOURCE_URI).select("path").collect().to_pydict()["path"]
+    for p in paths:
+        dest = os.path.join(LOCAL_DIR, os.path.basename(p))
+        if not os.path.exists(dest):
+            with File(p).to_tempfile() as tmp:
+                shutil.copy(tmp.name, dest)
 
     # Read Video Frames from MP4 Files
     df_frames = daft.read_video_frames(
-        video_paths,
+        f"{LOCAL_DIR}/*.mp4",
         image_height=H,
         image_width=W,
     ).limit(ROW_LIMIT)

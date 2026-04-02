@@ -62,7 +62,7 @@ SCRIPTS: list[Script] = [
 
     # ── examples/io ─────────────────────────────────────────────────
     Script("examples/io/read_pdfs.py"),
-    Script("examples/io/read_video_files.py"),
+    Script("examples/io/read_video_files.py",  timeout=300),
 
     # ── examples/prompt ─────────────────────────────────────────────
     Script("examples/prompt/prompt.py",                     env=["OPENAI_API_KEY"]),
@@ -92,7 +92,7 @@ SCRIPTS: list[Script] = [
     Script("pipelines/ai_search.py",        env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="pipeline", timeout=300),
     Script("pipelines/data_enrichment.py",  env=["OPENAI_API_KEY"], tier="pipeline"),
     Script("pipelines/embed_docs.py",       env=["OPENAI_API_KEY"], tier="pipeline"),
-    Script("pipelines/key_moments_extraction.py",   tier="pipeline", timeout=300),
+    Script("pipelines/key_moments_extraction.py",   tier="pipeline", timeout=300, skip="requires faster-whisper model download"),
     Script("pipelines/shot_boundary_detection.py",  tier="pipeline", timeout=300),
 
     Script("pipelines/code/cursor.py",          env=["OPENAI_API_KEY", "GITHUB_TOKEN"], tier="pipeline"),
@@ -120,7 +120,7 @@ SCRIPTS: list[Script] = [
 
     Script("pipelines/voice_ai_analytics/voice_ai_analytics.py",        tier="pipeline", timeout=300),
     Script("pipelines/voice_ai_analytics/voice_ai_analytics_openai.py",  env=["OPENAI_API_KEY"], tier="pipeline"),
-    Script("pipelines/voice_ai_analytics/voice_ai_tutorial.py",          tier="pipeline"),
+    Script("pipelines/voice_ai_analytics/voice_ai_tutorial.py",          tier="pipeline", skip="requires faster-whisper model download"),
 
     # ── datasets ────────────────────────────────────────────────────
     Script("datasets/common_crawl/basic_warc.py",           env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="dataset"),

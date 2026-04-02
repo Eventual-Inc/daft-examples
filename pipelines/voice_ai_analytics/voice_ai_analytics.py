@@ -116,91 +116,91 @@ if __name__ == "__main__":
     else:
         df_transcript = daft.read_parquet(os.path.join(DEST_URI, "transcripts.parquet"))
 
-        # ==============================================================================
-        # Summarization
-        # ==============================================================================
+    # ==============================================================================
+    # Summarization
+    # ==============================================================================
 
-        # Summarize the transcripts and translate to Chinese.
-        df_summaries = (
-            df_transcript
-            # Summarize the transcripts
-            .with_column(
-                "summary",
-                prompt(
-                    format(
-                        "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
-                        daft.lit(CONTEXT),
-                        col("transcript"),
-                    ),
-                    model=LLM_MODEL_ID,
+    # Summarize the transcripts and translate to Chinese.
+    df_summaries = (
+        df_transcript
+        # Summarize the transcripts
+        .with_column(
+            "summary",
+            prompt(
+                format(
+                    "Summarize the following transcript from a YouTube video belonging to {}: \n {}",
+                    daft.lit(CONTEXT),
+                    col("transcript"),
                 ),
-            ).with_column(
-                "summary_chinese",
-                prompt(
-                    format(
-                        "Translate the following text to Simplified Chinese: <text>{}</text>",
-                        col("summary"),
-                    ),
-                    system_message="You will be provided with a piece of text. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
-                    model=LLM_MODEL_ID,
+                model=LLM_MODEL_ID,
+            ),
+        ).with_column(
+            "summary_chinese",
+            prompt(
+                format(
+                    "Translate the following text to Simplified Chinese: <text>{}</text>",
+                    col("summary"),
                 ),
-            )
+                system_message="You will be provided with a piece of text. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
+                model=LLM_MODEL_ID,
+            ),
         )
+    )
 
-        # ==============================================================================
-        # Subtitles Generation
-        # ==============================================================================
+    # ==============================================================================
+    # Subtitles Generation
+    # ==============================================================================
 
-        # Explode the segments, embed, and translate to simplified Chinese for subtitles.
-        df_segments = (
-            df_transcript.select("path", "segments")
-            .explode("segments")
-            .select("path", unnest(col("segments")))
-            .with_column(
-                "segment_text_chinese",
-                prompt(
-                    format(
-                        "Translate the following text to Simplified Chinese: <text>{}</text>",
-                        col("text"),
-                    ),
-                    system_message="You will be provided with a transcript segment. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
-                    model=LLM_MODEL_ID,
-                ),
-            )
-            .with_column(
-                "segment_embeddings",
-                embed_text(
-                    col("text"),
-                    provider="transformers",
-                    model=EMBEDDING_MODEL_ID,
-                ),
-            )
-        )
-
-        # ==============================================================================
-        # Store Transcripts and Segments
-        # ==============================================================================
-
-        # Store Transcripts with Summaries
-        df_summaries.select("path", "info", "transcript", "summary", "summary_chinese").write_parquet(
-            transcripts_path, write_mode="overwrite"
-        )
-        # Store Segments
-        df_segments.select(
-            "path",
-            "id",
-            "start",
-            "end",
-            "text",
-            "tokens",
-            "avg_logprob",
-            "compression_ratio",
-            "no_speech_prob",
-            "words",
-            "temperature",
+    # Explode the segments, embed, and translate to simplified Chinese for subtitles.
+    df_segments = (
+        df_transcript.select("path", "segments")
+        .explode("segments")
+        .select("path", unnest(col("segments")))
+        .with_column(
             "segment_text_chinese",
+            prompt(
+                format(
+                    "Translate the following text to Simplified Chinese: <text>{}</text>",
+                    col("text"),
+                ),
+                system_message="You will be provided with a transcript segment. Your task is to translate the text to Simplified Chinese exactly as it is written. Return the translated text only, no other text or formatting.",
+                model=LLM_MODEL_ID,
+            ),
+        )
+        .with_column(
             "segment_embeddings",
-        ).write_parquet(segments_path, write_mode="overwrite")
+            embed_text(
+                col("text"),
+                provider="transformers",
+                model=EMBEDDING_MODEL_ID,
+            ),
+        )
+    )
+
+    # ==============================================================================
+    # Store Transcripts and Segments
+    # ==============================================================================
+
+    # Store Transcripts with Summaries
+    df_summaries.select("path", "info", "transcript", "summary", "summary_chinese").write_parquet(
+        transcripts_path, write_mode="overwrite"
+    )
+    # Store Segments
+    df_segments.select(
+        "path",
+        "id",
+        "start",
+        "end",
+        "text",
+        "tokens",
+        "avg_logprob",
+        "compression_ratio",
+        "no_speech_prob",
+        "words",
+        "temperature",
+        "segment_text_chinese",
+        "segment_embeddings",
+    ).write_parquet(segments_path, write_mode="overwrite")
 
     # ==============================================================================
     # RAG QA Section
