@@ -101,7 +101,6 @@ SCRIPTS: list[Script] = [
     Script("pipelines/context_engineering/arxiv_search/daily_workflow.py",   env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="pipeline"),
     Script("pipelines/context_engineering/arxiv_search/ingest_lambda.py",    env=["S3_BUCKET"], tier="pipeline"),
     Script("pipelines/context_engineering/arxiv_search/search.py",           env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="pipeline"),
-    Script("pipelines/context_engineering/context_kernel_demo.py",           tier="pipeline"),
     Script("pipelines/context_engineering/llm_judge_elo.py",                 env=["OPENROUTER_API_KEY"], tier="pipeline"),
     Script("pipelines/context_engineering/chunking_strategies.py",          env=["OPENAI_API_KEY"], tier="pipeline"),
     Script("pipelines/context_engineering/few_shot_example_selection.py",   env=["OPENAI_API_KEY"], tier="pipeline"),
