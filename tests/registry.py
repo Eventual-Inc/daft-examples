@@ -34,13 +34,13 @@ SCRIPTS: list[Script] = [
     Script("quickstart/05_video_file.py",           tier="quickstart"),
 
     # ── examples/classify ───────────────────────────────────────────
-    Script("examples/classify/classify_image.py",  skip="daft 0.7.6 bug: TransformersImageClassifierPipeline missing 'framework' attribute"),
+    Script("examples/classify/classify_image.py",  skip="daft 0.7.8 bug: TransformersImageClassifierPipeline missing 'framework' attribute"),
     Script("examples/classify/classify_text.py"),
 
     # ── examples/commoncrawl ────────────────────────────────────────
     Script("examples/commoncrawl/cc_chunk_embed.py",           timeout=300),
     Script("examples/commoncrawl/cc_show.py"),
-    Script("examples/commoncrawl/cc_wet_paragraph_dedupe.py",  timeout=300, skip="daft 0.7.6 bug: FixedSizeList field name mismatch in minhash().chunk()"),
+    Script("examples/commoncrawl/cc_wet_paragraph_dedupe.py",  timeout=300, skip="daft 0.7.8 bug: FixedSizeList field name mismatch in minhash().chunk()"),
 
 
     # ── examples/embed ──────────────────────────────────────────────
@@ -74,7 +74,7 @@ SCRIPTS: list[Script] = [
     Script("examples/prompt/prompt_qa.py",                  env=["OPENAI_API_KEY"], timeout=300),
     Script("examples/prompt/prompt_session.py",             env=["OPENROUTER_API_KEY"]),
     Script("examples/prompt/prompt_structured_outputs.py",  env=["OPENROUTER_API_KEY"]),
-    Script("examples/prompt/prompt_unity_catalog.py",       env=["DATABRICKS_TOKEN", "OPENAI_API_KEY"], skip="daft.unity_catalog module not available in daft 0.7.6"),
+    Script("examples/prompt/prompt_unity_catalog.py",       env=["DATABRICKS_TOKEN", "OPENAI_API_KEY"], skip="daft.unity_catalog module not available in daft 0.7.8"),
 
     # ── examples/sql ────────────────────────────────────────────────
     Script("examples/sql/stocks.py"),
@@ -116,7 +116,7 @@ SCRIPTS: list[Script] = [
     Script("pipelines/social_recommendation/build_index.py",        env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="pipeline"),
     Script("pipelines/social_recommendation/ingest_comments.py",    env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="pipeline"),
     Script("pipelines/social_recommendation/ingest_images.py",      env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="pipeline"),
-    Script("pipelines/social_recommendation/write_index_to_uc.py",  env=["DATABRICKS_TOKEN"], tier="pipeline", skip="daft.unity_catalog module not available in daft 0.7.6"),
+    Script("pipelines/social_recommendation/write_index_to_uc.py",  env=["DATABRICKS_TOKEN"], tier="pipeline", skip="daft.unity_catalog module not available in daft 0.7.8"),
 
     Script("pipelines/voice_ai_analytics/voice_ai_analytics.py",        env=["OPENROUTER_API_KEY"], tier="pipeline", timeout=300, skip="requires faster-whisper model download"),
     Script("pipelines/voice_ai_analytics/voice_ai_analytics_openai.py",  env=["OPENAI_API_KEY"], tier="pipeline"),
@@ -128,7 +128,7 @@ SCRIPTS: list[Script] = [
     Script("datasets/common_crawl/basic_wet.py",            tier="dataset"),
     Script("datasets/common_crawl/chunk_embed.py",          env=["OPENAI_API_KEY"], tier="dataset"),
     Script("datasets/common_crawl/content_analysis.py",     tier="dataset"),
-    Script("datasets/common_crawl/text_deduplication.py",   tier="dataset", skip="daft 0.7.6 bug: FixedSizeList field name mismatch in minhash().chunk()"),
+    Script("datasets/common_crawl/text_deduplication.py",   tier="dataset", skip="daft 0.7.8 bug: FixedSizeList field name mismatch in minhash().chunk()"),
 
     Script("datasets/laion/basic_metadata.py",      tier="dataset"),
     Script("datasets/laion/clip_training.py",       env=["OPENAI_API_KEY"], tier="dataset"),

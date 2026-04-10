@@ -1,7 +1,7 @@
 # /// script
 # description = "Build/rebuild the image index from S3"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "python-dotenv"]
+# dependencies = ["daft>=0.7.8", "python-dotenv"]
 # ///
 """
 Job 2: Index Builder

@@ -1,7 +1,7 @@
 # /// script
 # description = "Near-duplicate paragraph-level dedupe over Common Crawl WET using MinHash + LSH banding + connected components."
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws,pandas]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[aws,pandas]>=0.7.8", "python-dotenv"]
 # ///
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 # /// script
 # description = "Work with LAION image-text pairs"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.6"]
+# dependencies = ["daft[aws]>=0.7.8"]
 # ///
 
 import daft

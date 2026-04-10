@@ -1,7 +1,7 @@
 # /// script
 # description = "Simple UDF example to clip values"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[transformers]>=0.7.6"]
+# dependencies = ["daft[transformers]>=0.7.8"]
 # ///
 
 from transformers import pipeline

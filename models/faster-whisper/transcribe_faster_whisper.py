@@ -1,7 +1,7 @@
 # /// script
 # description = "Transcribe + VAD with Faster Whisper"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "faster-whisper"]
+# dependencies = ["daft>=0.7.8", "faster-whisper"]
 # ///
 from dataclasses import asdict
 

@@ -35,7 +35,7 @@ wheels = [
 
 [[package]]
 name = "daft"
-version = "0.7.6"
+version = "0.7.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
@@ -43,13 +43,13 @@ dependencies = [
     { name = "pyarrow" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/54/a5db9bc04802a032c7f77c0c0a7dc0b35cc11f8a3e9c2a561c9699b1c49a/daft-0.7.6.tar.gz", hash = "sha256:445f285d420db1aa8c6223c63f20bb58fff152d64bf95bd35fd31fabe757314b", size = 2909507, upload-time = "2026-03-31T00:24:54.726Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/92/84f1712ee6369a17eba7750c99ba29b863b9cbcce983f226e35162469c2b/daft-0.7.8.tar.gz", hash = "sha256:192ad75adf70a6a3a551aa26ec53fc5c551f50fe18abb739c7407f089c016322", size = 2973748, upload-time = "2026-04-08T10:44:27.399Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/42/df6ce0a725674b476ab9d1058746d77855f9bb689bdf4d6e69cff4f987f5/daft-0.7.6-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:a06ce30d526d62f98f7b87c197b2d8fbdb71ae73a41f913e9f588b1e24fb3975", size = 56863969, upload-time = "2026-03-31T00:24:15.326Z" },
-    { url = "https://files.pythonhosted.org/packages/fd/ec/fa416a1fc6bbd1bc901a29d90ea4b6aa7df3c56a31147f5f304080d67b02/daft-0.7.6-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:1d379eb0a48be97b5ea9f13eb958b52b4046f418bc218ba0bef6c32fdf1af7cb", size = 52796320, upload-time = "2026-03-31T00:24:20.536Z" },
-    { url = "https://files.pythonhosted.org/packages/83/ab/c367b71211cf74c34458b736c815f2e7c05b51a8ca9cd6f675eab9344d00/daft-0.7.6-cp310-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:26e0d993d93f754de3e05c9e1adcbf21a70727a28708cb0cb7c468ce266f624e", size = 55245433, upload-time = "2026-03-31T00:24:24.86Z" },
-    { url = "https://files.pythonhosted.org/packages/6b/d1/aa91cd7251a1cfc49c4577eebcc7c6c39c2c4e5e8572875b1798e766bf12/daft-0.7.6-cp310-abi3-manylinux_2_24_x86_64.whl", hash = "sha256:68f829a6b76d81082a52b17467fe06aa8e3727be948285ae5acc4f63cacd1b2b", size = 57313958, upload-time = "2026-03-31T00:24:29.348Z" },
-    { url = "https://files.pythonhosted.org/packages/b6/ef/41c44add72f0be04e2dfc7dc1bd64f921243bf90253a65ed09c878c38da5/daft-0.7.6-cp310-abi3-win_amd64.whl", hash = "sha256:d1bd20745a32df76728177681c7ce52bdb648ab694b19e9db9df36d704030839", size = 58225643, upload-time = "2026-03-31T00:24:34.476Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/39/97bc0892a07b277f446c84444ec84858e358a6cddf0e7a8fba98dca029c4/daft-0.7.8-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:254457cc4daf30528c15010ae1b3cd06e1b04af263d6582d9b8db97a31438053", size = 57452326, upload-time = "2026-04-08T10:43:57.685Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/bd/d475b329639445aca08b30e642a8441aafc318390957f996c048e5ebcebc/daft-0.7.8-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:0934e5b819f09c809ae645efea482ddc1cfebf22df29cb96bd252f036c987db0", size = 53245253, upload-time = "2026-04-08T10:44:01.361Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/11/8790b8f3d29db6badfa81ae3d2dea0dcd685f4e8dc1084457267da18b339/daft-0.7.8-cp310-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:17ea85fd0c9ca9161dd4ec947482a74f48633de0c14e2f7e8c2f9169b37593dd", size = 55674942, upload-time = "2026-04-08T10:44:04.924Z" },
+    { url = "https://files.pythonhosted.org/packages/76/f8/bc635277c497e2fa277e207939f5fc5f092312994f21aa55745e02a7af81/daft-0.7.8-cp310-abi3-manylinux_2_24_x86_64.whl", hash = "sha256:3ba1ad07abc699ef3b280326493cf9ab2d7eddbb4f5a0ceaf3a63127e3254d16", size = 57892242, upload-time = "2026-04-08T10:44:08.518Z" },
+    { url = "https://files.pythonhosted.org/packages/42/68/7c87400ba31b23e340b17af551eae191713f835952dfc308953468af5f2f/daft-0.7.8-cp310-abi3-win_amd64.whl", hash = "sha256:d64e745b9c0659c6132d4a0af0bbba9792036b25cfb661d56a62670b3c940bbb", size = 58733284, upload-time = "2026-04-08T10:44:12.103Z" },
 ]
 
 [[package]]
@@ -75,7 +75,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "daft", specifier = ">=0.7.6" },
+    { name = "daft", specifier = ">=0.7.8" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.1.0" },
     { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.2.0" },

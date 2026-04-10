@@ -1,7 +1,7 @@
 # /// script
 # description = "Prompt a model"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6","python-dotenv","transformers<5","torch","pillow","torchvision"]
+# dependencies = ["daft[openai]>=0.7.8","python-dotenv","transformers<5","torch","pillow","torchvision"]
 # ///
 from dotenv import load_dotenv
 

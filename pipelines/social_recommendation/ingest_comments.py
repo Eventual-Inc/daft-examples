@@ -1,7 +1,7 @@
 # /// script
 # description = "Ingest Reddit comments to S3 as parquet"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[huggingface]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[huggingface]>=0.7.8", "python-dotenv"]
 # ///
 import os
 

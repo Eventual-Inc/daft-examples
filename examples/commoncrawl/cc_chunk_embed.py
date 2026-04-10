@@ -1,7 +1,7 @@
 # /// script
 # description = "Chunk and embed Common Crawl text with spaCy and sentence-transformers"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# dependencies = ["daft>=0.7.8", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
 import spacy

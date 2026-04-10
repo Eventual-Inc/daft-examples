@@ -1,7 +1,7 @@
 # /// script
 # description = "Lambda Reduce → Iceberg: persist each reduction level to Iceberg tables"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai,iceberg]>=0.7.6", "pyiceberg[sql-sqlite]>=0.11.0", "pymupdf", "python-dotenv"]
+# dependencies = ["daft[openai,iceberg]>=0.7.8", "pyiceberg[sql-sqlite]>=0.11.0", "pymupdf", "python-dotenv"]
 # ///
 
 """

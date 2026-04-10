@@ -1,7 +1,7 @@
 # /// script
 # description = "Classify image"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "transformers","torch","torchvision"]
+# dependencies = ["daft>=0.7.8", "transformers","torch","torchvision"]
 # ///
 import daft
 from daft.functions import classify_image, decode_image

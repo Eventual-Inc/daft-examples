@@ -1,7 +1,7 @@
 # /// script
 # description = "Window functions for stocks - demonstrates various window functions on real stock data"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "yfinance>=0.2.0", "pandas>=2.0.0"]
+# dependencies = ["daft>=0.7.8", "yfinance>=0.2.0", "pandas>=2.0.0"]
 # ///
 
 

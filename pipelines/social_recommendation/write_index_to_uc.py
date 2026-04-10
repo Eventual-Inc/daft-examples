@@ -1,7 +1,7 @@
 # /// script
 # description = "Build/rebuild the image index from S3 and write to Unity Catalog"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[unity, deltalake]>=0.7.6", "python-dotenv", "tenacity"]
+# dependencies = ["daft[unity, deltalake]>=0.7.8", "python-dotenv", "tenacity"]
 # ///
 """
 Job 2: Index Builder

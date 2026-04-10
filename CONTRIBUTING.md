@@ -128,7 +128,7 @@ Use the appropriate extras in your dependency spec:
 | `daft[unity, deltalake]` | Databricks Unity Catalog |
 | `daft[pandas]` | Pandas interop |
 
-Combine as needed: `daft[aws, openai]>=0.7.5`. If the script only uses core Daft (DataFrames, UDFs, no providers), use `daft>=0.7.6`.
+Combine as needed: `daft[aws, openai]>=0.7.5`. If the script only uses core Daft (DataFrames, UDFs, no providers), use `daft>=0.7.8`.
 
 When a script uses daft's built-in provider (e.g., `prompt()` with `provider="openai"`), use the daft extra instead of listing `openai` as a separate dependency. Only list `openai` separately if you import from the OpenAI SDK directly (`from openai import ...`).
 

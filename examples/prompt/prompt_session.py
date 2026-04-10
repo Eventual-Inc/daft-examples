@@ -1,7 +1,7 @@
 # /// script
 # description = "Prompt an OpenRouter model by passing a Provider through a Session"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6","pydantic","python-dotenv", "numpy"]
+# dependencies = ["daft[openai]>=0.7.8","pydantic","python-dotenv", "numpy"]
 # ///
 import os
 

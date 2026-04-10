@@ -1,7 +1,7 @@
 # /// script
 # description = "Read video frames from video files"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "av", "numpy"]
+# dependencies = ["daft>=0.7.8", "av", "numpy"]
 # ///
 
 import os

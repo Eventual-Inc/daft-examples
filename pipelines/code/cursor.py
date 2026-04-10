@@ -1,7 +1,7 @@
 # /// script
 # description = "take a bunch of filepaths, filter for Python files, extract Python functions, caption them all/generate a docstring, run embeddings."
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.8", "numpy", "python-dotenv"]
 # ///
 
 from pydantic import BaseModel
