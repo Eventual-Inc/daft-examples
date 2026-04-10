@@ -4,10 +4,7 @@
 # dependencies = ["daft[aws]>=0.7.6", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
-import os
-
 import spacy
-from dotenv import load_dotenv
 
 import daft
 from daft import DataType, col
@@ -64,24 +61,10 @@ if __name__ == "__main__":
     from daft.functions import embed_text
 
     # ---------------------------
-    # Authentication
+    # Common Crawl access (anonymous, public bucket)
     # ---------------------------
-    load_dotenv()
-
-    if os.environ.get("AWS_ACCESS_KEY_ID"):
-        IN_AWS = True
-        IOCONFIG = IOConfig(
-            s3=S3Config(
-                region_name="us-east-1",
-                requester_pays=True,
-                key_id=os.environ["AWS_ACCESS_KEY_ID"],
-                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-                anonymous=False,
-            )
-        )
-    else:
-        IN_AWS = False
-        IOCONFIG = None
+    IN_AWS = False
+    IOCONFIG = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
 
     # Download spaCy model
     spacy.cli.download(SPACY_MODEL)
@@ -122,6 +105,6 @@ if __name__ == "__main__":
     )
 
     print("\n=== Chunked & Embedded Text ===")
-    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(5, max_col_width=40)
+    df_embed.select(unnest(col("spacy_results")), col("text_embeddings")).show(5)
 
     df_embed.write_parquet(f"{OUT_DIR}/embeddings")

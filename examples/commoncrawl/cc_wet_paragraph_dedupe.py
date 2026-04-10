@@ -6,14 +6,11 @@
 
 from __future__ import annotations
 
-import os
 import re
-
-from dotenv import load_dotenv
 
 import daft
 from daft import DataFrame, col
-from daft.functions import monotonically_increasing_id
+from daft.functions import monotonically_increasing_id, when
 from daft.io import IOConfig, S3Config
 
 # ---------------------------
@@ -43,24 +40,10 @@ OUT_DIR = ".data/common_crawl/wet_paragraph_dedupe"
 
 
 # ---------------------------
-# Common Crawl auth (optional)
+# Common Crawl access (anonymous, public bucket)
 # ---------------------------
-load_dotenv()
-
-if os.environ.get("AWS_ACCESS_KEY_ID"):
-    IN_AWS = True
-    IOCONFIG = IOConfig(
-        s3=S3Config(
-            region_name="us-east-1",
-            requester_pays=True,
-            key_id=os.environ["AWS_ACCESS_KEY_ID"],
-            access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-            anonymous=False,
-        )
-    )
-else:
-    IN_AWS = False
-    IOCONFIG = None
+IN_AWS = False
+IOCONFIG = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
 
 
 # ---------------------------
@@ -102,8 +85,8 @@ def get_band_idx(bands: list[list[int]], B: int) -> list[int]:
 def _canonicalize_edges(edges: DataFrame) -> DataFrame:
     """Order edges so u < v and deduplicate for canonical representation."""
     return (
-        edges.with_column("u_can", (col("u") < col("v")).if_else(col("u"), col("v")))
-        .with_column("v_can", (col("u") < col("v")).if_else(col("v"), col("u")))
+        edges.with_column("u_can", when(col("u") < col("v"), col("u")).otherwise(col("v")))
+        .with_column("v_can", when(col("u") < col("v"), col("v")).otherwise(col("u")))
         .select(col("u_can").alias("u"), col("v_can").alias("v"))
         .distinct()
     )
@@ -133,12 +116,12 @@ def _symmetrize(edges: DataFrame) -> DataFrame:
 def large_star(edges: DataFrame) -> DataFrame:
     """Large-star: for each u, connect neighbors v>u to m(u)=min({u}∪N(u))."""
     undirected = _symmetrize(edges)
-    neigh = undirected.groupby("u").agg_list("v").with_column("nbrs", col("v"))
+    neigh = undirected.groupby("u").agg(col("v").list_agg().alias("v")).with_column("nbrs", col("v"))
 
-    neigh = neigh.with_column("m", col("nbrs").list.min())
+    neigh = neigh.with_column("m", col("nbrs").list_min())
     neigh = neigh.with_column(
         "m",
-        col("m").is_null().if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
+        when(col("m").is_null(), col("u")).when(col("u") < col("m"), col("u")).otherwise(col("m")),
     )
 
     return (
@@ -150,7 +133,7 @@ def large_star(edges: DataFrame) -> DataFrame:
     )
 
 
-@daft.func()
+@daft.func(return_dtype=daft.DataType.struct({"u": daft.DataType.int64(), "v": daft.DataType.int64()}))
 def _edge_struct(u: int, v: int) -> dict[str, int]:
     return {"u": u, "v": v}
 
@@ -159,19 +142,19 @@ def small_star(edges: DataFrame) -> DataFrame:
     """Small-star: orient each edge so u is larger endpoint, then connect all neighbors to min."""
     directed = (
         edges.select(
-            (col("u") < col("v")).if_else(_edge_struct(col("v"), col("u")), _edge_struct(col("u"), col("v"))).alias("e")
+            when(col("u") < col("v"), _edge_struct(col("v"), col("u"))).otherwise(_edge_struct(col("u"), col("v"))).alias("e")
         )
         .select(col("e")["*"])
         .where(col("u") != col("v"))
         .distinct()
     )
 
-    neigh = directed.groupby("u").agg_list("v").with_column("nbrs", col("v"))
+    neigh = directed.groupby("u").agg(col("v").list_agg().alias("v")).with_column("nbrs", col("v"))
 
-    neigh = neigh.with_column("m", col("nbrs").list.min())
+    neigh = neigh.with_column("m", col("nbrs").list_min())
     neigh = neigh.with_column(
         "m",
-        col("m").is_null().if_else(col("u"), (col("u") < col("m")).if_else(col("u"), col("m"))),
+        when(col("m").is_null(), col("u")).when(col("u") < col("m"), col("u")).otherwise(col("m")),
     )
 
     return (
@@ -201,7 +184,7 @@ def connected_components(edges: DataFrame) -> DataFrame:
     rep_map = b_final.groupby("u").agg(col("v").min().alias("rep"))
     assignments = (
         nodes.join(rep_map, on="u", how="left")
-        .with_column("rep", col("rep").is_null().if_else(col("u"), col("rep")))
+        .with_column("rep", when(col("rep").is_null(), col("u")).otherwise(col("rep")))
         .select("u", "rep")
         .distinct()
     )
@@ -222,12 +205,9 @@ def connected_components(edges: DataFrame) -> DataFrame:
             labels.join(nbr_min, left_on="u", right_on="node", how="left")
             .with_column(
                 "label",
-                col("nbr_min")
-                .is_null()
-                .if_else(
-                    col("label"),
-                    (col("label") <= col("nbr_min")).if_else(col("label"), col("nbr_min")),
-                ),
+                when(col("nbr_min").is_null(), col("label"))
+                .when(col("label") <= col("nbr_min"), col("label"))
+                .otherwise(col("nbr_min")),
             )
             .select(col("u"), col("label"))
             .distinct()
@@ -283,14 +263,14 @@ if __name__ == "__main__":
     )
 
     # 4) LSH banding -> candidate edges
-    df_bands = df_mh.with_column("bands", col("min_hashes").list.chunk(R))
+    df_bands = df_mh.with_column("bands", col("min_hashes").chunk(R)).drop_null("bands")
     df_bands = df_bands.with_column("band_idx", get_band_idx(col("bands"), B)).explode("bands", "band_idx")
 
-    df_grouped = df_bands.groupby(col("band_idx"), col("bands")).agg(col("node_id").agg_list().alias("nodes"))
+    df_grouped = df_bands.groupby(col("band_idx"), col("bands")).agg(col("node_id").list_agg().alias("nodes"))
 
     # Edges: connect each node in a bucket to the bucket's minimum node id
     df_edges = (
-        df_grouped.with_column("u", col("nodes").list.min())
+        df_grouped.with_column("u", col("nodes").list_min())
         .explode("nodes")
         .select("u", v=col("nodes"))
         .where(col("u") != col("v"))

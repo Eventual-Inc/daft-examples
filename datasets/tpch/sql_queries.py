@@ -5,50 +5,54 @@
 # ///
 
 import daft
+from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
+    io_config = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
+    daft.set_planning_config(default_io_config=io_config)
+
     # Load TPC-H data
-    df = daft.read_csv("s3://daft-public-datasets/tpch-lineitem/10k-1mb-csv-files/**/*.csv")
+    df = daft.read_parquet("s3://daft-public-datasets/tpch-lineitem/100_0/32/108417bd-5bee-43d9-bf9a-d6faec6afb2d-0.parquet", io_config=io_config)
 
     print("\n=== TPC-H Query 1: Pricing Summary (SQL) ===")
     result = daft.sql("""
         SELECT
-            l_returnflag,
-            l_linestatus,
-            SUM(l_quantity) as sum_qty,
-            SUM(l_extendedprice) as sum_base_price,
-            SUM(l_extendedprice * (1 - l_discount)) as sum_disc_price,
+            L_RETURNFLAG,
+            L_LINESTATUS,
+            SUM(L_QUANTITY) as sum_qty,
+            SUM(L_EXTENDEDPRICE) as sum_base_price,
+            SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as sum_disc_price,
             COUNT(*) as count_order
         FROM df
-        WHERE l_shipdate <= '1998-12-01'
-        GROUP BY l_returnflag, l_linestatus
-        ORDER BY l_returnflag, l_linestatus
+        WHERE L_SHIPDATE <= '1998-12-01'
+        GROUP BY L_RETURNFLAG, L_LINESTATUS
+        ORDER BY L_RETURNFLAG, L_LINESTATUS
     """)
     result.show()
 
     print("\n=== TPC-H Query 6: Forecasting Revenue Change (SQL) ===")
     result = daft.sql("""
         SELECT
-            SUM(l_extendedprice * l_discount) as revenue
+            SUM(L_EXTENDEDPRICE * L_DISCOUNT) as revenue
         FROM df
         WHERE
-            l_shipdate >= '1994-01-01'
-            AND l_shipdate < '1995-01-01'
-            AND l_discount BETWEEN 0.05 AND 0.07
-            AND l_quantity < 24
+            L_SHIPDATE >= '1994-01-01'
+            AND L_SHIPDATE < '1995-01-01'
+            AND L_DISCOUNT BETWEEN 0.05 AND 0.07
+            AND L_QUANTITY < 24
     """)
     result.show()
 
     print("\n=== Late Shipments by Mode (SQL) ===")
     result = daft.sql("""
         SELECT
-            l_shipmode,
+            L_SHIPMODE,
             COUNT(*) as late_shipments,
-            AVG(l_quantity) as avg_quantity,
-            SUM(l_extendedprice) as total_value
+            AVG(L_QUANTITY) as avg_quantity,
+            SUM(L_EXTENDEDPRICE) as total_value
         FROM df
-        WHERE l_shipdate > l_commitdate
-        GROUP BY l_shipmode
+        WHERE L_SHIPDATE > L_COMMITDATE
+        GROUP BY L_SHIPMODE
         ORDER BY late_shipments DESC
     """)
     result.show()
@@ -56,11 +60,11 @@ if __name__ == "__main__":
     print("\n=== High Value Orders (SQL) ===")
     result = daft.sql("""
         SELECT
-            l_orderkey,
-            SUM(l_extendedprice * (1 - l_discount)) as order_total,
+            L_ORDERKEY,
+            SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as order_total,
             COUNT(*) as line_count
         FROM df
-        GROUP BY l_orderkey
+        GROUP BY L_ORDERKEY
         HAVING order_total > 100000
         ORDER BY order_total DESC
         LIMIT 10

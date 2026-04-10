@@ -7,10 +7,16 @@
 import daft
 from daft import col
 from daft.functions import when
+from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
+    io_config = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
+
     # Load LAION metadata
-    df_metadata = daft.read_parquet("s3://daft-public-data/tutorials/laion-parquet/train-00000-of-00001-*.parquet")
+    df_metadata = daft.read_parquet(
+        "s3://daft-public-data/tutorials/laion-parquet/train-00000-of-00001-*.parquet",
+        io_config=io_config,
+    )
 
     print("Square images (512x512+, high quality):")
     square_images = df_metadata.where(

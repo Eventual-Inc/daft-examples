@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 col("perspective"),
             ),
             model=judge_model,
-            max_tokens=10,
+            max_output_tokens=10,
             system_message="Output only A, B, or TIE.",
         ),
     )

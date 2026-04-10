@@ -44,10 +44,6 @@ class SpacyChunker:
 
 
 if __name__ == "__main__":
-    import os
-
-    from dotenv import load_dotenv
-
     import daft
     from daft import col
     from daft.functions import decode, embed_text
@@ -59,23 +55,8 @@ if __name__ == "__main__":
     EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     NUM_FILES = 2
 
-    # Authenticate with AWS
-    load_dotenv()
-
-    if os.environ.get("AWS_ACCESS_KEY_ID"):
-        IN_AWS = True
-        IOCONFIG = IOConfig(
-            s3=S3Config(
-                region_name="us-east-1",
-                requester_pays=True,
-                key_id=os.environ["AWS_ACCESS_KEY_ID"],
-                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-                anonymous=False,
-            )
-        )
-    else:
-        IN_AWS = False
-        IOCONFIG = None
+    IN_AWS = False
+    IOCONFIG = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
 
     # Read Preprocessed Text from Common Crawl WET
     df_warc = daft.datasets.common_crawl(

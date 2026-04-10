@@ -7,10 +7,14 @@
 import daft
 from daft import col
 from daft.functions import decode_image, image_height, image_width
+from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
+    io_config = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
+    daft.set_planning_config(default_io_config=io_config)
+
     # Load image paths
-    df = daft.from_glob_path("s3://daft-public-data/open-images/validation-images/*.jpg")
+    df = daft.from_glob_path("s3://daft-public-data/open-images/validation-images/*.jpg", io_config=io_config)
 
     print("\n=== Schema ===")
     df.show(1)

@@ -178,10 +178,10 @@ if __name__ == "__main__":
         .select(
             col("path"),
             col("class_name"),
-            col("methods").struct.get("name").alias("name"),
-            col("methods").struct.get("signature"),
-            col("methods").struct.get("docstring"),
-            col("methods").struct.get("body"),
+            col("methods").get("name").alias("name"),
+            col("methods").get("signature"),
+            col("methods").get("docstring"),
+            col("methods").get("body"),
         )
     )
 

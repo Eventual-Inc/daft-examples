@@ -3,30 +3,12 @@
 # requires-python = ">=3.12, <3.13"
 # dependencies = ["daft>=0.7.6", "python-dotenv"]
 # ///
-import os
-
-from dotenv import load_dotenv
-
 import daft
 from daft.io import IOConfig, S3Config
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    if os.environ.get("AWS_ACCESS_KEY_ID"):
-        IN_AWS = True
-        IOCONFIG = IOConfig(
-            s3=S3Config(
-                region_name="us-east-1",
-                requester_pays=True,
-                key_id=os.environ["AWS_ACCESS_KEY_ID"],
-                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-                anonymous=False,
-            )
-        )
-    else:
-        IN_AWS = False
-        IOCONFIG = None
+    IN_AWS = False
+    IOCONFIG = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
 
     # Find top MIME types
     df = (
