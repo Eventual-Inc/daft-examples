@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: Few-Shot Example Selection Pipeline"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pydantic"]
+# dependencies = ["daft[openai]>=0.7.8", "python-dotenv", "pydantic"]
 # ///
 
 import os
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     K = 3
 
-    window = Window().partition_by("query").order_by(col("distance").asc())
+    window = Window().partition_by("query").order_by(col("distance"))
 
     df_top_k = df_with_distance.with_column(
         "rank",
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # Group by query and join the selected examples into a single context block
     df_context = (
         df_formatted.groupby("query")
-        .agg(col("formatted_example").alias("examples_list"))
+        .agg(col("formatted_example").list_agg().alias("examples_list"))
         .with_column(
             "few_shot_context",
             col("examples_list").list_join(delimiter="\n\n"),

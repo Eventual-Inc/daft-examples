@@ -1,7 +1,7 @@
 # /// script
 # description = "Ingest Reddit comments to S3 as parquet"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[huggingface]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[huggingface]>=0.7.8", "python-dotenv"]
 # ///
 import os
 
@@ -29,8 +29,8 @@ if __name__ == "__main__":
         default_io_config=IOConfig(
             s3=S3Config(
                 region_name="us-west-2",
-                key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+                key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
             )
         )
     )

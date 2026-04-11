@@ -1,7 +1,7 @@
 # /// script
 # description = "Generate a report on the image understanding performance of a model"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[aws]>=0.7.8", "python-dotenv"]
 # ///
 import os
 

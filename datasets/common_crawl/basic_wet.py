@@ -1,7 +1,7 @@
 # /// script
 # description = "Load plain text (WET) from Common Crawl - extracted text from web pages"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[aws]>=0.7.8", "python-dotenv"]
 # ///
 
 from common import get_common_crawl_io

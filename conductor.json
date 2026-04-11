@@ -1,0 +1,5 @@
+{
+    "scripts": {
+        "setup": "$CONDUCTOR_ROOT_PATH/../../setup-env.sh ~/git/work/daft-examples/.env"
+    }
+}

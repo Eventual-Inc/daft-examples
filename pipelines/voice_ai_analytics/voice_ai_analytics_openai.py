@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice analytics with OpenAI Whisper transcription, GPT summarization, and Spanish translation"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
+# dependencies = ["daft[openai]>=0.7.8", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
 # ///
 
 from openai import AsyncOpenAI
@@ -30,7 +30,6 @@ class OpenAITranscription:
                 ),
             }
         ),
-        unnest=True,
     )
     async def transcribe(self, audio_file: daft.File):
         with audio_file.to_tempfile() as tmpfile:
@@ -69,7 +68,8 @@ if __name__ == "__main__":
         .where(col("path").endswith(".mp3"))
         .limit(FILE_LIMIT)
         # Transcribe the audio files
-        .with_column("transcript_segments", oai_transcriptor.transcribe(file(col("path"))))
+        .with_column("transcription", oai_transcriptor.transcribe(file(col("path"))))
+        .with_column("transcript", col("transcription").get("transcript"))
         # Summarize the transcript
         .with_column(
             "transcript_summary",

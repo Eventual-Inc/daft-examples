@@ -1,7 +1,7 @@
 # /// script
 # description = "Build/rebuild the image index from S3"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "python-dotenv"]
+# dependencies = ["daft>=0.7.8", "python-dotenv"]
 # ///
 """
 Job 2: Index Builder
@@ -35,9 +35,8 @@ if __name__ == "__main__":
         default_io_config=IOConfig(
             s3=S3Config(
                 region_name="us-west-2",
-                key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-                # session_token=os.getenv("AWS_SESSION_TOKEN"),
+                key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
             )
         )
     )

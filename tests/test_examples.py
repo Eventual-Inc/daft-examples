@@ -40,6 +40,9 @@ def _make_params():
             marks.append(pytest.mark.skip(reason=f"missing env: {', '.join(missing)}"))
         if s.skip:
             marks.append(pytest.mark.skip(reason=s.skip))
+        # Override global pytest-timeout so scripts with longer timeouts aren't killed early
+        # Add 30s buffer for uv startup overhead
+        marks.append(pytest.mark.timeout(s.timeout + 30))
         params.append(pytest.param(s, id=_make_id(s), marks=marks))
     return params
 

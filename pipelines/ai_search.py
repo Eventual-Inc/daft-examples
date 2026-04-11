@@ -1,7 +1,7 @@
 # /// script
 # description = "This example shows how using LLMs and embedding models, Daft chunks documents, extracts metadata, generates vectors, and writes them to any vector database..."
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "pymupdf", "python-dotenv", "pydantic", "turbopuffer"]
+# dependencies = ["daft[openai]>=0.7.8", "pymupdf", "python-dotenv", "pydantic", "turbopuffer"]
 # ///
 import os
 

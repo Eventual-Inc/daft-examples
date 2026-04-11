@@ -1,7 +1,7 @@
 # /// script
 # description = "Image Understanding Evaluation Pipeline: structured VLM outputs, ablation study, quadrant classification, and VLM-as-a-Judge diagnostic feedback"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "pydantic", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.8", "pydantic", "python-dotenv"]
 # ///
 """
 Image Understanding Evaluation Pipeline

@@ -1,7 +1,7 @@
 # /// script
 # description = "Summarize podcasts"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.8", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
 from dataclasses import asdict
 

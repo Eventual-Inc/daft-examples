@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: Compare fixed-size, sentence-based, and paragraph chunking strategies for PDF text"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pymupdf"]
+# dependencies = ["daft[openai]>=0.7.8", "python-dotenv", "pymupdf"]
 # ///
 
 import os
@@ -74,24 +74,28 @@ if __name__ == "__main__":
     )
 
     print("\n=== Fixed-Size Chunks (500 chars, 100 overlap) ===")
-    df_fixed.show(5)
+    df_fixed.show(5, max_width=80)
 
     # ==============================================================================
     # Strategy 2 - Sentence-based chunking via regexp_split
     # ==============================================================================
 
+    @daft.func(return_dtype=DataType.list(DataType.string()))
+    def sentence_split(text: str) -> list[str]:
+        """Split text on sentence boundaries (punctuation followed by whitespace and uppercase)."""
+        import re
+
+        return [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[A-Z])", text) if s.strip()]
+
     df_sentences = (
-        df.with_column(
-            "chunks",
-            col("text").regexp_split(r"(?<=[.!?])(?:\s+)(?=[A-Z])"),
-        )
+        df.with_column("chunks", sentence_split(col("text")))
         .explode("chunks")
-        .where(col("chunks").str.length() > 20)
+        .where(col("chunks").length() > 20)
         .select(col("path"), col("chunks").alias("chunk_text"))
     )
 
     print("\n=== Sentence-Based Chunks ===")
-    df_sentences.show(5)
+    df_sentences.show(5, max_width=80)
 
     # ==============================================================================
     # Strategy 3 - Paragraph chunking (split on double newlines)
@@ -104,7 +108,7 @@ if __name__ == "__main__":
     )
 
     print("\n=== Paragraph Chunks (min 80 chars) ===")
-    df_paragraphs.show(5)
+    df_paragraphs.show(5, max_width=80)
 
     # ==============================================================================
     # Embed all three strategies
@@ -153,4 +157,4 @@ if __name__ == "__main__":
         )
 
         print(f"\n=== Top {TOP_K} matches — {name} Chunking ===")
-        ranked.show()
+        ranked.show(max_width=80)

@@ -14,7 +14,7 @@ Run:
 # /// script
 # description = "Audio-oriented patterns using daft.File + soundfile (duration/sample_rate)"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[audio]>=0.7.6"]
+# dependencies = ["daft[audio]>=0.7.8"]
 # ///
 
 import daft

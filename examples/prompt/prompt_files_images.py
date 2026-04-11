@@ -1,7 +1,7 @@
 # /// script
 # description = "Multimodal prompting with images and PDFs"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "python-dotenv", "pillow"]
+# dependencies = ["daft[openai]>=0.7.8", "python-dotenv", "pillow"]
 # ///
 from dotenv import load_dotenv
 

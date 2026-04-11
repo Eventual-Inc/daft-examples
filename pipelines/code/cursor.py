@@ -1,7 +1,7 @@
 # /// script
 # description = "take a bunch of filepaths, filter for Python files, extract Python functions, caption them all/generate a docstring, run embeddings."
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "numpy", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.8", "numpy", "python-dotenv"]
 # ///
 
 from pydantic import BaseModel
@@ -178,10 +178,10 @@ if __name__ == "__main__":
         .select(
             col("path"),
             col("class_name"),
-            col("methods").struct.get("name").alias("name"),
-            col("methods").struct.get("signature"),
-            col("methods").struct.get("docstring"),
-            col("methods").struct.get("body"),
+            col("methods").get("name").alias("name"),
+            col("methods").get("signature"),
+            col("methods").get("docstring"),
+            col("methods").get("body"),
         )
     )
 

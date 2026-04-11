@@ -1,7 +1,7 @@
 # /// script
 # description = "Simple UDF example to extract file names from File objects"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.6", "pyarrow"]
+# dependencies = ["daft>=0.7.8", "pyarrow"]
 # ///
 
 import daft

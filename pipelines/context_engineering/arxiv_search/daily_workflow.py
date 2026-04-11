@@ -1,7 +1,7 @@
 # /// script
 # description = "Daily Arxiv Summarization and Indexing Workflow"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[turbopuffer, openai]>=0.7.6", "python-dotenv"]
+# dependencies = ["daft[turbopuffer, openai]>=0.7.8", "python-dotenv"]
 # ///
 
 import os
@@ -81,7 +81,7 @@ def main():
 
     df = df.with_column(
         "short_summary",
-        prompt(messages=summary_instruction, model="gpt-4o-mini", max_tokens=100),
+        prompt(messages=summary_instruction, model="gpt-4o-mini", max_output_tokens=100),
     )
 
     # 3. Create Embeddings (Vector)

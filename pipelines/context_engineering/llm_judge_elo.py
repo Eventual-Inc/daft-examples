@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: LLM-as-a-Judge ELO Ranking Pipeline"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.6", "pydantic", "python-dotenv", "numpy"]
+# dependencies = ["daft[openai]>=0.7.8", "pydantic", "python-dotenv", "numpy"]
 # ///
 
 import os
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 col("perspective"),
             ),
             model=judge_model,
-            max_tokens=10,
+            max_output_tokens=10,
             system_message="Output only A, B, or TIE.",
         ),
     )
