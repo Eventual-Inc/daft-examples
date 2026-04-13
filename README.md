@@ -148,8 +148,6 @@ End-to-end workflows. These are where things get interesting.
 | [chunking_strategies.py](pipelines/context_engineering/chunking_strategies.py) | Compare fixed-size, sentence, and paragraph chunking |
 | [few_shot_example_selection.py](pipelines/context_engineering/few_shot_example_selection.py) | Embedding-based few-shot selection |
 | [llm_judge_elo.py](pipelines/context_engineering/llm_judge_elo.py) | LLM-as-judge with ELO ranking |
-| [sliding_window_overlap.py](pipelines/context_engineering/sliding_window_overlap.py) | Sliding window chunking with overlap |
-| [context_kernel.py](pipelines/context_engineering/context_kernel.py) | Context kernel abstraction |
 
 ### Audio & video
 
