@@ -13,7 +13,10 @@ if __name__ == "__main__":
     daft.set_planning_config(default_io_config=io_config)
 
     # Load TPC-H lineitem data (single parquet file for fast execution)
-    df = daft.read_parquet("s3://daft-public-datasets/tpch-lineitem/100_0/32/108417bd-5bee-43d9-bf9a-d6faec6afb2d-0.parquet", io_config=io_config)
+    df = daft.read_parquet(
+        "s3://daft-public-datasets/tpch-lineitem/100_0/32/108417bd-5bee-43d9-bf9a-d6faec6afb2d-0.parquet",
+        io_config=io_config,
+    )
 
     print("\n=== Schema ===")
     df.show(1)
