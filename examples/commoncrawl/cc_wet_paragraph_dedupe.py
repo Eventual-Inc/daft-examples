@@ -142,7 +142,9 @@ def small_star(edges: DataFrame) -> DataFrame:
     """Small-star: orient each edge so u is larger endpoint, then connect all neighbors to min."""
     directed = (
         edges.select(
-            when(col("u") < col("v"), _edge_struct(col("v"), col("u"))).otherwise(_edge_struct(col("u"), col("v"))).alias("e")
+            when(col("u") < col("v"), _edge_struct(col("v"), col("u")))
+            .otherwise(_edge_struct(col("u"), col("v")))
+            .alias("e")
         )
         .select(col("e")["*"])
         .where(col("u") != col("v"))
