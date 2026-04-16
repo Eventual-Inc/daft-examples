@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Transcript: {{source_name}}</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    max-width: 860px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: #111;
+    line-height: 1.6;
+  }
+  h1 { border-bottom: 2px solid #111; padding-bottom: 0.3rem; }
+  h2 { margin-top: 2.5rem; color: #333; }
+  h3 { margin-top: 1.5rem; margin-bottom: 0.3rem; font-size: 1rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: #f5f5f5; }
+  code {
+    background: #f3f4f6;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+    color: #555;
+  }
+  .turn p { margin: 0.3rem 0 0 0; }
+  .meta { color: #666; font-size: 0.9rem; }
+  .swatch {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    border-radius: 2px;
+    margin-right: 0.4em;
+    vertical-align: middle;
+  }
+  input.rename {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 0.15rem 0.3rem;
+    font: inherit;
+    font-weight: bold;
+    width: 12rem;
+    border-radius: 3px;
+  }
+  input.rename:hover { border-color: #ddd; background: #fafafa; }
+  input.rename:focus { border-color: #3b82f6; background: #fff; outline: none; }
+  .toolbar { margin: 1rem 0; display: flex; gap: 0.5rem; }
+  .toolbar button {
+    padding: 0.4rem 0.9rem;
+    font: inherit;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .toolbar button:hover { background: #f3f4f6; }
+  @media print {
+    .swatch, .toolbar { display: none; }
+    input.rename { border: none; background: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Transcript: {{source_name}}</h1>
+
+<p class="meta">
+  <strong>Duration:</strong> {{duration}} &middot;
+  <strong>Language:</strong> {{language}} &middot;
+  <strong>Segments:</strong> {{segments_count}} &middot;
+  <strong>Speakers:</strong> {{speakers_count}}
+</p>
+
+<h2>Speaker Summary</h2>
+<p class="meta">Edit a name to rename that speaker everywhere. Changes save automatically in your browser.</p>
+
+<div class="toolbar">
+  <button type="button" onclick="resetRenames()">Reset to defaults</button>
+  <button type="button" onclick="copyMarkdown()">Copy as Markdown</button>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Speaker</th><th>Speaking Time</th><th>Share</th><th>Words</th></tr>
+  </thead>
+  <tbody>
+{{speaker_table_rows}}
+  </tbody>
+</table>
+
+<h2>Transcript</h2>
+
+<div class="transcript">
+{{turn_blocks}}
+</div>
+
+<script>
+const STORAGE_KEY = {{storage_key_json}};
+const SOURCE_NAME = {{source_name_json}};
+
+function applyRename(speakerId, newName) {
+  document.querySelectorAll(`[data-speaker-id="${speakerId}"]`).forEach(el => {
+    if (el.tagName === "INPUT") {
+      if (el.value !== newName) el.value = newName;
+    } else {
+      el.textContent = newName;
+    }
+  });
+}
+
+function loadRenames() {
+  let renames = {};
+  try { renames = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (_) {}
+  for (const [id, name] of Object.entries(renames)) applyRename(id, name);
+  return renames;
+}
+
+function saveRename(speakerId, newName) {
+  let renames = {};
+  try { renames = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (_) {}
+  if (newName && newName !== speakerId) renames[speakerId] = newName;
+  else delete renames[speakerId];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(renames));
+}
+
+function resetRenames() {
+  localStorage.removeItem(STORAGE_KEY);
+  document.querySelectorAll("input.rename").forEach(inp => {
+    const id = inp.dataset.speakerId;
+    inp.value = id;
+    applyRename(id, id);
+  });
+}
+
+function copyMarkdown() {
+  const lines = [`# Transcript: ${SOURCE_NAME}`, ""];
+  document.querySelectorAll(".turn").forEach(turn => {
+    const speaker = turn.querySelector(".speaker-label").textContent.trim();
+    const ts = turn.querySelector("code").textContent.trim();
+    const text = turn.querySelector("p").textContent.trim();
+    lines.push(`**${speaker}** \`${ts}\``, "", text, "");
+  });
+  const md = lines.join("\n");
+  navigator.clipboard.writeText(md).then(
+    () => alert(`Copied ${md.length} characters as markdown`),
+    err => alert("Copy failed: " + err),
+  );
+}
+
+document.querySelectorAll("input.rename").forEach(inp => {
+  const id = inp.dataset.speakerId;
+  inp.addEventListener("input", e => {
+    const val = e.target.value.trim() || id;
+    applyRename(id, val);
+    saveRename(id, val);
+  });
+});
+
+loadRenames();
+</script>
+
+</body>
+</html>
