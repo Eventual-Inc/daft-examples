@@ -80,9 +80,9 @@ def grid_distance() -> daft.DataFrame:
     pairs = daft.from_pydict(
         {
             "from_city": ["SF", "SF", "NYC"],
-            "to_city":   ["NYC", "LA", "LA"],
-            "from_hex":  ["8928308280fffff", "8928308280fffff", "89283470d93ffff"],
-            "to_hex":    ["89283470d93ffff", "8928347606bffff", "8928347606bffff"],
+            "to_city": ["NYC", "LA", "LA"],
+            "from_hex": ["8928308280fffff", "8928308280fffff", "89283470d93ffff"],
+            "to_hex": ["89283470d93ffff", "8928347606bffff", "8928347606bffff"],
         }
     )
     return pairs.select(

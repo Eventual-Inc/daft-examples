@@ -33,9 +33,7 @@ def build_company_session() -> Session:
 
 def basic_query(sess: Session) -> None:
     """Run a basic SELECT/WHERE/ORDER BY against an attached table."""
-    sess.sql(
-        "SELECT * FROM employees WHERE department = 'Engineering' ORDER BY salary DESC"
-    ).show()
+    sess.sql("SELECT * FROM employees WHERE department = 'Engineering' ORDER BY salary DESC").show()
 
 
 def distinct_query(sess: Session) -> None:

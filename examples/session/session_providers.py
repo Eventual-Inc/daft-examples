@@ -12,9 +12,7 @@ from daft import Session
 from daft.ai.openai.provider import OpenAIProvider
 from daft.functions import prompt
 
-QUESTIONS = daft.from_pydict(
-    {"question": ["What is the capital of France?", "What is 2 + 2?"]}
-)
+QUESTIONS = daft.from_pydict({"question": ["What is the capital of France?", "What is 2 + 2?"]})
 
 
 def global_provider() -> None:
@@ -35,9 +33,7 @@ def custom_endpoint_provider() -> None:
 def named_provider_objects() -> Session:
     """Attach multiple named Provider instances to a session for fine-grained control."""
     sess = Session()
-    sess.attach_provider(
-        OpenAIProvider(name="OpenAI", api_key=os.environ["OPENAI_API_KEY"])
-    )
+    sess.attach_provider(OpenAIProvider(name="OpenAI", api_key=os.environ["OPENAI_API_KEY"]))
     sess.attach_provider(
         OpenAIProvider(
             name="OpenRouter",
