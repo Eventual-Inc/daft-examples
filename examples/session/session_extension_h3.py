@@ -4,8 +4,9 @@
 # dependencies = ["daft>=0.7.8", "daft-h3"]
 # ///
 
-import daft
 import daft_h3
+
+import daft
 from daft import Session, col
 
 
