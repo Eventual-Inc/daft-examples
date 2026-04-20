@@ -56,6 +56,7 @@ SCRIPTS: list[Script] = [
     Script("examples/files/daft_audiofile_udf.py"),
     Script("examples/files/daft_file.py"),
     Script("examples/files/daft_file_code.py"),
+    Script("examples/files/daft_file_markdown.py"),
     Script("examples/files/daft_file_pdf.py"),
     Script("examples/files/daft_videofile.py"),
     Script("examples/files/daft_videofile_stream.py"),
