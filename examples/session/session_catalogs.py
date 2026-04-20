@@ -51,9 +51,9 @@ def create_temp_table(sess: Session) -> None:
 
 def existence_checks(sess: Session) -> None:
     """Check for catalogs and tables before acting on them."""
-    sess.has_catalog("shop")
-    sess.has_table("users")
-    sess.has_table("missing")
+    print(f"has_catalog('shop'):   {sess.has_catalog('shop')}")
+    print(f"has_table('users'):    {sess.has_table('users')}")
+    print(f"has_table('missing'):  {sess.has_table('missing')}")
 
 
 def external_catalog_factories() -> None:

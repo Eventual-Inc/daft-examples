@@ -18,6 +18,8 @@ def anonymous_s3_io_config() -> IOConfig:
 def enable_dynamic_batching() -> None:
     """Enable dynamic batching globally to optimize batch sizes for AI/GPU workloads."""
     daft.set_execution_config(enable_dynamic_batching=True)
+    ctx = daft.get_context()
+    print(f"dynamic_batching: {ctx.daft_execution_config.enable_dynamic_batching}")
 
 
 def set_default_io_config(io_config: IOConfig) -> None:
@@ -46,11 +48,16 @@ def fine_tuned_execution_config() -> None:
         shuffle_aggregation_default_partitions=16,
         default_morsel_size=1024,
     )
+    ctx = daft.get_context()
+    print(f"num_preview_rows:    {ctx.daft_execution_config.num_preview_rows}")
+    print(f"default_morsel_size: {ctx.daft_execution_config.default_morsel_size}")
 
 
 def enable_strict_filter_pushdown() -> None:
     """Enable strict filter pushdown for Parquet/Delta/Iceberg predicate optimization."""
     daft.set_planning_config(enable_strict_filter_pushdown=True)
+    ctx = daft.get_context()
+    print(f"strict_filter_pushdown: {ctx.daft_planning_config.enable_strict_filter_pushdown}")
 
 
 if __name__ == "__main__":
