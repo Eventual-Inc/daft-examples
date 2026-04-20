@@ -28,6 +28,7 @@ def custom_endpoint_provider() -> None:
         api_key=os.environ.get("OPENROUTER_API_KEY", ""),
         base_url="https://openrouter.ai/api/v1",
     )
+    print(f"active provider: {daft.current_provider().name}")
 
 
 def named_provider_objects() -> Session:
@@ -41,13 +42,17 @@ def named_provider_objects() -> Session:
             api_key=os.environ.get("OPENROUTER_API_KEY", ""),
         )
     )
+    print(f"has OpenAI:     {sess.has_provider('OpenAI')}")
+    print(f"has OpenRouter: {sess.has_provider('OpenRouter')}")
     return sess
 
 
 def switch_active_provider(sess: Session) -> None:
     """Switch the session's active provider without detaching or reconfiguring."""
     sess.set_provider("OpenAI")
+    print(f"active provider: {sess.current_provider().name}")
     sess.set_provider("OpenRouter")
+    print(f"active provider: {sess.current_provider().name}")
 
 
 def override_provider_per_call(sess: Session) -> None:
@@ -64,9 +69,11 @@ def override_provider_per_call(sess: Session) -> None:
 
 def provider_introspection(sess: Session) -> None:
     """Inspect and detach providers attached to a session."""
-    sess.has_provider("OpenAI")
-    sess.current_provider()
+    print(f"has OpenAI:     {sess.has_provider('OpenAI')}")
+    print(f"has OpenRouter: {sess.has_provider('OpenRouter')}")
+    print(f"current:        {sess.current_provider().name}")
     sess.detach_provider("OpenRouter")
+    print(f"after detach, has OpenRouter: {sess.has_provider('OpenRouter')}")
 
 
 if __name__ == "__main__":
