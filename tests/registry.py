@@ -77,6 +77,15 @@ SCRIPTS: list[Script] = [
     Script("examples/prompt/prompt_structured_outputs.py",  env=["OPENROUTER_API_KEY"]),
     Script("examples/prompt/prompt_unity_catalog.py",       env=["DATABRICKS_TOKEN", "OPENAI_API_KEY"], skip="daft.unity_catalog module not available in daft 0.7.8"),
 
+    # ── examples/session ────────────────────────────────────────────
+    Script("examples/session/session_basics.py"),
+    Script("examples/session/session_catalogs.py"),
+    Script("examples/session/session_context_config.py"),
+    Script("examples/session/session_extension_h3.py"),
+    Script("examples/session/session_namespaces.py"),
+    Script("examples/session/session_providers.py",     env=["OPENAI_API_KEY"]),
+    Script("examples/session/session_sql.py"),
+
     # ── examples/sql ────────────────────────────────────────────────
     Script("examples/sql/stocks.py"),
 
