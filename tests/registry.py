@@ -127,6 +127,8 @@ SCRIPTS: list[Script] = [
     Script("pipelines/social_recommendation/ingest_images.py",      env=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], tier="pipeline"),
     Script("pipelines/social_recommendation/write_index_to_uc.py",  env=["DATABRICKS_TOKEN"], tier="pipeline", skip="daft.unity_catalog module not available in daft 0.7.8"),
 
+    Script("pipelines/transcribe_diarize/transcribe_diarize.py",  env=["HF_TOKEN"], tier="pipeline", timeout=300, skip="requires faster-whisper + pyannote model download"),
+
     Script("pipelines/voice_ai_analytics/voice_ai_analytics.py",        env=["OPENROUTER_API_KEY"], tier="pipeline", timeout=300, skip="requires faster-whisper model download"),
     Script("pipelines/voice_ai_analytics/voice_ai_analytics_openai.py",  env=["OPENAI_API_KEY"], tier="pipeline"),
     Script("pipelines/voice_ai_analytics/voice_ai_tutorial.py",          tier="pipeline", skip="requires faster-whisper model download"),

@@ -19,6 +19,7 @@ daft-examples/
 │   ├── image_understanding_eval/
 │   ├── rag/
 │   ├── social_recommendation/
+│   ├── transcribe_diarize/
 │   └── voice_ai_analytics/
 ├── datasets/            # Dataset-specific processing (Common Crawl, LAION, etc.)
 ├── models/              # Model integration helpers
