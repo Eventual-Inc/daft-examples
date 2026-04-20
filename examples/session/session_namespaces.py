@@ -21,6 +21,7 @@ def create_namespaces(sess: Session) -> None:
     sess.create_namespace("sales")
     sess.create_namespace("marketing")
     sess.create_namespace_if_not_exists("sales")  # idempotent
+    print(f"namespaces: {sess.list_namespaces()}")
 
 
 def create_tables_in_namespaces(sess: Session) -> None:
@@ -37,6 +38,7 @@ def create_tables_in_namespaces(sess: Session) -> None:
         "marketing.campaigns",
         daft.from_pydict({"campaign_id": [100, 101], "name": ["Spring", "Summer"]}),
     )
+    print(f"tables: {sess.list_tables()}")
 
 
 def read_fully_qualified(sess: Session) -> None:
@@ -48,32 +50,37 @@ def read_fully_qualified(sess: Session) -> None:
 def set_active_namespace(sess: Session) -> None:
     """Set an active namespace so unqualified names resolve within it."""
     sess.set_namespace("sales")
+    print(f"active namespace: {sess.current_namespace()}")
     sess.read_table("orders").show()  # resolves to sales.orders
     sess.set_namespace(None)
+    print(f"active namespace: {sess.current_namespace()}")
 
 
 def read_with_identifier(sess: Session) -> None:
     """Use Identifier objects for programmatic multi-part table names."""
     ident = Identifier("sales", "orders")
+    print(f"identifier: {ident!r}  parts: {list(ident)}")
     sess.read_table(ident).show()
 
 
 def existence_checks(sess: Session) -> None:
     """Check for namespaces and tables before creating or dropping them."""
-    sess.has_namespace("sales")
-    sess.has_namespace("missing")
-    sess.has_table("sales.orders")
+    print(f"has_namespace('sales'):     {sess.has_namespace('sales')}")
+    print(f"has_namespace('missing'):   {sess.has_namespace('missing')}")
+    print(f"has_table('sales.orders'):  {sess.has_table('sales.orders')}")
 
 
 def pattern_filtered_listing(sess: Session) -> None:
     """Filter catalog listings with a glob pattern."""
-    sess.list_tables("sales.*")
+    print(f"tables matching 'sales.*': {sess.list_tables('sales.*')}")
 
 
 def drop_namespace_and_tables(sess: Session) -> None:
     """Drop tables first, then their parent namespace."""
     sess.drop_table("marketing.campaigns")
     sess.drop_namespace("marketing")
+    print(f"namespaces after drop: {sess.list_namespaces()}")
+    print(f"tables after drop:     {sess.list_tables()}")
 
 
 def backend_support_notes() -> None:
