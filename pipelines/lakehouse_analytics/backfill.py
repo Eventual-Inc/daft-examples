@@ -36,7 +36,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from pipelines.catalog import get_session, upsert
+from pipelines.catalog import get_session
+
+
+def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:
+    keys = [on] if isinstance(on, str) else on
+    try:
+        existing = sess.read_table(table)
+    except Exception:
+        sess.create_table_if_not_exists(table, new_df)
+        return
+
+    kept = existing.join(new_df.select(*keys), on=keys, how="anti")
+    sess.write_table(table, kept.concat(new_df), mode="overwrite")
 
 
 def env(name: str) -> str | None:
@@ -106,8 +118,8 @@ def main() -> None:
         sess = get_session(namespace=args.target_namespace)
         df = daft.read_sql(source_query(args), lambda: create_conn(args.source_url))
         df = cast_null_columns(df)
-        backfilled = upsert(sess, args.target_table, df, on=key_columns(args.key)).collect()
-        print(args.target_table, backfilled.count_rows())
+        write_upsert(sess, args.target_table, df, on=key_columns(args.key))
+        print(args.target_table)
     except Exception as error:
         print(f"backfill failed: {error}")
         sys.exit(1)

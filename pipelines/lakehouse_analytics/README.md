@@ -115,7 +115,7 @@ GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipel
 
 | File | Purpose |
 |------|---------|
-| `pipelines/catalog.py` | Shared session factory and upsert helper |
+| `pipelines/catalog.py` | Shared session factory |
 | `sources.py` | Custom `DataSource` implementations (GitHub, PyPI) |
 | `ingest.py` | Run all sources, upsert into Iceberg tables |
 | `backfill.py` | Backfill SQL-compatible data into the lakehouse |

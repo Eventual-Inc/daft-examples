@@ -12,7 +12,6 @@
 import os
 from pathlib import Path
 
-import daft
 from daft import Catalog
 from daft.session import Session
 from dotenv import load_dotenv
@@ -62,19 +61,3 @@ def get_session(namespace: str | None = None) -> Session:
     sess.use(f"lakehouse.{namespace}")
     return sess
 
-
-def upsert(sess: Session, table: str, new_df: daft.DataFrame, on: str | list[str]) -> daft.DataFrame:
-    """Upsert new data into an Iceberg table by replacing matching keys."""
-    keys = [on] if isinstance(on, str) else on
-    new_df = new_df.collect()
-
-    try:
-        existing = sess.read_table(table)
-        kept = existing.join(new_df.select(*keys), on=keys, how="anti")
-        upserted = kept.concat(new_df)
-    except Exception:
-        upserted = new_df
-
-    sess.create_table_if_not_exists(table, upserted)
-    sess.write_table(table, upserted, mode="overwrite")
-    return upserted
