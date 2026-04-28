@@ -105,10 +105,12 @@ if __name__ == "__main__":
 2. **Constants are UPPER_CASE**: `SOURCE_URI`, `DEST_URI`, `MODEL_ID`, `MAX_DOCS`.
 3. **Imports from `daft.functions`**, not `daft.functions.ai`. The latter is an internal path.
 4. **Use `col()` from `from daft import col`**, not `daft.col()`.
-5. **No hardcoded local paths**. Use HuggingFace (`hf://`), S3 (`s3://`), or `.data/` for output.
-6. **Use `.data/` for local output**. This directory is gitignored.
-7. **Use `load_dotenv()`** when the script needs API keys. Never hardcode keys.
-8. **Use `daft.set_provider()`** for API configuration, not manual provider class instantiation.
+5. **Do not mutate `sys.path`**. If multiple scripts share helpers, put them under a package path like `pipelines/` and import them explicitly, e.g. `from pipelines.catalog import get_session`.
+   Run those entrypoints as modules, e.g. `uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest`.
+6. **No hardcoded local paths**. Use HuggingFace (`hf://`), S3 (`s3://`), or a gitignored local directory for output.
+7. **Use `.data/` or another gitignored local directory** for generated artifacts.
+8. **Use `load_dotenv()`** when the script needs API keys. Never hardcode keys.
+9. **Use `daft.set_provider()`** for API configuration, not manual provider class instantiation.
 
 ---
 
@@ -186,6 +188,7 @@ pytest tests/test_examples.py -k "read_video_files"
 4. **Header complete**: Has `description`, `requires-python`, `dependencies`
 5. **Registered in tests**: Added entry to `tests/registry.py`
 6. **Runs in <2 minutes**: Or set `timeout=300` in the registry entry
+7. **Generated local data is ignored**: No `.lakehouse/`, `.data/`, charts, or caches in the commit
 
 ---
 

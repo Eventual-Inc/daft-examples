@@ -4,6 +4,8 @@
 .data/
 .env
 ev.toml
+.lakehouse/
+pipelines/lakehouse_analytics/output/*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
