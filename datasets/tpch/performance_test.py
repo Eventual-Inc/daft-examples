@@ -16,7 +16,10 @@ if __name__ == "__main__":
 
     io_config = IOConfig(s3=S3Config(anonymous=True, region_name="us-east-1"))
     daft.set_planning_config(default_io_config=io_config)
-    df = daft.read_parquet("s3://daft-public-datasets/tpch-lineitem/100_0/32/108417bd-5bee-43d9-bf9a-d6faec6afb2d-0.parquet", io_config=io_config)
+    df = daft.read_parquet(
+        "s3://daft-public-datasets/tpch-lineitem/100_0/32/108417bd-5bee-43d9-bf9a-d6faec6afb2d-0.parquet",
+        io_config=io_config,
+    )
 
     print("\n=== Performance Benchmark ===")
 

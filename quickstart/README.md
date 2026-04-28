@@ -94,14 +94,14 @@ uv run quickstart/05_video_file.py
 
 After completing these quickstart examples, explore:
 
-- **[patterns/](../patterns/)** - Atomic feature demonstrations (prompt, embed, classify, io, etc.)
-- **[use_cases/](../use_cases/)** - Complete end-to-end pipelines
+- **[examples/](../examples/)** - Atomic feature demonstrations (prompt, embed, classify, io, etc.)
+- **[pipelines/](../pipelines/)** - Complete end-to-end pipelines
 - **[notebooks/](../notebooks/)** - Interactive tutorials
 
 ## Requirements
 
 Most examples need:
-- Python 3.10+
+- Python 3.12+
 - `uv` package manager (for dependency isolation)
 
 Some examples require API keys (set in `.env`):

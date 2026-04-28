@@ -31,27 +31,7 @@ df.show(5)
 
 ---
 
-### 2. Reddit IRL
-
-**Source:** `s3://daft-public-datasets/reddit-irl/`
-**Size:** 10M+ comments, thousands of images
-**Auth:** Public (no credentials needed)
-
-Reddit comments, posts, images, and pre-computed embeddings for social media analytics.
-
-**Quick Example:**
-```python
-import daft
-
-df = daft.read_parquet("s3://daft-public-datasets/reddit-irl/comments.parquet")
-df.show(5)
-```
-
-**See:** [`reddit_irl/`](./reddit_irl/)
-
----
-
-### 3. TPC-H Lineitem
+### 2. TPC-H Lineitem
 
 **Source:** `s3://daft-public-datasets/tpch-lineitem/`
 **Size:** 10GB (10K files, ~60M rows)
@@ -71,7 +51,7 @@ df.show(5)
 
 ---
 
-### 4. Open Images
+### 3. Open Images
 
 **Source:** `s3://daft-public-data/open-images/`
 **Size:** 41K+ validation images
@@ -93,7 +73,7 @@ df.show(5)
 
 ---
 
-### 5. LAION Samples
+### 4. LAION Samples
 
 **Source:** `s3://daft-public-data/laion-sample-images/`, `s3://daft-public-data/tutorials/laion-parquet/`
 **Size:** Sample of LAION-5B dataset
@@ -116,7 +96,6 @@ df.show(5)
 | Dataset | Size | Type | Use Cases | Auth Required |
 |---------|------|------|-----------|---------------|
 | **Common Crawl** | 250B+ pages | Text, HTML, Metadata | LLM training, web mining | ✅ AWS |
-| **Reddit IRL** | 10M+ comments | Text, Images | Social analytics, NLP | ❌ Public |
 | **TPC-H** | 60M rows, 10GB | Structured CSV | SQL benchmarks | ❌ Public |
 | **Open Images** | 41K images | Images | Computer vision | ❌ Public |
 | **LAION** | Sample dataset | Image-text pairs | Multimodal models | ❌ Public |
@@ -125,7 +104,6 @@ df.show(5)
 
 ### Text Analysis / LLM Training
 - **Common Crawl (WET)** - Massive web text corpus
-- **Reddit IRL** - Social media conversations
 
 ### Computer Vision
 - **Open Images** - Pre-labeled images for classification
@@ -136,7 +114,6 @@ df.show(5)
 
 ### Multimodal AI
 - **LAION** - Image + caption pairs for CLIP-style training
-- **Reddit IRL** - Social posts with images
 
 ## Authentication
 
@@ -197,11 +174,6 @@ df = daft.datasets.common_crawl(
 - `text_deduplication.py` - MinHash deduplication
 - `chunk_embed.py` - Chunking + embeddings
 
-### Reddit IRL
-- `basic_comments.py` - Load and analyze comments
-- `basic_images.py` - Posts with images
-- `embeddings.py` - Pre-computed embeddings
-
 ### TPC-H
 - `basic_query.py` - Standard SQL queries
 - `performance_test.py` - Benchmark Daft
@@ -232,11 +204,6 @@ df = daft.datasets.common_crawl(
 - Use `in_aws=True` on EC2/Lambda
 - Choose smallest content type needed (WET < WAT < WARC)
 
-**Reddit IRL:**
-- Filter by subreddit early
-- Use partition columns in filters
-- Sample for ML model development
-
 **TPC-H:**
 - Leverage parallel CSV reading (10K files)
 - Enable projection pushdown
@@ -252,18 +219,15 @@ df = daft.datasets.common_crawl(
 These datasets are ideal for hackathons and demos:
 
 ### 5-Minute Demos
-- **Reddit IRL comments** - Sentiment analysis, trend detection
 - **Open Images** - Image classification with GPT-4 Vision
 - **TPC-H queries** - SQL performance showcase
 
 ### 15-Minute Demos
 - **LAION pairs** - Build semantic image search
-- **Reddit IRL images** - Multimodal content moderation
 - **TPC-H + SQL** - Complex analytics dashboard
 
 ### Production Examples
 - **Common Crawl** - LLM pre-training pipeline
-- **Reddit IRL + embeddings** - Social recommendation system
 - **LAION** - Train custom CLIP models
 
 ## Authentication Summary
@@ -271,7 +235,6 @@ These datasets are ideal for hackathons and demos:
 | Dataset | Bucket | Auth Required | Credentials |
 |---------|--------|---------------|-------------|
 | Common Crawl | Common Crawl S3 | ✅ Yes | AWS access keys |
-| Reddit IRL | daft-public-datasets | ❌ No | Public read |
 | TPC-H | daft-public-datasets | ❌ No | Public read |
 | Open Images | daft-public-data | ❌ No | Public read |
 | LAION | daft-public-data | ❌ No | Public read |
