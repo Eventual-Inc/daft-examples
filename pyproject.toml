@@ -20,6 +20,12 @@ test = [
 lint = [
     "ruff>=0.9.0",
 ]
+lakehouse = [
+    "daft[iceberg,sql]>=0.7.8",
+    "pyiceberg[sql-sqlite,gcsfs,bigquery]",
+    "matplotlib",
+    "sqlalchemy-bigquery",
+]
 
 [tool.ruff]
 target-version = "py312"
