@@ -12,9 +12,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from daft import Catalog
 from daft.session import Session
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -48,10 +49,8 @@ def get_session(namespace: str | None = None) -> Session:
         LAKEHOUSE_DIR.mkdir(parents=True, exist_ok=True)
         iceberg_catalog = SqlCatalog(
             "lakehouse",
-            **{
-                "uri": f"sqlite:///{LAKEHOUSE_DIR}/catalog.db",
-                "warehouse": f"file://{LAKEHOUSE_DIR}",
-            },
+            uri=f"sqlite:///{LAKEHOUSE_DIR}/catalog.db",
+            warehouse=f"file://{LAKEHOUSE_DIR}",
         )
 
     catalog = Catalog.from_iceberg(iceberg_catalog)
@@ -60,4 +59,3 @@ def get_session(namespace: str | None = None) -> Session:
     sess.create_namespace_if_not_exists(namespace)
     sess.use(f"lakehouse.{namespace}")
     return sess
-

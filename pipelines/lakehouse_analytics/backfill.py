@@ -29,14 +29,14 @@ import argparse
 import os
 import sys
 
-import daft
 import sqlalchemy
-from daft import DataType
 from dotenv import load_dotenv
 
-load_dotenv()
-
+import daft
+from daft import DataType
 from pipelines.catalog import get_session
+
+load_dotenv()
 
 
 def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:

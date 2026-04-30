@@ -15,13 +15,13 @@ Usage:
     GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 """
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 from datetime import datetime
 from pathlib import Path
 
-import daft
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 
+import daft
 from pipelines.catalog import get_session
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"

@@ -18,9 +18,11 @@ Usage:
 """
 
 import daft
-
 from pipelines.catalog import get_session
-from pipelines.lakehouse_analytics.sources import GitHubDataSource, PyPIDataSource
+from pipelines.lakehouse_analytics.sources import (
+    GitHubDataSource,
+    PyPIDataSource,
+)
 
 
 def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:

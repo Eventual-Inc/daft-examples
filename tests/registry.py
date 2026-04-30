@@ -59,7 +59,7 @@ SCRIPTS: list[Script] = [
     Script("examples/files/daft_file_markdown.py"),
     Script("examples/files/daft_file_pdf.py"),
     Script("examples/files/daft_videofile.py"),
-    Script("examples/files/daft_videofile_stream.py"),
+    Script("examples/files/daft_videofile_stream.py", skip="daft 0.7.8 bug: video_keyframes stream finalization can fail"),
 
     # ── examples/io ─────────────────────────────────────────────────
     Script("examples/io/read_pdfs.py"),

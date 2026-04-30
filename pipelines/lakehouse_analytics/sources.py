@@ -32,6 +32,7 @@ from daft.io import DataSource, DataSourceTask
 from daft.recordbatch import MicroPartition
 from daft.schema import Schema
 
+
 class GitHubDataSource(DataSource):
     """Fetch daily repo metrics from the GitHub REST API via `gh` CLI.
 
@@ -48,19 +49,21 @@ class GitHubDataSource(DataSource):
 
     @property
     def schema(self) -> Schema:
-        return Schema._from_field_name_and_types([
-            ("date", DataType.string()),
-            ("stars", DataType.int64()),
-            ("stars_delta", DataType.int64()),
-            ("forks", DataType.int64()),
-            ("open_issues", DataType.int64()),
-            ("open_prs", DataType.int64()),
-            ("ci_status", DataType.string()),
-            ("latest_release", DataType.string()),
-            ("release_date", DataType.string()),
-            ("contributors", DataType.int64()),
-            ("commits_7d", DataType.int64()),
-        ])
+        return Schema._from_field_name_and_types(
+            [
+                ("date", DataType.string()),
+                ("stars", DataType.int64()),
+                ("stars_delta", DataType.int64()),
+                ("forks", DataType.int64()),
+                ("open_issues", DataType.int64()),
+                ("open_prs", DataType.int64()),
+                ("ci_status", DataType.string()),
+                ("latest_release", DataType.string()),
+                ("release_date", DataType.string()),
+                ("contributors", DataType.int64()),
+                ("commits_7d", DataType.int64()),
+            ]
+        )
 
     async def get_tasks(self, pushdowns) -> AsyncIterator["GitHubDataSourceTask"]:
         yield GitHubDataSourceTask(self.repo)
@@ -74,19 +77,21 @@ class GitHubDataSourceTask(DataSourceTask):
 
     @property
     def schema(self) -> Schema:
-        return Schema._from_field_name_and_types([
-            ("date", DataType.string()),
-            ("stars", DataType.int64()),
-            ("stars_delta", DataType.int64()),
-            ("forks", DataType.int64()),
-            ("open_issues", DataType.int64()),
-            ("open_prs", DataType.int64()),
-            ("ci_status", DataType.string()),
-            ("latest_release", DataType.string()),
-            ("release_date", DataType.string()),
-            ("contributors", DataType.int64()),
-            ("commits_7d", DataType.int64()),
-        ])
+        return Schema._from_field_name_and_types(
+            [
+                ("date", DataType.string()),
+                ("stars", DataType.int64()),
+                ("stars_delta", DataType.int64()),
+                ("forks", DataType.int64()),
+                ("open_issues", DataType.int64()),
+                ("open_prs", DataType.int64()),
+                ("ci_status", DataType.string()),
+                ("latest_release", DataType.string()),
+                ("release_date", DataType.string()),
+                ("contributors", DataType.int64()),
+                ("commits_7d", DataType.int64()),
+            ]
+        )
 
     def _gh_api(self, path: str) -> dict | list:
         result = subprocess.run(
@@ -115,7 +120,11 @@ class GitHubDataSourceTask(DataSourceTask):
             if wf := runs.get("workflow_runs", []):
                 latest = wf[0]
                 status = latest.get("status", "")
-                ci_status = "running" if status in ("in_progress", "queued") else (latest.get("conclusion") or status or "unknown")
+                ci_status = (
+                    "running"
+                    if status in ("in_progress", "queued")
+                    else (latest.get("conclusion") or status or "unknown")
+                )
         except Exception:
             pass
 
@@ -142,19 +151,22 @@ class GitHubDataSourceTask(DataSourceTask):
         except Exception:
             pass
 
-        yield MicroPartition.from_pydict({
-            "date": [today],
-            "stars": [stars],
-            "stars_delta": [0],
-            "forks": [forks],
-            "open_issues": [open_issues],
-            "open_prs": [open_prs],
-            "ci_status": [ci_status],
-            "latest_release": [latest_release],
-            "release_date": [release_date],
-            "contributors": [contributors],
-            "commits_7d": [commits_7d],
-        })
+        yield MicroPartition.from_pydict(
+            {
+                "date": [today],
+                "stars": [stars],
+                "stars_delta": [0],
+                "forks": [forks],
+                "open_issues": [open_issues],
+                "open_prs": [open_prs],
+                "ci_status": [ci_status],
+                "latest_release": [latest_release],
+                "release_date": [release_date],
+                "contributors": [contributors],
+                "commits_7d": [commits_7d],
+            }
+        )
+
 
 class PyPIDataSource(DataSource):
     """Fetch daily download stats from pypistats.org.
@@ -171,12 +183,14 @@ class PyPIDataSource(DataSource):
 
     @property
     def schema(self) -> Schema:
-        return Schema._from_field_name_and_types([
-            ("date", DataType.string()),
-            ("package", DataType.string()),
-            ("downloads", DataType.int64()),
-            ("downloads_7d_avg", DataType.float64()),
-        ])
+        return Schema._from_field_name_and_types(
+            [
+                ("date", DataType.string()),
+                ("package", DataType.string()),
+                ("downloads", DataType.int64()),
+                ("downloads_7d_avg", DataType.float64()),
+            ]
+        )
 
     async def get_tasks(self, pushdowns) -> AsyncIterator["PyPIDataSourceTask"]:
         yield PyPIDataSourceTask(self.package)
@@ -190,18 +204,23 @@ class PyPIDataSourceTask(DataSourceTask):
 
     @property
     def schema(self) -> Schema:
-        return Schema._from_field_name_and_types([
-            ("date", DataType.string()),
-            ("package", DataType.string()),
-            ("downloads", DataType.int64()),
-            ("downloads_7d_avg", DataType.float64()),
-        ])
+        return Schema._from_field_name_and_types(
+            [
+                ("date", DataType.string()),
+                ("package", DataType.string()),
+                ("downloads", DataType.int64()),
+                ("downloads_7d_avg", DataType.float64()),
+            ]
+        )
 
     def _get(self, url: str) -> dict:
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "daft-lakehouse-example/1.0",
-            "Accept": "application/json",
-        })
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "daft-lakehouse-example/1.0",
+                "Accept": "application/json",
+            },
+        )
         with urllib.request.urlopen(req) as resp:
             return json.loads(resp.read())
 
@@ -220,9 +239,11 @@ class PyPIDataSourceTask(DataSourceTask):
             avg = sum(r.get("downloads", 0) for r in window) / len(window)
             avgs.append(round(avg, 1))
 
-        yield MicroPartition.from_pydict({
-            "date": dates,
-            "package": packages,
-            "downloads": downloads,
-            "downloads_7d_avg": avgs,
-        })
+        yield MicroPartition.from_pydict(
+            {
+                "date": dates,
+                "package": packages,
+                "downloads": downloads,
+                "downloads_7d_avg": avgs,
+            }
+        )
