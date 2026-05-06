@@ -1,7 +1,7 @@
 # /// script
 # description = "Image preprocessing: resize, crop, and transform"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.8"]
+# dependencies = ["daft[aws]>=0.7.10"]
 # ///
 
 import daft

@@ -1,7 +1,7 @@
 # /// script
 # description = "Paragraph-level deduplication of Common Crawl text using MinHash + LSH + connected components"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws,pandas]>=0.7.8", "python-dotenv"]
+# dependencies = ["daft[aws,pandas]>=0.7.10", "python-dotenv"]
 # ///
 
 from __future__ import annotations

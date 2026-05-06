@@ -1,7 +1,7 @@
 # /// script
 # description = "Native extension via load_extension() - daft-h3 for H3 geospatial indexing"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "daft-h3"]
+# dependencies = ["daft>=0.7.10", "daft-h3"]
 # ///
 
 import daft_h3

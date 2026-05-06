@@ -1,7 +1,7 @@
 # /// script
 # description = "Prepare LAION data for CLIP-style training"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws,openai]>=0.7.8", "python-dotenv"]
+# dependencies = ["daft[aws,openai]>=0.7.10", "python-dotenv"]
 # ///
 
 import os

@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice AI analytics tutorial: transcription, summarization, Chinese translation, and embeddings"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.10", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
 from dataclasses import asdict
 

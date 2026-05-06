@@ -1,7 +1,7 @@
 # /// script
 # description = "Async class UDF example with aiohttp"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "aiohttp"]
+# dependencies = ["daft>=0.7.10", "aiohttp"]
 # ///
 
 

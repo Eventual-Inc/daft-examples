@@ -1,7 +1,7 @@
 # /// script
 # description = "Daily Arxiv Summarization and Indexing Workflow"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[turbopuffer, openai]>=0.7.8", "python-dotenv"]
+# dependencies = ["daft[turbopuffer, openai]>=0.7.10", "python-dotenv"]
 # ///
 
 import os

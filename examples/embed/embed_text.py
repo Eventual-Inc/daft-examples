@@ -1,7 +1,7 @@
 # /// script
 # description = "Embed text"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8",  "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.10",  "python-dotenv"]
 # ///
 from dotenv import load_dotenv
 

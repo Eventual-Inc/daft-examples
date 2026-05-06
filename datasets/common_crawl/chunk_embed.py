@@ -1,7 +1,7 @@
 # /// script
 # description = "Chunk Common Crawl text and generate embeddings for semantic search"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.8", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
+# dependencies = ["daft[aws]>=0.7.10", "torch", "sentence-transformers", "spacy", "pip", "python-dotenv"]
 # ///
 
 import spacy
