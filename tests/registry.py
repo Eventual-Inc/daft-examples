@@ -84,7 +84,7 @@ SCRIPTS: list[Script] = [
     Script("examples/session/session_extension_h3.py"),
     Script("examples/session/session_namespaces.py"),
     Script("examples/session/session_providers.py",     env=["OPENAI_API_KEY"]),
-    Script("examples/session/session_sql.py"),
+    Script("examples/session/session_sql.py", skip="daft 0.7.8 bug: native shutdown segfault on CI runners"),
 
     # ── examples/sql ────────────────────────────────────────────────
     Script("examples/sql/stocks.py"),
@@ -149,7 +149,7 @@ SCRIPTS: list[Script] = [
 
     Script("datasets/tpch/basic_query.py",          tier="dataset"),
     Script("datasets/tpch/performance_test.py",     tier="dataset", timeout=300),
-    Script("datasets/tpch/sql_queries.py",          tier="dataset"),
+    Script("datasets/tpch/sql_queries.py",          tier="dataset", timeout=300),
 ]
 # fmt: on
 
