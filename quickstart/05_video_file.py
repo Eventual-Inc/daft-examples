@@ -13,7 +13,7 @@ Run:
 # /// script
 # description = "Video-oriented patterns using daft.VideoFile and PyAV"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[video]>=0.7.8"]
+# dependencies = ["daft[video]>=0.7.10"]
 # ///
 
 import daft

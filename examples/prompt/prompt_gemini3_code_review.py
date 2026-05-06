@@ -1,7 +1,7 @@
 # /// script
 # description = "Prompt a Gemini 3 model to review the code"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8","pydantic","python-dotenv", "numpy"]
+# dependencies = ["daft[openai]>=0.7.10","pydantic","python-dotenv", "numpy"]
 # ///
 import os
 

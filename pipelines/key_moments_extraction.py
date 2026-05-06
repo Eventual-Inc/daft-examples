@@ -1,7 +1,7 @@
 # /// script
 # description = "Extract key moments from transcripts and clip audio for short-form content"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "sentence-transformers"]
+# dependencies = ["daft[openai]>=0.7.10", "faster-whisper", "soundfile", "pydantic", "python-dotenv", "sentence-transformers"]
 # ///
 from pydantic import BaseModel, Field
 

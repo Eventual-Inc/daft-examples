@@ -1,7 +1,7 @@
 # /// script
 # description = "Show top MIME types from Common Crawl"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "python-dotenv"]
+# dependencies = ["daft>=0.7.10", "python-dotenv"]
 # ///
 import daft
 from daft.io import IOConfig, S3Config

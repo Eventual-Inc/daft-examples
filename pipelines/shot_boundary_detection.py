@@ -1,7 +1,7 @@
 # /// script
 # description = "Summarize podcasts"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
+# dependencies = ["daft>=0.7.10", "pandas","numpy", "transformers<5","torchvision","matplotlib","av","yt-dlp"]
 # ///
 import os
 import shutil

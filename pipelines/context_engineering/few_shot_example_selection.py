@@ -1,7 +1,7 @@
 # /// script
 # description = "Context Engineering: Few-Shot Example Selection Pipeline"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8", "python-dotenv", "pydantic"]
+# dependencies = ["daft[openai]>=0.7.10", "python-dotenv", "pydantic"]
 # ///
 
 import os

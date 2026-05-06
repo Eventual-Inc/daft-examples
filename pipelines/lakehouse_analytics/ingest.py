@@ -2,7 +2,7 @@
 # description = "Ingest GitHub and PyPI data into an Iceberg lakehouse using custom Daft DataSources."
 # requires-python = ">=3.12, <3.13"
 # dependencies = [
-#     "daft[iceberg,sql]>=0.7.8",
+#     "daft[iceberg,sql]>=0.7.10",
 #     "pyiceberg[sql-sqlite,gcsfs,bigquery]",
 #     "python-dotenv",
 # ]

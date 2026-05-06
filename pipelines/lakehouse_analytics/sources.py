@@ -2,7 +2,7 @@
 # description = "Custom Daft DataSource implementations for GitHub and PyPI APIs."
 # requires-python = ">=3.12, <3.13"
 # dependencies = [
-#     "daft[iceberg,sql]>=0.7.8",
+#     "daft[iceberg,sql]>=0.7.10",
 #     "python-dotenv",
 # ]
 # ///

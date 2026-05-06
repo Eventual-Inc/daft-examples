@@ -1,7 +1,7 @@
 # /// script
 # description = "Classify text"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "transformers", "torch"]
+# dependencies = ["daft>=0.7.10", "transformers", "torch"]
 # ///
 import daft
 from daft.functions import classify_text

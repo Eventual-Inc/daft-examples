@@ -1,7 +1,7 @@
 # /// script
 # description = "Session basics - creation, context manager, and state management"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8"]
+# dependencies = ["daft>=0.7.10"]
 # ///
 
 import daft

@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice analytics with OpenAI Whisper transcription, GPT summarization, and Spanish translation"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
+# dependencies = ["daft[openai]>=0.7.10", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
 # ///
 
 from openai import AsyncOpenAI

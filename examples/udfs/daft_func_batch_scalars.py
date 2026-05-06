@@ -1,7 +1,7 @@
 # /// script
 # description = "Simple UDF example to clip values"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.8", "pyarrow"]
+# dependencies = ["daft>=0.7.10", "pyarrow"]
 # ///
 
 import daft

@@ -1,7 +1,7 @@
 # /// script
 # description = "Load and query TPC-H lineitem data"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws]>=0.7.8"]
+# dependencies = ["daft[aws]>=0.7.10"]
 # ///
 
 import daft

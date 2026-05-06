@@ -1,7 +1,7 @@
 # /// script
 # description = "Prompt with Markdown files"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.8", "numpy", "python-dotenv"]
+# dependencies = ["daft[openai]>=0.7.10", "numpy", "python-dotenv"]
 # ///
 from dotenv import load_dotenv
 
