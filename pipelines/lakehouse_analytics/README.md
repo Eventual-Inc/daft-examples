@@ -25,7 +25,6 @@ flowchart LR
     read_sql --> lakehouse[Iceberg Lakehouse]
     sources --> lakehouse
     lakehouse --> bigquery[BigQuery / BigLake]
-    lakehouse --> athena[Athena / Glue]
     lakehouse --> daft[Daft DataFrames]
     daft --> charts[Matplotlib charts]
 ```
