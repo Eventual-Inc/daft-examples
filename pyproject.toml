@@ -23,7 +23,7 @@ lint = [
 ]
 lakehouse = [
     "daft[iceberg,sql]>=0.7.10",
-    "pyiceberg[sql-sqlite,gcsfs,bigquery]",
+    "pyiceberg[sql-sqlite,gcsfs,bigquery,s3fs,glue]",
     "matplotlib",
     "sqlalchemy-bigquery",
 ]

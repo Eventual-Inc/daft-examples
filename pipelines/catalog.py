@@ -61,9 +61,12 @@ def get_session(namespace: str | None = None) -> Session:
 
         iceberg_catalog = load_catalog(
             "lakehouse",
-            type="glue",
-            warehouse=f"s3://{AWS_S3_BUCKET}",
-            region_name=AWS_REGION,
+            **{
+                "type": "glue",
+                "warehouse": f"s3://{AWS_S3_BUCKET}",
+                "glue.region": AWS_REGION,
+                "s3.region": AWS_REGION,
+            },
         )
     else:
         from pyiceberg.catalog.sql import SqlCatalog
