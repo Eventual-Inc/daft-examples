@@ -39,18 +39,6 @@ from pipelines.catalog import get_session
 load_dotenv()
 
 
-def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:
-    keys = [on] if isinstance(on, str) else on
-    try:
-        existing = sess.read_table(table)
-    except Exception:
-        sess.create_table_if_not_exists(table, new_df)
-        return
-
-    kept = existing.join(new_df.select(*keys), on=keys, how="anti")
-    sess.write_table(table, kept.concat(new_df), mode="overwrite")
-
-
 def env(name: str) -> str | None:
     return os.environ.get(name) or None
 
@@ -104,11 +92,11 @@ def source_query(args: argparse.Namespace) -> str:
     return f"SELECT * FROM {args.source_table}"
 
 
-def key_columns(value: str) -> str | list[str]:
+def key_columns(value: str) -> list[str]:
     keys = [key.strip() for key in value.split(",") if key.strip()]
     if not keys:
         raise ValueError("--key must include at least one column name.")
-    return keys[0] if len(keys) == 1 else keys
+    return keys
 
 
 def main() -> None:
@@ -116,9 +104,14 @@ def main() -> None:
     try:
         validate_args(args)
         sess = get_session(namespace=args.target_namespace)
-        df = daft.read_sql(source_query(args), lambda: create_conn(args.source_url))
-        df = cast_null_columns(df)
-        write_upsert(sess, args.target_table, df, on=key_columns(args.key))
+        new_df = cast_null_columns(daft.read_sql(source_query(args), lambda: create_conn(args.source_url)))
+        keys = key_columns(args.key)
+        if sess.has_table(args.target_table):
+            existing = sess.read_table(args.target_table)
+            kept = existing.join(new_df.select(*keys), on=keys, how="anti")
+            sess.write_table(args.target_table, kept.concat(new_df), mode="overwrite")
+        else:
+            sess.create_table(args.target_table, new_df)
         print(args.target_table)
     except Exception as error:
         print(f"backfill failed: {error}")

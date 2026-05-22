@@ -2,9 +2,10 @@
 # description = "Ingest GitHub and PyPI data into an Iceberg lakehouse using custom Daft DataSources."
 # requires-python = ">=3.12, <3.13"
 # dependencies = [
-#     "daft[iceberg,sql]>=0.7.10",
+#     "daft[iceberg,sql]>=0.7.15",
 #     "pyiceberg[sql-sqlite,gcsfs,bigquery]",
 #     "python-dotenv",
+#     "typing-extensions",
 # ]
 # ///
 """Ingest pipeline — fetch from APIs via custom DataSources, write to Iceberg.
@@ -25,14 +26,12 @@ from pipelines.lakehouse_analytics.sources import (
 )
 
 
-def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:
+def upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) -> None:
     keys = [on] if isinstance(on, str) else on
-    try:
-        existing = sess.read_table(table)
-    except Exception:
-        sess.create_table_if_not_exists(table, new_df)
+    if not sess.has_table(table):
+        sess.create_table(table, new_df)
         return
-
+    existing = sess.read_table(table)
     kept = existing.join(new_df.select(*keys), on=keys, how="anti")
     sess.write_table(table, kept.concat(new_df), mode="overwrite")
 
@@ -40,20 +39,10 @@ def write_upsert(sess, table: str, new_df: daft.DataFrame, on: str | list[str]) 
 def main():
     sess = get_session()
 
-    write_upsert(
-        sess,
-        "github_daily",
-        GitHubDataSource(repo="Eventual-Inc/Daft").read(),
-        on="date",
-    )
+    upsert(sess, "github_daily", GitHubDataSource(repo="Eventual-Inc/Daft").read(), on="date")
     print("github_daily")
 
-    write_upsert(
-        sess,
-        "pypi_downloads",
-        PyPIDataSource(package="daft").read(),
-        on="date",
-    )
+    upsert(sess, "pypi_downloads", PyPIDataSource(package="daft").read(), on="date")
     print("pypi_downloads")
 
 
