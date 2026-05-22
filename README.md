@@ -87,6 +87,7 @@ Small, focused scripts. One concept each.
 | [daft_videofile_stream.py](examples/files/daft_videofile_stream.py) | Streaming video frame extraction |
 | [daft_file_pdf.py](examples/files/daft_file_pdf.py) | PDF parsing and page extraction |
 | [daft_file_code.py](examples/files/daft_file_code.py) | Source code analysis |
+| [daft_file_knowledge_base.py](examples/files/daft_file_knowledge_base.py) | Mixed content in one bucket — code, docs, PDFs, media — branch by extension |
 
 ### UDFs — bring your own logic
 

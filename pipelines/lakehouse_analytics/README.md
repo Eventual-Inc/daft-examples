@@ -1,10 +1,16 @@
 # Lakehouse Analytics Pipeline
 
-Build a complete analytics lakehouse on BigQuery using Daft + Apache Iceberg + BigLake.
+Build a complete analytics lakehouse using Daft + Apache Iceberg. Three backends, same code:
+
+| Backend | Env var | Catalog | Warehouse | Bonus |
+|---------|---------|---------|-----------|-------|
+| **Local** (default) | — | SQLite | `.lakehouse/` | Zero setup |
+| **GCS + BigLake** | `GCP_PROJECT` | BigLake REST | GCS bucket | Auto-federated to BigQuery |
+| **AWS S3 + Glue** | `AWS_S3_BUCKET` | AWS Glue | S3 bucket | Mount locally via [S3 Files](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files.html) |
 
 This pipeline demonstrates:
 - **Custom `DataSource`** implementations for GitHub and PyPI APIs
-- **Iceberg catalog** with BigLake REST catalog (GCS-backed, auto-federated to BigQuery)
+- **Iceberg catalog** with three interchangeable backends
 - **`daft.read_sql()`** for backfilling SQL-compatible data into the lakehouse
 - **Direct Daft table operations** via `read_table()`, `where()`, `select()`, and `sort()`
 - **Matplotlib** for visualization
@@ -28,11 +34,14 @@ flowchart LR
 ```bash
 # Run from the repository root
 
-# Local mode (SQLite Iceberg — no GCP needed)
+# Local mode (SQLite Iceberg — no cloud needed)
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 
 # BigLake mode (GCS + BigQuery)
 GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
+
+# AWS mode (S3 + Glue)
+AWS_S3_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 
 # Backfill SQL-compatible data into the lakehouse
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
@@ -45,6 +54,7 @@ uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
 # Query and visualize
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
+AWS_S3_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 ```
 
 Local mode writes its Iceberg catalog to `./.lakehouse/` at the repository root by default. Override it with `LAKEHOUSE_DIR` if needed. Local lakehouse data is gitignored.
@@ -57,8 +67,10 @@ cp .env.example .env
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `GCP_PROJECT` | Enables BigLake mode and sets the Google Cloud project. Leave unset for local SQLite mode. | unset |
+| `GCP_PROJECT` | Enables BigLake mode and sets the Google Cloud project. | unset |
 | `GCS_BUCKET` | GCS warehouse bucket for BigLake mode. | `daft-lakehouse` |
+| `AWS_S3_BUCKET` | Enables AWS Glue mode with this S3 bucket as warehouse. | unset |
+| `AWS_REGION` | AWS region for the Glue catalog and S3 bucket. | `us-east-1` |
 | `LAKEHOUSE_NAMESPACE` | Default Iceberg namespace for ingest and analyze. | `analytics` |
 | `LAKEHOUSE_DIR` | Local SQLite Iceberg catalog directory. | `.lakehouse` |
 | `BACKFILL_SOURCE_URL` | SQLAlchemy source URL for generic SQL backfill. | unset |
@@ -110,6 +122,26 @@ gcloud auth application-default login
 # 5. Run
 GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 ```
+
+## Setup (AWS S3 + Glue mode)
+
+```bash
+# 1. Create S3 bucket with versioning (required for S3 Files)
+aws s3 mb s3://my-lakehouse --region us-east-1
+aws s3api put-bucket-versioning --bucket my-lakehouse --versioning-configuration Status=Enabled
+
+# 2. Create Glue database
+aws glue create-database --database-input '{"Name": "analytics"}' --region us-east-1
+
+# 3. Run (uses default AWS credentials from env or ~/.aws/credentials)
+AWS_S3_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
+```
+
+### Optional: mount with S3 Files for local access
+
+Once your lakehouse is on S3, you can mount the bucket as a local filesystem with [AWS S3 Files](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files.html). Agents and scripts write to `/mnt/lakehouse/` with POSIX semantics; Daft reads via the Glue catalog with full Iceberg semantics (partition pruning, filter pushdown, schema evolution). One bucket, one source of truth.
+
+See [docs/s3_files_setup.md](../../docs/s3_files_setup.md) for the end-to-end walkthrough: IAM roles, security groups, file system creation, mount, fstab persistence, and troubleshooting.
 
 ## Files
 
