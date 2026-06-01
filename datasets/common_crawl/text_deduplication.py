@@ -1,7 +1,7 @@
 # /// script
 # description = "Paragraph-level deduplication of Common Crawl text using MinHash + LSH + connected components"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[aws,pandas]>=0.7.10", "python-dotenv"]
+# dependencies = ["daft[aws,pandas]>=0.7.14", "python-dotenv"]
 # ///
 
 from __future__ import annotations
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     df_para = (
         df_wet.with_column("text", col("warc_content").try_decode("utf-8"))
         .drop_null(col("text"))
-        .where(col("WARC-Type") == "conversion")
+        .where(col("WARC-Type") == daft.lit("conversion"))
         .with_column("paragraphs", split_paragraphs(col("text")))
         .explode("paragraphs")
         .with_column("paragraph", col("paragraphs"))
@@ -249,7 +249,7 @@ if __name__ == "__main__":
 
     # 4) LSH banding -> candidate edges
     df_bands = df_mh.with_column("bands", col("min_hashes").chunk(R)).drop_null("bands")
-    df_bands = df_bands.with_column("band_idx", get_band_idx(col("bands"), B)).explode("bands", "band_idx")
+    df_bands = df_bands.with_column("band_idx", get_band_idx(col("bands"), daft.lit(B))).explode("bands", "band_idx")
 
     df_grouped = df_bands.groupby(col("band_idx"), col("bands")).agg(col("node_id").list_agg().alias("nodes"))
 

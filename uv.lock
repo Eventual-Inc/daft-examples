@@ -324,7 +324,7 @@ wheels = [
 
 [[package]]
 name = "daft"
-version = "0.7.10"
+version = "0.7.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
@@ -332,13 +332,13 @@ dependencies = [
     { name = "pyarrow" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1d/a1/1083d3b6537656de67f84a2d08f335d4746f0a45160f9bfb99cf6a917c55/daft-0.7.10.tar.gz", hash = "sha256:05460c96cbc8c4875bdedf7d26c02a1cedbdf92c5ede30e3bbfa52ce9045d099", size = 3135662, upload-time = "2026-05-01T20:01:04.844Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/43/897f27f2cdcd8a93276fbc64fbde15d0c2131c8e656bb93be657efe85b66/daft-0.7.14.tar.gz", hash = "sha256:23b8ae24537817d40f300f71d60550fdca50a9000ddf37deffc0e303b3e6923e", size = 3224465, upload-time = "2026-05-20T03:41:05.088Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/05/04a7a42011910fbdbf8ca4aa7780837a6d8ef9d1b60efe1afb3ec6f493f0/daft-0.7.10-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:846840506d52ad77d405f7e8bc9d9e0824bbf103361597b7baa04d42eb79b55d", size = 60385330, upload-time = "2026-05-01T20:00:20.536Z" },
-    { url = "https://files.pythonhosted.org/packages/a5/c2/8fb7c4818c82f75f9353a8775d5ddb8b1a02869810cb0ec3cf3f9a9a6607/daft-0.7.10-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:1cc232ff5f3a3e7bd8f7b0f9880ea30252d82b024a65ff35dd08ee10b4c5e5d7", size = 56022235, upload-time = "2026-05-01T20:00:25.327Z" },
-    { url = "https://files.pythonhosted.org/packages/d8/64/666c2688958c669315efd9e3d38598d6d341b86116cebd9236c146a45edd/daft-0.7.10-cp310-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:119700214cae55cff47044c8431c20f88fb63541a940b36b5f2cae63d2338fe8", size = 58565714, upload-time = "2026-05-01T20:00:29.907Z" },
-    { url = "https://files.pythonhosted.org/packages/b9/89/665d3c84ffa6bd1fe4e8f1624f8422678c510b454d9352c9e9ea41088184/daft-0.7.10-cp310-abi3-manylinux_2_24_x86_64.whl", hash = "sha256:3df0b1647fe44f927bc491eb4b5c457f1615d9f13feee4290e100f1ae75ddc90", size = 60810929, upload-time = "2026-05-01T20:00:34.063Z" },
-    { url = "https://files.pythonhosted.org/packages/50/da/9c3423370e8fa955f0040cdff62c9ef2fa724e63a92d18d00d230b13d0c7/daft-0.7.10-cp310-abi3-win_amd64.whl", hash = "sha256:6958c49b718b7bd413b4485f3e9da8307e810e2440da2973b8a2e7626b531af2", size = 61733364, upload-time = "2026-05-01T20:00:39.901Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/ca/02f43d207e29383a3743ad2738aa3726419e376a3c4574e31c9399b2b011/daft-0.7.14-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:dd2328961835797cc3b1f721bea910518b8e1a090560e19088db82ec2ef8ff44", size = 61509612, upload-time = "2026-05-20T03:40:16.485Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/40/f7437c120cd9c78e8bd258d9047403ffb8371ac9b21587e8ca5c28b9e52e/daft-0.7.14-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:d372ac76beb2cd1cd8d7cb617b5c5936ddd2ade8f6d61f8b32a9b2bb14747685", size = 57069703, upload-time = "2026-05-20T03:40:22.526Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/16/b442a439004934de1140e04025e0d1ba07dd17c5fc6e6dda89bc6746723f/daft-0.7.14-cp310-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:de296328d19f3ecd5ad409583979f89b01f1d8a913d0360b4b4d3f20f5e56a09", size = 59651829, upload-time = "2026-05-20T03:40:27.904Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/19/df6465dee01e2557801d8e323a7d1ad5bae1ec11883440afebe21f6be67a/daft-0.7.14-cp310-abi3-manylinux_2_24_x86_64.whl", hash = "sha256:5808823c3ef21dfe278d21af2540e11bc675642f617d2b51434bf2fdd827d0fa", size = 61946262, upload-time = "2026-05-20T03:40:33.309Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/13/e0efefb2cfac2b2b33d01143aaa16f832009a7516969eb42efaac723d36c/daft-0.7.14-cp310-abi3-win_amd64.whl", hash = "sha256:f7a7ae3088b234d75fa10242b181d90326eea3f7b6a9c331ec02ce07f404c706", size = 62767597, upload-time = "2026-05-20T03:40:40.416Z" },
 ]
 
 [package.optional-dependencies]
@@ -381,8 +381,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "daft", specifier = ">=0.7.10" },
-    { name = "daft", extras = ["iceberg", "sql"], marker = "extra == 'lakehouse'", specifier = ">=0.7.10" },
+    { name = "daft", specifier = ">=0.7.14" },
+    { name = "daft", extras = ["iceberg", "sql"], marker = "extra == 'lakehouse'", specifier = ">=0.7.14" },
     { name = "daft-h3" },
     { name = "matplotlib", marker = "extra == 'lakehouse'" },
     { name = "pyiceberg", extras = ["sql-sqlite", "gcsfs", "bigquery", "s3fs", "glue"], marker = "extra == 'lakehouse'" },
