@@ -1,0 +1,44 @@
+name: Feature Prompt
+description: Submit a prompt for a new Daft example or feature
+title: "[Prompt]: "
+labels: ["prompt"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for submitting a feature prompt! Here's how it works:
+
+        1. We review prompts and assign agents to build PRs.
+        2. You'll be tagged as a reviewer on the resulting PR.
+        3. After your review, request a review from the team for final approval.
+
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt
+      description: Describe the example or feature you'd like to see. Be as specific as possible — this will be used as the prompt for an agent to build a PR.
+      placeholder: "e.g., Create a Daft script that reads a CSV from S3, filters rows where revenue > 1000, and writes the result as Parquet partitioned by region."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Any additional context, links, or references that would help.
+      placeholder: "e.g., Related Daft docs, dataset links, or similar examples."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What area does this prompt fall under?
+      options:
+        - New example script
+        - Improvement to existing example
+        - Documentation
+        - Other
+    validations:
+      required: true
