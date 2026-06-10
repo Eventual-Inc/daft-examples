@@ -1,8 +1,8 @@
-# /// script
-# description = "Faster Whisper transcription result schema definitions for Daft DataTypes"
-# requires-python = ">=3.12, <3.13"
-# dependencies = ["daft>=0.7.10"]
-# ///
+"""Daft DataType schemas for Faster Whisper transcription results.
+
+Single source of truth — `models.faster_whisper.model` and the
+`pipelines/voice_ai_analytics` scripts all import from here.
+"""
 
 from daft import DataType
 

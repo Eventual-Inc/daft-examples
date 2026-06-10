@@ -27,6 +27,13 @@ lakehouse = [
     "matplotlib",
     "sqlalchemy-bigquery",
 ]
+# Driver-side deps for models/ and the pipelines that compose them.
+# Heavy inference stacks (vllm, torch, ...) live in each modal_app.py image.
+models = [
+    "faster-whisper",
+    "huggingface_hub",
+    "modal",
+]
 
 [tool.ruff]
 target-version = "py312"
@@ -60,6 +67,9 @@ ignore = [
 "pipelines/social_recommendation/reddit.ipynb" = ["F821"]
 "pipelines/context_engineering/lambda_mapreduce_pdf_iceberg.py" = ["F821"]  # pyiceberg referenced in comment-like code
 "pipelines/context_engineering/context_kernel_demo.py" = ["E402"]  # sys.path hack before import
+"models/**" = ["E402"]                       # repo-root sys.path anchor before models.* imports
+"pipelines/pose_sequence/**" = ["E402"]      # repo-root sys.path anchor before models.* imports
+"pipelines/voice_ai_analytics/**" = ["E402"] # repo-root sys.path anchor before models.* imports
 
 [tool.ruff.lint.isort]
 known-first-party = ["daft"]

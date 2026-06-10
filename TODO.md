@@ -29,6 +29,6 @@
 
 ## Structural
 
-- `models/faster-whisper/` — decide placement (move under `pipelines/`?)
+- ~~`models/faster-whisper/` — decide placement~~ — restructured as `models/faster_whisper/` (model.py + schema.py); pipelines import the shared schema
 - `shot_boundary_detection.py` — hardcoded local video paths, needs real test data or skip
 

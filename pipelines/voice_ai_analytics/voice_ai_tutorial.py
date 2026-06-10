@@ -3,12 +3,21 @@
 # requires-python = ">=3.12, <3.13"
 # dependencies = ["daft[openai]>=0.7.10", "faster-whisper", "soundfile", "sentence-transformers", "python-dotenv"]
 # ///
+import sys
 from dataclasses import asdict
+from pathlib import Path
 
 from faster_whisper import BatchedInferencePipeline, WhisperModel
-from faster_whisper_schema import TranscriptionResult
 
 import daft
+
+# Anchor the repo root so the shared schema in `models/` resolves when this file
+# runs as a loose script (e.g. `uv run <this file>`).
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from models.faster_whisper.schema import TranscriptionResult
 
 # Define Constants
 SAMPLE_RATE = 16000
