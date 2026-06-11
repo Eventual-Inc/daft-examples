@@ -214,3 +214,5 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+examples/lerobot_pose/out/
+examples/lerobot_pose/task_embeddings/
