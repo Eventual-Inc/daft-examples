@@ -18,7 +18,6 @@ out/egodex_hrdt_predictions/
 
 | File | Purpose |
 | --- | --- |
-| `lerobot.py` | Vendored copy of `daft.datasets.lerobot` (LeRobot v3 reader). Delete once it ships in a Daft release. |
 | `encode_task_embeddings.py` | One-time preprocessing: encode each task instruction with T5-XXL and cache it (H-RDT consumes language *embeddings*, not text). |
 | `predict_poses.py` | The pipeline: decode frames → batched H-RDT inference → write parquet (pure predictions). |
 | `compute_metrics.py` | Score the predictions: per-frame `avg_keypoint_distance_m` (EgoDex paper metric, arXiv:2505.11709 §4.3) + per-episode and overall summaries. Torch-free, re-runnable in seconds. |
