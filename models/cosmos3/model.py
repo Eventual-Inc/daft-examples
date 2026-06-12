@@ -10,14 +10,7 @@ This module never imports ``modal`` — see ``modal_app.py`` for deployment.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-
-# Anchor the repo root so `models.*` imports resolve when this file is loaded
-# as a loose script (e.g. `uv run` / `modal run`) instead of an installed package.
-_REPO_ROOT = str(Path(__file__).resolve().parents[2])
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
 
 import daft
 from daft import DataType, col

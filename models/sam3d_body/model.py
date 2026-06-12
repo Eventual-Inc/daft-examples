@@ -57,8 +57,7 @@ import os
 import sys
 from pathlib import Path
 
-# Anchor the repo root so `models.*` imports resolve when this file is loaded
-# as a loose script (e.g. `uv run` / `modal run`) instead of an installed package.
+# Keep this file runnable as a PEP 723 script (`uv run models/sam3d_body/model.py`).
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)

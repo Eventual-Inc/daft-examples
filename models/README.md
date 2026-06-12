@@ -34,18 +34,24 @@ Prefer backends in this order, and state the choice in the model's README:
 | Model | Backend | Task |
 | --- | --- | --- |
 | [`cosmos3/`](./cosmos3/) | offline vLLM (vLLM-Omni) | text → image / video world generation |
+| [`diffusion_gemma/`](./diffusion_gemma/) | offline vLLM (nightly, block diffusion) | text → text generation |
 | [`sam3d_body/`](./sam3d_body/) | PyTorch | image → 3D human mesh recovery |
 | [`faster_whisper/`](./faster_whisper/) | CTranslate2 (PyTorch-family) | audio → transcript + VAD |
 
 ## Import conventions
 
-`models` is a plain package anchored at the repo root. Entrypoint scripts insert the
-repo root on `sys.path` (a deterministic two-liner) so all of these work without
-installing anything:
+`models` and `pipelines` are packaged by the repo's editable install. Run
+`uv sync` from the repo root before invoking examples through the project
+environment so these imports resolve from site-packages instead of relying on
+the current working directory:
 
 - `uv run --extra models modal run models/<name>/modal_app.py ...`
-- `uv run models/faster_whisper/model.py` (PEP 723 isolated env)
 - `from models.<name>.model import ...` from pipelines and notebooks
+
+Plain `uv run <file.py>` on a file with PEP 723 metadata is different: `uv`
+builds that isolated environment from the file's inline dependencies and does
+not install `daft-examples`. Files that intentionally support that mode keep a
+small repo-root `sys.path` anchor.
 
 Modal images mount the package with `add_local_python_source("models")`, so the same
 imports resolve inside remote containers.

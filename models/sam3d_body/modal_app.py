@@ -1,12 +1,3 @@
-# /// script
-# description = "Deploy the SAM 3D Body Daft UDF on Modal (driver deps only; inference deps live in the image)"
-# requires-python = ">=3.11, <3.13"
-# dependencies = [
-#   "daft>=0.7.10",
-#   "huggingface_hub",
-#   "modal",
-# ]
-# ///
 """Modal deployment shell for the SAM 3D Body model UDF.
 
 The model wrapper itself lives in ``model.py``; this file only owns the
@@ -16,26 +7,20 @@ container image, Volumes, and entrypoints.
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import modal
 
-_REPO_ROOT = str(Path(__file__).resolve().parents[2])
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
 from models.common.modal_infra import APP_DIR, MODAL_LOCAL_DIR_IGNORE, MODEL_CACHE_DIR, OUTPUT_DIR, hf_cache_env
 from models.common.weights import normalize_hf_token_env, resolve_hf_model_path
 from models.sam3d_body.model import DEFAULT_MODEL, build_dataframe
+from models.weights import MODEL_CACHE, OUTPUTS, function_kwargs
 
 SAM3D_REPO_DIR = "/sam-3d-body"
 GPU_TYPE = "A100-80GB"
 MODAL_REGION = ["us-west"]
 
 app = modal.App("daft-sam3d-body")
-model_cache = modal.Volume.from_name("sam3d-body-model-cache", create_if_missing=True)
-outputs = modal.Volume.from_name("sam3d-body-outputs", create_if_missing=True)
 
 # Base image without local Python sources so downstream apps (e.g.
 # pipelines/pose_sequence) can append pip layers before mounting sources.
@@ -63,6 +48,7 @@ base_image = (
         "einops",
         "fvcore",
         "huggingface_hub",
+        "hf_xet",
         "hydra-colorlog",
         "hydra-core",
         "hydra-submitit-launcher",
@@ -105,15 +91,7 @@ base_image = (
 image = base_image.add_local_python_source("models")
 
 
-@app.function(
-    image=image,
-    cpu=4,
-    memory=16384,
-    timeout=7200,
-    region=MODAL_REGION,
-    volumes={MODEL_CACHE_DIR: model_cache},
-    secrets=[modal.Secret.from_name("hf-token")],
-)
+@app.function(**function_kwargs(image, cpu=4, enable_memory_snapshot=False))
 def download_model_weights(model: str = DEFAULT_MODEL, model_revision: str = "") -> dict:
     os.chdir(APP_DIR)
     model_path = resolve_hf_model_path(
@@ -122,7 +100,7 @@ def download_model_weights(model: str = DEFAULT_MODEL, model_revision: str = "")
         revision=model_revision or None,
         token=normalize_hf_token_env(),
     )
-    model_cache.commit()
+    MODEL_CACHE.commit()
     return {
         "model": model,
         "model_revision": model_revision,
@@ -130,16 +108,7 @@ def download_model_weights(model: str = DEFAULT_MODEL, model_revision: str = "")
     }
 
 
-@app.function(
-    image=image,
-    gpu=GPU_TYPE,
-    cpu=8,
-    memory=98304,
-    timeout=7200,
-    region=MODAL_REGION,
-    volumes={MODEL_CACHE_DIR: model_cache, OUTPUT_DIR: outputs},
-    secrets=[modal.Secret.from_name("hf-token")],
-)
+@app.function(**function_kwargs(image, gpu=GPU_TYPE, memory=98304, with_outputs=True))
 def run_on_modal(
     image_paths: list[str],
     bbox_jsons: list[str] | None = None,
@@ -171,8 +140,8 @@ def run_on_modal(
         inference_type=inference_type,
     ).collect()
 
-    model_cache.commit()
-    outputs.commit()
+    MODEL_CACHE.commit()
+    OUTPUTS.commit()
     return df.to_pydict()
 
 

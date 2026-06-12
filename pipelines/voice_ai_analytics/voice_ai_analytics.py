@@ -11,8 +11,7 @@ from faster_whisper import BatchedInferencePipeline, WhisperModel
 
 import daft
 
-# Anchor the repo root so the shared schema in `models/` resolves when this file
-# runs as a loose script (e.g. `uv run <this file>`).
+# Keep this tutorial runnable as a PEP 723 script (`uv run <this file>`).
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)

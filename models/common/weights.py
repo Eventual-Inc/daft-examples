@@ -70,6 +70,35 @@ def resolve_hf_model_path(
     )
 
 
+def resolve_hf_file_path(
+    repo_or_path: str,
+    filename: str,
+    model_cache_dir: str | Path,
+    *,
+    revision: str | None = None,
+    token: str | None = None,
+) -> Path:
+    model_path = Path(repo_or_path).expanduser()
+    if model_path.exists():
+        return model_path
+    if _explicit_path(repo_or_path):
+        raise FileNotFoundError(f"Model path does not exist: {model_path}")
+
+    from huggingface_hub import hf_hub_download
+
+    local_dir = hf_snapshot_dir(model_cache_dir, repo_or_path, revision)
+    local_dir.mkdir(parents=True, exist_ok=True)
+    return Path(
+        hf_hub_download(
+            repo_id=repo_or_path,
+            filename=filename,
+            revision=revision or None,
+            token=token or normalize_hf_token_env(),
+            local_dir=str(local_dir),
+        )
+    )
+
+
 def resolve_yolo_weight_path(
     weight: str,
     model_cache_dir: str | Path,

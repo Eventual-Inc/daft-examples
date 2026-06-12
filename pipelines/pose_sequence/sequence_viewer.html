@@ -175,6 +175,14 @@
         pointer-events: none;
       }
 
+      .frame-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
       .frame-preview figcaption {
         padding: 11px 13px;
         color: var(--muted);
@@ -242,6 +250,8 @@
       <div id="title" class="title">SAM 3D Body Sequence</div>
       <div>
         <button id="skeletonButton" class="active" type="button">Skeleton</button>
+        <button id="handButton" class="active" type="button">Hands</button>
+        <button id="sceneButton" class="active" type="button">Scene</button>
         <button id="wireButton" type="button">Wire</button>
         <button id="resetButton" type="button">Reset</button>
       </div>
@@ -260,6 +270,7 @@
       <div id="frameImage" class="frame-image">
         <img id="sourceFrame" alt="" />
         <div id="sourceFrameBox" class="frame-box" hidden></div>
+        <canvas id="sourceOverlay" class="frame-overlay"></canvas>
       </div>
     </figure>
 
@@ -283,6 +294,8 @@
       const counter = document.querySelector("#counter");
       const playButton = document.querySelector("#playButton");
       const skeletonButton = document.querySelector("#skeletonButton");
+      const handButton = document.querySelector("#handButton");
+      const sceneButton = document.querySelector("#sceneButton");
       const wireButton = document.querySelector("#wireButton");
       const resetButton = document.querySelector("#resetButton");
       const manifestInput = document.querySelector("#manifestInput");
@@ -291,6 +304,7 @@
       const frameImage = document.querySelector("#frameImage");
       const sourceFrame = document.querySelector("#sourceFrame");
       const sourceFrameBox = document.querySelector("#sourceFrameBox");
+      const sourceOverlay = document.querySelector("#sourceOverlay");
       const sourceFrameLabel = document.querySelector("#sourceFrameLabel");
       const previewResizer = document.querySelector("#previewResizer");
 
@@ -327,6 +341,7 @@
       let manifestBase = new URL(".", window.location.href);
       let mesh = null;
       let skeletonGroup = null;
+      let sceneGroup = null;
       let currentFrame = 0;
       let playing = false;
       let lastAdvance = 0;
@@ -405,15 +420,11 @@
         return imageName ? `frames/${imageName}` : "";
       }
 
-      function updateFrameBox(frame) {
-        const bbox = frame.bbox || [];
+      function previewMetrics() {
         const naturalWidth = sourceFrame.naturalWidth;
         const naturalHeight = sourceFrame.naturalHeight;
         const previewRect = frameImage.getBoundingClientRect();
-        if (bbox.length !== 4 || !naturalWidth || !naturalHeight || !previewRect.width || !previewRect.height) {
-          sourceFrameBox.hidden = true;
-          return;
-        }
+        if (!naturalWidth || !naturalHeight || !previewRect.width || !previewRect.height) return null;
 
         const imageRatio = naturalWidth / naturalHeight;
         const previewRatio = previewRect.width / previewRect.height;
@@ -428,12 +439,121 @@
           renderedWidth = renderedHeight * imageRatio;
           offsetX = (previewRect.width - renderedWidth) / 2;
         }
+        return {
+          naturalWidth,
+          naturalHeight,
+          previewRect,
+          renderedWidth,
+          renderedHeight,
+          offsetX,
+          offsetY,
+          mapPoint(point) {
+            return [
+              offsetX + (point[0] / naturalWidth) * renderedWidth,
+              offsetY + (point[1] / naturalHeight) * renderedHeight,
+            ];
+          },
+        };
+      }
 
-        sourceFrameBox.style.left = `${offsetX + (bbox[0] / naturalWidth) * renderedWidth}px`;
-        sourceFrameBox.style.top = `${offsetY + (bbox[1] / naturalHeight) * renderedHeight}px`;
-        sourceFrameBox.style.width = `${Math.max(2, ((bbox[2] - bbox[0]) / naturalWidth) * renderedWidth)}px`;
-        sourceFrameBox.style.height = `${Math.max(2, ((bbox[3] - bbox[1]) / naturalHeight) * renderedHeight)}px`;
+      function drawSourceOverlay(frame) {
+        const rect = frameImage.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        sourceOverlay.width = Math.max(1, Math.round(rect.width * dpr));
+        sourceOverlay.height = Math.max(1, Math.round(rect.height * dpr));
+        const ctx = sourceOverlay.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const metrics = previewMetrics();
+        if (!metrics) return;
+
+        const colors = {
+          pole: "#ff6b4a",
+          bar: "#f4d35e",
+          runway: "#5dd0d6",
+          standard: "#c7b7ff",
+        };
+        for (const line of frame.scene_2d?.lines || []) {
+          if (!Array.isArray(line.points) || line.points.length < 2) continue;
+          const start = metrics.mapPoint(line.points[0]);
+          ctx.beginPath();
+          ctx.moveTo(start[0], start[1]);
+          for (const point of line.points.slice(1)) {
+            const mapped = metrics.mapPoint(point);
+            ctx.lineTo(mapped[0], mapped[1]);
+          }
+          ctx.strokeStyle = colors[line.kind] || "#ffffff";
+          ctx.globalAlpha = line.kind === "runway" ? 0.68 : 0.9;
+          ctx.lineWidth = line.kind === "pole" ? 3 : 2;
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        const keypoints2d = frame.skeleton_3d?.keypoints_2d || [];
+        if (skeletonButton.classList.contains("active")) {
+          drawPreviewSkeleton(ctx, metrics, keypoints2d, skeletonLinks("body"), "#73c7a7", 0.78, 1.8, 2.4);
+        }
+        if (handButton.classList.contains("active")) {
+          drawPreviewSkeleton(ctx, metrics, keypoints2d, skeletonLinks("hands"), "#f4d35e", 0.95, 2.2, 3.0);
+        }
+      }
+
+      function drawPreviewSkeleton(ctx, metrics, keypoints, links, color, alpha, lineWidth, jointRadius) {
+        if (!Array.isArray(keypoints) || !Array.isArray(links) || !links.length) return;
+        const usedJoints = new Set();
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (const [startIndex, endIndex] of links) {
+          const start = keypoints[startIndex];
+          const end = keypoints[endIndex];
+          if (!validPoint2d(start) || !validPoint2d(end)) continue;
+          const mappedStart = metrics.mapPoint(start);
+          const mappedEnd = metrics.mapPoint(end);
+          ctx.beginPath();
+          ctx.moveTo(mappedStart[0], mappedStart[1]);
+          ctx.lineTo(mappedEnd[0], mappedEnd[1]);
+          ctx.stroke();
+          usedJoints.add(startIndex);
+          usedJoints.add(endIndex);
+        }
+        ctx.fillStyle = color;
+        for (const index of usedJoints) {
+          const point = keypoints[index];
+          if (!validPoint2d(point)) continue;
+          const mapped = metrics.mapPoint(point);
+          ctx.beginPath();
+          ctx.arc(mapped[0], mapped[1], jointRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function validPoint2d(point) {
+        return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
+      }
+
+      function updateFrameBox(frame) {
+        const bbox = frame.bbox || [];
+        const metrics = previewMetrics();
+        if (bbox.length !== 4 || !metrics) {
+          sourceFrameBox.hidden = true;
+          drawSourceOverlay(frame);
+          return;
+        }
+
+        const [left, top] = metrics.mapPoint([bbox[0], bbox[1]]);
+        const [right, bottom] = metrics.mapPoint([bbox[2], bbox[3]]);
+        sourceFrameBox.style.left = `${left}px`;
+        sourceFrameBox.style.top = `${top}px`;
+        sourceFrameBox.style.width = `${Math.max(2, right - left)}px`;
+        sourceFrameBox.style.height = `${Math.max(2, bottom - top)}px`;
         sourceFrameBox.hidden = false;
+        drawSourceOverlay(frame);
       }
 
       function updateFramePreview(frame) {
@@ -443,6 +563,7 @@
           sourceFrame.removeAttribute("src");
           sourceFrameLabel.textContent = "";
           sourceFrameBox.hidden = true;
+          drawSourceOverlay(frame);
           document.body.classList.add("preview-hidden");
           resizeRenderer();
           return;
@@ -472,13 +593,37 @@
         skeletonGroup = null;
       }
 
-      function skeletonLinks() {
-        return manifest?.skeleton?.links || [];
+      function disposeCurrentScene() {
+        if (!sceneGroup) return;
+        scene.remove(sceneGroup);
+        sceneGroup.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) object.material.dispose();
+        });
+        sceneGroup = null;
       }
 
-      function createSkeletonObject(frame, rotation) {
-        const keypoints = frame.skeleton_3d?.keypoints;
-        const links = skeletonLinks();
+      function skeletonLinks(part) {
+        if (part === "hands") return manifest?.skeleton?.hand_links || [];
+        return manifest?.skeleton?.body_links || manifest?.skeleton?.links || [];
+      }
+
+      function tubeSegment(startArray, endArray, radius, material) {
+        const start = new THREE.Vector3(...startArray);
+        const end = new THREE.Vector3(...endArray);
+        const direction = new THREE.Vector3().subVectors(end, start);
+        const length = direction.length();
+        if (length <= 1e-5) return null;
+
+        const geometry = new THREE.CylinderGeometry(radius, radius, length, 8, 1, true);
+        const segment = new THREE.Mesh(geometry, material);
+        segment.position.copy(start).add(end).multiplyScalar(0.5);
+        segment.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+        segment.renderOrder = 12;
+        return segment;
+      }
+
+      function createSkeletonPart(keypoints, links, color, jointColor, jointSize, part) {
         if (!Array.isArray(keypoints) || !links.length) return null;
 
         const linePositions = [];
@@ -499,13 +644,50 @@
         if (!linePositions.length) return null;
 
         const group = new THREE.Group();
+        group.userData.part = part;
+        if (part === "hands") {
+          const segmentMaterial = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.98,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const jointMaterial = new THREE.MeshBasicMaterial({
+            color: jointColor,
+            transparent: true,
+            opacity: 0.98,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const jointGeometry = new THREE.SphereGeometry(jointSize * 0.68, 10, 8);
+          for (let index = 0; index < linePositions.length; index += 6) {
+            const segment = tubeSegment(
+              linePositions.slice(index, index + 3),
+              linePositions.slice(index + 3, index + 6),
+              jointSize * 0.28,
+              segmentMaterial,
+            );
+            if (segment) group.add(segment);
+          }
+          for (let index = 0; index < jointPositions.length; index += 3) {
+            const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+            joint.position.set(jointPositions[index], jointPositions[index + 1], jointPositions[index + 2]);
+            joint.renderOrder = 13;
+            group.add(joint);
+          }
+          group.renderOrder = 12;
+          return group;
+        }
+
         const lineGeometry = new THREE.BufferGeometry();
         lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
         const lineMaterial = new THREE.LineBasicMaterial({
-          color: 0x73c7a7,
+          color,
           transparent: true,
           opacity: 0.96,
           depthTest: false,
+          depthWrite: false,
         });
         group.add(new THREE.LineSegments(lineGeometry, lineMaterial));
 
@@ -513,17 +695,127 @@
           const jointGeometry = new THREE.BufferGeometry();
           jointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(jointPositions, 3));
           const jointMaterial = new THREE.PointsMaterial({
-            color: 0xf4b95e,
-            size: 0.018,
+            color: jointColor,
+            size: jointSize,
             sizeAttenuation: true,
             depthTest: false,
+            depthWrite: false,
           });
           group.add(new THREE.Points(jointGeometry, jointMaterial));
         }
 
-        group.rotation.set(rotation.x, rotation.y, rotation.z);
-        group.visible = skeletonButton.classList.contains("active");
         group.renderOrder = 10;
+        return group;
+      }
+
+      function updateSkeletonVisibility(group = skeletonGroup) {
+        if (!group) return;
+        for (const child of group.children) {
+          if (child.userData.part === "hands") {
+            child.visible = handButton.classList.contains("active");
+          } else {
+            child.visible = skeletonButton.classList.contains("active");
+          }
+        }
+      }
+
+      function createSkeletonObject(frame, rotation) {
+        const keypoints = frame.skeleton_3d?.keypoints;
+        const group = new THREE.Group();
+        const body = createSkeletonPart(keypoints, skeletonLinks("body"), 0x73c7a7, 0xf4b95e, 0.018, "body");
+        const hands = createSkeletonPart(keypoints, skeletonLinks("hands"), 0xf4d35e, 0xff8f5a, 0.014, "hands");
+        if (body) group.add(body);
+        if (hands) group.add(hands);
+        if (!group.children.length) return null;
+        group.rotation.set(rotation.x, rotation.y, rotation.z);
+        updateSkeletonVisibility(group);
+        group.renderOrder = 10;
+        return group;
+      }
+
+      function sceneColor(kind) {
+        if (kind === "pole") return 0xff6b4a;
+        if (kind === "bar") return 0xf4d35e;
+        if (kind === "runway") return 0x5dd0d6;
+        if (kind === "standard") return 0xc7b7ff;
+        return 0xd6ecff;
+      }
+
+      function createSceneObject(frame, rotation) {
+        const primitives = frame.scene_3d?.primitives || [];
+        if (!primitives.length) return null;
+
+        const group = new THREE.Group();
+        for (const primitive of primitives) {
+          if (
+            (primitive.type === "line" || primitive.type === "polyline") &&
+            Array.isArray(primitive.points) &&
+            primitive.points.length >= 2
+          ) {
+            const positions = [];
+            for (let index = 0; index < primitive.points.length - 1; index += 1) {
+              positions.push(...primitive.points[index], ...primitive.points[index + 1]);
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            const material = new THREE.LineBasicMaterial({
+              color: sceneColor(primitive.kind),
+              transparent: true,
+              opacity: primitive.kind === "runway" ? 0.58 : 0.86,
+              depthTest: true,
+              depthWrite: false,
+            });
+            group.add(new THREE.LineSegments(geometry, material));
+          } else if (
+            primitive.type === "plane" &&
+            Array.isArray(primitive.corners) &&
+            primitive.corners.length === 4
+          ) {
+            const positions = primitive.corners.flat();
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setIndex([0, 1, 2, 0, 2, 3]);
+            geometry.computeVertexNormals();
+            const material = new THREE.MeshBasicMaterial({
+              color: sceneColor(primitive.kind),
+              transparent: true,
+              opacity: 0.12,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            });
+            group.add(new THREE.Mesh(geometry, material));
+
+            const edgePositions = [
+              ...primitive.corners[0],
+              ...primitive.corners[1],
+              ...primitive.corners[1],
+              ...primitive.corners[2],
+              ...primitive.corners[2],
+              ...primitive.corners[3],
+              ...primitive.corners[3],
+              ...primitive.corners[0],
+            ];
+            const edgeGeometry = new THREE.BufferGeometry();
+            edgeGeometry.setAttribute("position", new THREE.Float32BufferAttribute(edgePositions, 3));
+            group.add(
+              new THREE.LineSegments(
+                edgeGeometry,
+                new THREE.LineBasicMaterial({
+                  color: sceneColor(primitive.kind),
+                  transparent: true,
+                  opacity: 0.52,
+                  depthTest: true,
+                  depthWrite: false,
+                }),
+              ),
+            );
+          }
+        }
+
+        if (!group.children.length) return null;
+        group.rotation.set(rotation.x, rotation.y, rotation.z);
+        group.visible = sceneButton.classList.contains("active");
+        group.renderOrder = 5;
         return group;
       }
 
@@ -574,6 +866,7 @@
         const geometry = await loadGeometry(frame.mesh_path);
         disposeCurrentMesh();
         disposeCurrentSkeleton();
+        disposeCurrentScene();
         const material = new THREE.MeshStandardMaterial({
           color: 0xd6ecff,
           roughness: 0.58,
@@ -589,6 +882,8 @@
         scene.add(mesh);
         skeletonGroup = createSkeletonObject(frame, rotation);
         if (skeletonGroup) scene.add(skeletonGroup);
+        sceneGroup = createSceneObject(frame, rotation);
+        if (sceneGroup) scene.add(sceneGroup);
         if (fit || !lastFit) fitCamera(mesh);
         scrubber.value = String(currentFrame);
         counter.textContent = `${currentFrame + 1} / ${manifest.frames.length}`;
@@ -637,7 +932,17 @@
 
       skeletonButton.addEventListener("click", () => {
         skeletonButton.classList.toggle("active");
-        if (skeletonGroup) skeletonGroup.visible = skeletonButton.classList.contains("active");
+        updateSkeletonVisibility();
+      });
+
+      handButton.addEventListener("click", () => {
+        handButton.classList.toggle("active");
+        updateSkeletonVisibility();
+      });
+
+      sceneButton.addEventListener("click", () => {
+        sceneButton.classList.toggle("active");
+        if (sceneGroup) sceneGroup.visible = sceneButton.classList.contains("active");
       });
 
       resetButton.addEventListener("click", () => {

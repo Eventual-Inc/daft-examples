@@ -1,7 +1,7 @@
 # /// script
 # description = "Voice analytics with OpenAI Whisper transcription, GPT summarization, and Spanish translation"
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[openai]>=0.7.10", "openai", "python-dotenv", "soundfile", "numpy", "pylance"]
+# dependencies = ["daft[openai]>=0.7.10", "daft-lance==0.2.0", "openai", "python-dotenv", "soundfile", "numpy"]
 # ///
 
 from openai import AsyncOpenAI
@@ -47,7 +47,7 @@ class OpenAITranscription:
 
 
 if __name__ == "__main__":
-    # Run this script with `uv run speech/speech_analytics_openai.py`
+    # Run this script with `uv run pipelines/voice_ai_analytics/voice_ai_analytics_openai.py`
     from dotenv import load_dotenv
 
     from daft import col

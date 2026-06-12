@@ -34,3 +34,17 @@ def hf_cache_env(model_cache_dir: str = MODEL_CACHE_DIR) -> dict[str, str]:
         "TRANSFORMERS_CACHE": f"{model_cache_dir}/huggingface/hub",
         "HF_XET_HIGH_PERFORMANCE": "1",
     }
+
+
+def nemo_cache_env(model_cache_dir: str = MODEL_CACHE_DIR) -> dict[str, str]:
+    """NeMo caches its `.nemo` checkpoints via HF hub, but also honors its own dirs.
+
+    Set both so weights persist on the mounted Volume instead of re-downloading
+    per cold start. Includes the HF cache env because NeMo's `from_pretrained`
+    resolves `nvidia/...` repos through Hugging Face.
+    """
+    return {
+        **hf_cache_env(model_cache_dir),
+        "NEMO_CACHE_DIR": f"{model_cache_dir}/nemo",
+        "NEMO_HOME": f"{model_cache_dir}/nemo",
+    }
