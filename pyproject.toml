@@ -10,6 +10,13 @@ dependencies = [
     "python-dotenv",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["models", "pipelines"]
+
 [project.optional-dependencies]
 test = [
     "pytest>=8.0.0",
@@ -26,6 +33,22 @@ lakehouse = [
     "pyiceberg[sql-sqlite,gcsfs,bigquery,s3fs,glue]",
     "matplotlib",
     "sqlalchemy-bigquery",
+]
+# Driver-side deps for models/ and the pipelines that compose them.
+# Heavy inference stacks (vllm, torch, nemo, ...) live in each modal_app.py image.
+models = [
+    "faster-whisper",
+    "huggingface_hub",
+    "modal",
+    "pillow",
+]
+# Local helpers for the transcribe+diarize benchmark (metrics + entrypoints).
+# The GPU inference stacks (nemo, pyannote, ctranslate2) live in the lane images.
+transcription = [
+    "modal",
+    "huggingface_hub",
+    "soundfile",
+    "jiwer",
 ]
 
 [tool.ruff]
@@ -60,6 +83,17 @@ ignore = [
 "pipelines/social_recommendation/reddit.ipynb" = ["F821"]
 "pipelines/context_engineering/lambda_mapreduce_pdf_iceberg.py" = ["F821"]  # pyiceberg referenced in comment-like code
 "pipelines/context_engineering/context_kernel_demo.py" = ["E402"]  # sys.path hack before import
+"models/faster_whisper/model.py" = ["E402"]           # PEP 723 script keeps repo-root sys.path anchor
+"models/sam3d_body/model.py" = ["E402"]               # PEP 723 script keeps repo-root sys.path anchor
+"pipelines/voice_ai_analytics/voice_ai_analytics.py" = ["E402"]  # PEP 723 script keeps repo-root sys.path anchor
+"pipelines/voice_ai_analytics/voice_ai_tutorial.py" = ["E402"]   # PEP 723 script keeps repo-root sys.path anchor
+"models/parakeet/model.py" = ["E402"]                  # repo-root sys.path anchor before models.* imports
+"models/sortformer/model.py" = ["E402"]                # repo-root sys.path anchor before models.* imports
+"models/pyannote/model.py" = ["E402"]                  # repo-root sys.path anchor before models.* imports
+"models/faster_whisper/asr.py" = ["E402"]              # repo-root sys.path anchor before models.* imports
+"pipelines/transcribe_diarize/pipeline.py" = ["E402"]  # repo-root sys.path anchor before models.* imports
+"pipelines/transcribe_diarize/benchmark.py" = ["E402"] # repo-root sys.path anchor before pipelines.* imports
+"pipelines/transcribe_diarize/modal_app.py" = ["E402"] # PEP 723 script keeps repo-root sys.path anchor
 
 [tool.ruff.lint.isort]
-known-first-party = ["daft"]
+known-first-party = ["daft", "models", "pipelines"]

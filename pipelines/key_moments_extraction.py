@@ -169,8 +169,8 @@ if __name__ == "__main__":
     if not os.path.exists(os.path.join(DEST_URI, "transcripts.parquet")):
         import sys
 
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "models", "faster-whisper"))
-        from transcribe_faster_whisper import FasterWhisperTranscriber
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        from models.faster_whisper.model import FasterWhisperTranscriber
 
         # Instantiate Transcription UDF
         fwt = FasterWhisperTranscriber()

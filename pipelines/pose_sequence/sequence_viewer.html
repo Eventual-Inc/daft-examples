@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SAM 3D Body Sequence Viewer</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #151719;
+        --panel: rgba(22, 24, 26, 0.9);
+        --line: rgba(255, 255, 255, 0.16);
+        --text: #f3f4f6;
+        --muted: #aeb6bf;
+        --accent: #73c7a7;
+        --warn: #f4b95e;
+        --preview-width: 440px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      #stage {
+        position: fixed;
+        top: 0;
+        right: var(--preview-width);
+        bottom: 0;
+        left: 0;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .topbar,
+      .timeline,
+      .status,
+      .frame-preview {
+        position: fixed;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+      }
+
+      .topbar {
+        top: 14px;
+        left: 14px;
+        right: calc(var(--preview-width) + 14px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px;
+      }
+
+      .timeline {
+        left: 14px;
+        right: calc(var(--preview-width) + 14px);
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+      }
+
+      .title {
+        min-width: 0;
+        padding: 0 8px;
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      button {
+        height: 34px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        padding: 0 12px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        border-color: rgba(115, 199, 167, 0.7);
+        background: rgba(115, 199, 167, 0.16);
+      }
+
+      button.active {
+        color: #07110d;
+        border-color: var(--accent);
+        background: var(--accent);
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+
+      .counter {
+        min-width: 92px;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .status {
+        left: 14px;
+        bottom: 68px;
+        max-width: min(760px, calc(100vw - var(--preview-width) - 28px));
+        padding: 9px 11px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+
+      .status.warn {
+        color: var(--warn);
+      }
+
+      .frame-preview {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: var(--preview-width);
+        margin: 0;
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        border-width: 0 0 0 1px;
+      }
+
+      .frame-image {
+        position: relative;
+        min-height: 0;
+        background: rgba(0, 0, 0, 0.24);
+      }
+
+      .frame-preview img {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        object-fit: contain;
+        display: block;
+      }
+
+      .frame-box {
+        position: absolute;
+        border: 2px solid var(--accent);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.6),
+          0 0 18px rgba(115, 199, 167, 0.45);
+        pointer-events: none;
+      }
+
+      .frame-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .frame-preview figcaption {
+        padding: 11px 13px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .preview-resizer {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 5;
+        width: 12px;
+        cursor: ew-resize;
+      }
+
+      .preview-resizer::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 1px;
+        background: rgba(255, 255, 255, 0.24);
+      }
+
+      body.resizing-preview,
+      body.resizing-preview * {
+        cursor: ew-resize !important;
+        user-select: none;
+      }
+
+      body.preview-hidden {
+        --preview-width: 0px;
+      }
+
+      body.preview-hidden .topbar,
+      body.preview-hidden .timeline {
+        right: 14px;
+      }
+
+      body.preview-hidden .status {
+        max-width: min(760px, calc(100vw - 28px));
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 760px) {
+        :root {
+          --preview-width: 42vw;
+        }
+      }
+    </style>
+  </head>
+  <body class="preview-hidden">
+    <main id="stage"></main>
+    <div class="topbar">
+      <div id="title" class="title">SAM 3D Body Sequence</div>
+      <div>
+        <button id="skeletonButton" class="active" type="button">Skeleton</button>
+        <button id="handButton" class="active" type="button">Hands</button>
+        <button id="sceneButton" class="active" type="button">Scene</button>
+        <button id="wireButton" type="button">Wire</button>
+        <button id="resetButton" type="button">Reset</button>
+      </div>
+    </div>
+    <div id="status" class="status">Loading</div>
+    <div class="timeline">
+      <button id="playButton" type="button">Play</button>
+      <input id="scrubber" type="range" min="0" max="0" value="0" step="1" />
+      <div id="counter" class="counter">0 / 0</div>
+      <button id="openManifestButton" type="button">Open JSON</button>
+      <input id="manifestInput" type="file" accept=".json,application/json" hidden />
+    </div>
+    <figure id="framePreview" class="frame-preview" hidden>
+      <div id="previewResizer" class="preview-resizer" aria-hidden="true"></div>
+      <figcaption id="sourceFrameLabel"></figcaption>
+      <div id="frameImage" class="frame-image">
+        <img id="sourceFrame" alt="" />
+        <div id="sourceFrameBox" class="frame-box" hidden></div>
+        <canvas id="sourceOverlay" class="frame-overlay"></canvas>
+      </div>
+    </figure>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+
+      const stage = document.querySelector("#stage");
+      const titleEl = document.querySelector("#title");
+      const statusEl = document.querySelector("#status");
+      const scrubber = document.querySelector("#scrubber");
+      const counter = document.querySelector("#counter");
+      const playButton = document.querySelector("#playButton");
+      const skeletonButton = document.querySelector("#skeletonButton");
+      const handButton = document.querySelector("#handButton");
+      const sceneButton = document.querySelector("#sceneButton");
+      const wireButton = document.querySelector("#wireButton");
+      const resetButton = document.querySelector("#resetButton");
+      const manifestInput = document.querySelector("#manifestInput");
+      const openManifestButton = document.querySelector("#openManifestButton");
+      const framePreview = document.querySelector("#framePreview");
+      const frameImage = document.querySelector("#frameImage");
+      const sourceFrame = document.querySelector("#sourceFrame");
+      const sourceFrameBox = document.querySelector("#sourceFrameBox");
+      const sourceOverlay = document.querySelector("#sourceOverlay");
+      const sourceFrameLabel = document.querySelector("#sourceFrameLabel");
+      const previewResizer = document.querySelector("#previewResizer");
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x151719);
+
+      const stageRect = stage.getBoundingClientRect();
+      const camera = new THREE.PerspectiveCamera(45, stageRect.width / stageRect.height, 0.001, 1000);
+      camera.position.set(0, 1.4, 4.2);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(stageRect.width, stageRect.height);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      stage.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+
+      const key = new THREE.DirectionalLight(0xffffff, 2.4);
+      key.position.set(3, 4, 5);
+      scene.add(key);
+      scene.add(new THREE.HemisphereLight(0xc9e8ff, 0x2d3338, 1.8));
+
+      const grid = new THREE.GridHelper(3, 30, 0x52606a, 0x30363b);
+      grid.material.opacity = 0.34;
+      grid.material.transparent = true;
+      scene.add(grid);
+
+      const loader = new PLYLoader();
+      const geometryCache = new Map();
+      let manifest = null;
+      let manifestBase = new URL(".", window.location.href);
+      let mesh = null;
+      let skeletonGroup = null;
+      let sceneGroup = null;
+      let currentFrame = 0;
+      let playing = false;
+      let lastAdvance = 0;
+      let lastFit = null;
+      let previewWidth = Number(localStorage.getItem("sam3dPreviewWidth")) || 440;
+      let resizingPreview = false;
+
+      function clampPreviewWidth(width) {
+        const maxWidth = Math.max(260, window.innerWidth - 360);
+        return Math.max(240, Math.min(width, maxWidth));
+      }
+
+      function setPreviewWidth(width, persist = false) {
+        previewWidth = clampPreviewWidth(width);
+        document.documentElement.style.setProperty("--preview-width", `${previewWidth}px`);
+        if (persist) localStorage.setItem("sam3dPreviewWidth", String(Math.round(previewWidth)));
+        resizeRenderer();
+      }
+
+      function resizeRenderer() {
+        const rect = stage.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        if (manifest?.frames?.[currentFrame]) updateFrameBox(manifest.frames[currentFrame]);
+      }
+
+      setPreviewWidth(previewWidth);
+
+      function setStatus(message, warn = false) {
+        statusEl.textContent = message;
+        statusEl.classList.toggle("warn", warn);
+      }
+
+      function numberOr(value, fallback = 0) {
+        return Number.isFinite(Number(value)) ? Number(value) : fallback;
+      }
+
+      function rotationForFrame(frame) {
+        const base = manifest?.mesh_rotation || {};
+        const frameRotation = frame.mesh_rotation || {};
+        const orientation = frame.orientation || {};
+        return {
+          x: numberOr(frameRotation.x, numberOr(base.x)),
+          y: numberOr(frameRotation.y, numberOr(base.y)),
+          z: numberOr(
+            frameRotation.z,
+            numberOr(orientation.mesh_z_correction_radians, numberOr(base.z)),
+          ),
+        };
+      }
+
+      function orientationLabel(frame) {
+        const orientation = frame.orientation || {};
+        if (!Number.isFinite(Number(orientation.image_body_angle_degrees))) return "";
+        const imageAngle = Number(orientation.image_body_angle_degrees).toFixed(1);
+        const correction = Number(orientation.mesh_z_correction_degrees || 0).toFixed(1);
+        const posture = orientation.head_above_feet_in_image ? "upright" : "inverted";
+        return ` orient=${imageAngle}deg correction=${correction}deg ${posture}`;
+      }
+
+      function resolveAsset(path) {
+        return new URL(path, manifestBase).href;
+      }
+
+      function basename(path) {
+        return String(path || "").split("/").filter(Boolean).pop() || "";
+      }
+
+      function frameImagePath(frame) {
+        if (frame.frame_path) return frame.frame_path;
+        if (frame.local_frame_path) return frame.local_frame_path;
+        const imageName = basename(frame.image_path);
+        return imageName ? `frames/${imageName}` : "";
+      }
+
+      function previewMetrics() {
+        const naturalWidth = sourceFrame.naturalWidth;
+        const naturalHeight = sourceFrame.naturalHeight;
+        const previewRect = frameImage.getBoundingClientRect();
+        if (!naturalWidth || !naturalHeight || !previewRect.width || !previewRect.height) return null;
+
+        const imageRatio = naturalWidth / naturalHeight;
+        const previewRatio = previewRect.width / previewRect.height;
+        let renderedWidth = previewRect.width;
+        let renderedHeight = previewRect.height;
+        let offsetX = 0;
+        let offsetY = 0;
+        if (imageRatio > previewRatio) {
+          renderedHeight = renderedWidth / imageRatio;
+          offsetY = (previewRect.height - renderedHeight) / 2;
+        } else {
+          renderedWidth = renderedHeight * imageRatio;
+          offsetX = (previewRect.width - renderedWidth) / 2;
+        }
+        return {
+          naturalWidth,
+          naturalHeight,
+          previewRect,
+          renderedWidth,
+          renderedHeight,
+          offsetX,
+          offsetY,
+          mapPoint(point) {
+            return [
+              offsetX + (point[0] / naturalWidth) * renderedWidth,
+              offsetY + (point[1] / naturalHeight) * renderedHeight,
+            ];
+          },
+        };
+      }
+
+      function drawSourceOverlay(frame) {
+        const rect = frameImage.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        sourceOverlay.width = Math.max(1, Math.round(rect.width * dpr));
+        sourceOverlay.height = Math.max(1, Math.round(rect.height * dpr));
+        const ctx = sourceOverlay.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const metrics = previewMetrics();
+        if (!metrics) return;
+
+        const colors = {
+          pole: "#ff6b4a",
+          bar: "#f4d35e",
+          runway: "#5dd0d6",
+          standard: "#c7b7ff",
+        };
+        for (const line of frame.scene_2d?.lines || []) {
+          if (!Array.isArray(line.points) || line.points.length < 2) continue;
+          const start = metrics.mapPoint(line.points[0]);
+          ctx.beginPath();
+          ctx.moveTo(start[0], start[1]);
+          for (const point of line.points.slice(1)) {
+            const mapped = metrics.mapPoint(point);
+            ctx.lineTo(mapped[0], mapped[1]);
+          }
+          ctx.strokeStyle = colors[line.kind] || "#ffffff";
+          ctx.globalAlpha = line.kind === "runway" ? 0.68 : 0.9;
+          ctx.lineWidth = line.kind === "pole" ? 3 : 2;
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        const keypoints2d = frame.skeleton_3d?.keypoints_2d || [];
+        if (skeletonButton.classList.contains("active")) {
+          drawPreviewSkeleton(ctx, metrics, keypoints2d, skeletonLinks("body"), "#73c7a7", 0.78, 1.8, 2.4);
+        }
+        if (handButton.classList.contains("active")) {
+          drawPreviewSkeleton(ctx, metrics, keypoints2d, skeletonLinks("hands"), "#f4d35e", 0.95, 2.2, 3.0);
+        }
+      }
+
+      function drawPreviewSkeleton(ctx, metrics, keypoints, links, color, alpha, lineWidth, jointRadius) {
+        if (!Array.isArray(keypoints) || !Array.isArray(links) || !links.length) return;
+        const usedJoints = new Set();
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (const [startIndex, endIndex] of links) {
+          const start = keypoints[startIndex];
+          const end = keypoints[endIndex];
+          if (!validPoint2d(start) || !validPoint2d(end)) continue;
+          const mappedStart = metrics.mapPoint(start);
+          const mappedEnd = metrics.mapPoint(end);
+          ctx.beginPath();
+          ctx.moveTo(mappedStart[0], mappedStart[1]);
+          ctx.lineTo(mappedEnd[0], mappedEnd[1]);
+          ctx.stroke();
+          usedJoints.add(startIndex);
+          usedJoints.add(endIndex);
+        }
+        ctx.fillStyle = color;
+        for (const index of usedJoints) {
+          const point = keypoints[index];
+          if (!validPoint2d(point)) continue;
+          const mapped = metrics.mapPoint(point);
+          ctx.beginPath();
+          ctx.arc(mapped[0], mapped[1], jointRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function validPoint2d(point) {
+        return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
+      }
+
+      function updateFrameBox(frame) {
+        const bbox = frame.bbox || [];
+        const metrics = previewMetrics();
+        if (bbox.length !== 4 || !metrics) {
+          sourceFrameBox.hidden = true;
+          drawSourceOverlay(frame);
+          return;
+        }
+
+        const [left, top] = metrics.mapPoint([bbox[0], bbox[1]]);
+        const [right, bottom] = metrics.mapPoint([bbox[2], bbox[3]]);
+        sourceFrameBox.style.left = `${left}px`;
+        sourceFrameBox.style.top = `${top}px`;
+        sourceFrameBox.style.width = `${Math.max(2, right - left)}px`;
+        sourceFrameBox.style.height = `${Math.max(2, bottom - top)}px`;
+        sourceFrameBox.hidden = false;
+        drawSourceOverlay(frame);
+      }
+
+      function updateFramePreview(frame) {
+        const path = frameImagePath(frame);
+        if (!path) {
+          framePreview.hidden = true;
+          sourceFrame.removeAttribute("src");
+          sourceFrameLabel.textContent = "";
+          sourceFrameBox.hidden = true;
+          drawSourceOverlay(frame);
+          document.body.classList.add("preview-hidden");
+          resizeRenderer();
+          return;
+        }
+        sourceFrame.src = resolveAsset(path);
+        sourceFrameLabel.textContent = `frame ${frame.source_frame} · ${Number(frame.timestamp_sec || 0).toFixed(2)}s`;
+        framePreview.hidden = false;
+        document.body.classList.remove("preview-hidden");
+        setPreviewWidth(previewWidth);
+        updateFrameBox(frame);
+      }
+
+      function disposeCurrentMesh() {
+        if (!mesh) return;
+        scene.remove(mesh);
+        mesh.material.dispose();
+        mesh = null;
+      }
+
+      function disposeCurrentSkeleton() {
+        if (!skeletonGroup) return;
+        scene.remove(skeletonGroup);
+        skeletonGroup.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) object.material.dispose();
+        });
+        skeletonGroup = null;
+      }
+
+      function disposeCurrentScene() {
+        if (!sceneGroup) return;
+        scene.remove(sceneGroup);
+        sceneGroup.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) object.material.dispose();
+        });
+        sceneGroup = null;
+      }
+
+      function skeletonLinks(part) {
+        if (part === "hands") return manifest?.skeleton?.hand_links || [];
+        return manifest?.skeleton?.body_links || manifest?.skeleton?.links || [];
+      }
+
+      function tubeSegment(startArray, endArray, radius, material) {
+        const start = new THREE.Vector3(...startArray);
+        const end = new THREE.Vector3(...endArray);
+        const direction = new THREE.Vector3().subVectors(end, start);
+        const length = direction.length();
+        if (length <= 1e-5) return null;
+
+        const geometry = new THREE.CylinderGeometry(radius, radius, length, 8, 1, true);
+        const segment = new THREE.Mesh(geometry, material);
+        segment.position.copy(start).add(end).multiplyScalar(0.5);
+        segment.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+        segment.renderOrder = 12;
+        return segment;
+      }
+
+      function createSkeletonPart(keypoints, links, color, jointColor, jointSize, part) {
+        if (!Array.isArray(keypoints) || !links.length) return null;
+
+        const linePositions = [];
+        const jointPositions = [];
+        const usedJoints = new Set();
+        for (const [startIndex, endIndex] of links) {
+          const start = keypoints[startIndex];
+          const end = keypoints[endIndex];
+          if (!start || !end) continue;
+          if (![...start, ...end].every(Number.isFinite)) continue;
+          linePositions.push(...start, ...end);
+          usedJoints.add(startIndex);
+          usedJoints.add(endIndex);
+        }
+        for (const index of usedJoints) {
+          jointPositions.push(...keypoints[index]);
+        }
+        if (!linePositions.length) return null;
+
+        const group = new THREE.Group();
+        group.userData.part = part;
+        if (part === "hands") {
+          const segmentMaterial = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.98,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const jointMaterial = new THREE.MeshBasicMaterial({
+            color: jointColor,
+            transparent: true,
+            opacity: 0.98,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const jointGeometry = new THREE.SphereGeometry(jointSize * 0.68, 10, 8);
+          for (let index = 0; index < linePositions.length; index += 6) {
+            const segment = tubeSegment(
+              linePositions.slice(index, index + 3),
+              linePositions.slice(index + 3, index + 6),
+              jointSize * 0.28,
+              segmentMaterial,
+            );
+            if (segment) group.add(segment);
+          }
+          for (let index = 0; index < jointPositions.length; index += 3) {
+            const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+            joint.position.set(jointPositions[index], jointPositions[index + 1], jointPositions[index + 2]);
+            joint.renderOrder = 13;
+            group.add(joint);
+          }
+          group.renderOrder = 12;
+          return group;
+        }
+
+        const lineGeometry = new THREE.BufferGeometry();
+        lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.96,
+          depthTest: false,
+          depthWrite: false,
+        });
+        group.add(new THREE.LineSegments(lineGeometry, lineMaterial));
+
+        if (jointPositions.length) {
+          const jointGeometry = new THREE.BufferGeometry();
+          jointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(jointPositions, 3));
+          const jointMaterial = new THREE.PointsMaterial({
+            color: jointColor,
+            size: jointSize,
+            sizeAttenuation: true,
+            depthTest: false,
+            depthWrite: false,
+          });
+          group.add(new THREE.Points(jointGeometry, jointMaterial));
+        }
+
+        group.renderOrder = 10;
+        return group;
+      }
+
+      function updateSkeletonVisibility(group = skeletonGroup) {
+        if (!group) return;
+        for (const child of group.children) {
+          if (child.userData.part === "hands") {
+            child.visible = handButton.classList.contains("active");
+          } else {
+            child.visible = skeletonButton.classList.contains("active");
+          }
+        }
+      }
+
+      function createSkeletonObject(frame, rotation) {
+        const keypoints = frame.skeleton_3d?.keypoints;
+        const group = new THREE.Group();
+        const body = createSkeletonPart(keypoints, skeletonLinks("body"), 0x73c7a7, 0xf4b95e, 0.018, "body");
+        const hands = createSkeletonPart(keypoints, skeletonLinks("hands"), 0xf4d35e, 0xff8f5a, 0.014, "hands");
+        if (body) group.add(body);
+        if (hands) group.add(hands);
+        if (!group.children.length) return null;
+        group.rotation.set(rotation.x, rotation.y, rotation.z);
+        updateSkeletonVisibility(group);
+        group.renderOrder = 10;
+        return group;
+      }
+
+      function sceneColor(kind) {
+        if (kind === "pole") return 0xff6b4a;
+        if (kind === "bar") return 0xf4d35e;
+        if (kind === "runway") return 0x5dd0d6;
+        if (kind === "standard") return 0xc7b7ff;
+        return 0xd6ecff;
+      }
+
+      function createSceneObject(frame, rotation) {
+        const primitives = frame.scene_3d?.primitives || [];
+        if (!primitives.length) return null;
+
+        const group = new THREE.Group();
+        for (const primitive of primitives) {
+          if (
+            (primitive.type === "line" || primitive.type === "polyline") &&
+            Array.isArray(primitive.points) &&
+            primitive.points.length >= 2
+          ) {
+            const positions = [];
+            for (let index = 0; index < primitive.points.length - 1; index += 1) {
+              positions.push(...primitive.points[index], ...primitive.points[index + 1]);
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            const material = new THREE.LineBasicMaterial({
+              color: sceneColor(primitive.kind),
+              transparent: true,
+              opacity: primitive.kind === "runway" ? 0.58 : 0.86,
+              depthTest: true,
+              depthWrite: false,
+            });
+            group.add(new THREE.LineSegments(geometry, material));
+          } else if (
+            primitive.type === "plane" &&
+            Array.isArray(primitive.corners) &&
+            primitive.corners.length === 4
+          ) {
+            const positions = primitive.corners.flat();
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setIndex([0, 1, 2, 0, 2, 3]);
+            geometry.computeVertexNormals();
+            const material = new THREE.MeshBasicMaterial({
+              color: sceneColor(primitive.kind),
+              transparent: true,
+              opacity: 0.12,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            });
+            group.add(new THREE.Mesh(geometry, material));
+
+            const edgePositions = [
+              ...primitive.corners[0],
+              ...primitive.corners[1],
+              ...primitive.corners[1],
+              ...primitive.corners[2],
+              ...primitive.corners[2],
+              ...primitive.corners[3],
+              ...primitive.corners[3],
+              ...primitive.corners[0],
+            ];
+            const edgeGeometry = new THREE.BufferGeometry();
+            edgeGeometry.setAttribute("position", new THREE.Float32BufferAttribute(edgePositions, 3));
+            group.add(
+              new THREE.LineSegments(
+                edgeGeometry,
+                new THREE.LineBasicMaterial({
+                  color: sceneColor(primitive.kind),
+                  transparent: true,
+                  opacity: 0.52,
+                  depthTest: true,
+                  depthWrite: false,
+                }),
+              ),
+            );
+          }
+        }
+
+        if (!group.children.length) return null;
+        group.rotation.set(rotation.x, rotation.y, rotation.z);
+        group.visible = sceneButton.classList.contains("active");
+        group.renderOrder = 5;
+        return group;
+      }
+
+      function fitCamera(object) {
+        const box = new THREE.Box3().setFromObject(object);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const radius = Math.max(size.x, size.y, size.z) * 0.72 || 1;
+        const distance = radius / Math.sin((camera.fov * Math.PI) / 360);
+
+        controls.target.copy(center);
+        camera.near = Math.max(distance / 1000, 0.001);
+        camera.far = distance * 1000;
+        camera.position.set(center.x, center.y + radius * 0.2, center.z + distance * 1.08);
+        camera.updateProjectionMatrix();
+        controls.update();
+        grid.position.y = box.min.y;
+        grid.scale.setScalar(Math.max(radius, 1));
+        lastFit = { center, radius, distance };
+      }
+
+      async function loadGeometry(path) {
+        if (geometryCache.has(path)) {
+          return geometryCache.get(path);
+        }
+        const url = resolveAsset(path);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}: ${path}`);
+        }
+        const geometry = loader.parse(await response.arrayBuffer());
+        geometry.computeVertexNormals();
+        geometry.center();
+        geometryCache.set(path, geometry);
+        return geometry;
+      }
+
+      async function showFrame(index, fit = false) {
+        if (!manifest?.frames?.length) return;
+        currentFrame = Math.max(0, Math.min(index, manifest.frames.length - 1));
+        const frame = manifest.frames[currentFrame];
+        if (!frame.mesh_path) {
+          setStatus(`Frame ${currentFrame + 1} has no mesh`, true);
+          updateFramePreview(frame);
+          return;
+        }
+
+        const geometry = await loadGeometry(frame.mesh_path);
+        disposeCurrentMesh();
+        disposeCurrentSkeleton();
+        disposeCurrentScene();
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xd6ecff,
+          roughness: 0.58,
+          metalness: 0.03,
+          vertexColors: geometry.hasAttribute("color"),
+          side: THREE.DoubleSide,
+          wireframe: wireButton.classList.contains("active"),
+        });
+
+        mesh = new THREE.Mesh(geometry, material);
+        const rotation = rotationForFrame(frame);
+        mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+        scene.add(mesh);
+        skeletonGroup = createSkeletonObject(frame, rotation);
+        if (skeletonGroup) scene.add(skeletonGroup);
+        sceneGroup = createSceneObject(frame, rotation);
+        if (sceneGroup) scene.add(sceneGroup);
+        if (fit || !lastFit) fitCamera(mesh);
+        scrubber.value = String(currentFrame);
+        counter.textContent = `${currentFrame + 1} / ${manifest.frames.length}`;
+        updateFramePreview(frame);
+        setStatus(
+          `frame=${frame.index} source=${frame.source_frame} time=${frame.timestamp_sec.toFixed(2)}s bbox=${frame.detection_source}${orientationLabel(frame)}`,
+        );
+      }
+
+      async function setManifest(data, baseUrl) {
+        manifest = data;
+        manifestBase = baseUrl;
+        titleEl.textContent = `${data.video_path || "sequence"} · ${data.frames.length} frames`;
+        scrubber.max = String(Math.max(data.frames.length - 1, 0));
+        scrubber.value = "0";
+        currentFrame = 0;
+        await showFrame(0, true);
+      }
+
+      async function loadManifestUrl(url) {
+        setStatus(`Loading ${url}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}`);
+        }
+        await setManifest(await response.json(), new URL(".", response.url));
+      }
+
+      playButton.addEventListener("click", () => {
+        playing = !playing;
+        playButton.textContent = playing ? "Pause" : "Play";
+        playButton.classList.toggle("active", playing);
+      });
+
+      scrubber.addEventListener("input", () => {
+        playing = false;
+        playButton.textContent = "Play";
+        playButton.classList.remove("active");
+        showFrame(Number(scrubber.value));
+      });
+
+      wireButton.addEventListener("click", () => {
+        wireButton.classList.toggle("active");
+        if (mesh) mesh.material.wireframe = wireButton.classList.contains("active");
+      });
+
+      skeletonButton.addEventListener("click", () => {
+        skeletonButton.classList.toggle("active");
+        updateSkeletonVisibility();
+      });
+
+      handButton.addEventListener("click", () => {
+        handButton.classList.toggle("active");
+        updateSkeletonVisibility();
+      });
+
+      sceneButton.addEventListener("click", () => {
+        sceneButton.classList.toggle("active");
+        if (sceneGroup) sceneGroup.visible = sceneButton.classList.contains("active");
+      });
+
+      resetButton.addEventListener("click", () => {
+        if (mesh) fitCamera(mesh);
+      });
+
+      openManifestButton.addEventListener("click", () => manifestInput.click());
+      manifestInput.addEventListener("change", () => {
+        const file = manifestInput.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const url = URL.createObjectURL(file);
+          await setManifest(JSON.parse(reader.result), new URL(".", url));
+        };
+        reader.readAsText(file);
+      });
+
+      window.addEventListener("resize", () => setPreviewWidth(previewWidth));
+
+      previewResizer.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        resizingPreview = true;
+        document.body.classList.add("resizing-preview");
+      });
+
+      window.addEventListener("pointermove", (event) => {
+        if (!resizingPreview) return;
+        setPreviewWidth(window.innerWidth - event.clientX);
+      });
+
+      window.addEventListener("pointerup", () => {
+        if (!resizingPreview) return;
+        resizingPreview = false;
+        document.body.classList.remove("resizing-preview");
+        setPreviewWidth(previewWidth, true);
+      });
+
+      window.addEventListener("pointercancel", () => {
+        resizingPreview = false;
+        document.body.classList.remove("resizing-preview");
+      });
+
+      sourceFrame.addEventListener("load", () => {
+        if (manifest?.frames?.[currentFrame]) updateFrameBox(manifest.frames[currentFrame]);
+      });
+
+      function animate(now = 0) {
+        requestAnimationFrame(animate);
+        if (playing && manifest?.frames?.length && now - lastAdvance > 420) {
+          lastAdvance = now;
+          showFrame((currentFrame + 1) % manifest.frames.length);
+        }
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      const params = new URLSearchParams(window.location.search);
+      const manifestUrl = params.get("manifest");
+      if (manifestUrl) {
+        loadManifestUrl(manifestUrl).catch((error) => setStatus(`Load failed: ${error.message}`, true));
+      } else {
+        setStatus("Open a sequence JSON");
+      }
+    </script>
+  </body>
+</html>

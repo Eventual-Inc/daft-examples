@@ -3,21 +3,41 @@
 # requires-python = ">=3.12, <3.13"
 # dependencies = ["daft>=0.7.8", "faster-whisper"]
 # ///
-from dataclasses import asdict
+"""Faster Whisper transcription as a Daft class UDF.
 
-from faster_whisper import BatchedInferencePipeline, WhisperModel
-from faster_whisper_schema import TranscriptionResult
+Backend: CTranslate2 (faster-whisper) — runs locally on CPU or GPU; Whisper-style
+audio models are not supported by vLLM.
+
+The result schema lives in ``schema.py`` so pipelines can import it without
+pulling in faster-whisper.
+"""
+
+from __future__ import annotations
+
+import sys
+from dataclasses import asdict
+from pathlib import Path
+
+# Anchor the repo root so `models.*` imports resolve when this file is loaded
+# as a loose script (e.g. `uv run` / `modal run`) instead of an installed package.
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 import daft
 from daft import col
 from daft.functions import file, unnest
+from models.faster_whisper.schema import TranscriptionResult
 
 
 @daft.cls()
 class FasterWhisperTranscriber:
-    def __init__(self, model="distil-large-v3", compute_type="float32", device="auto"):
+    def __init__(self, model="distil-large-v3", compute_type="float32", device="auto", batch_size=16):
+        from faster_whisper import BatchedInferencePipeline, WhisperModel
+
         self.model = WhisperModel(model, compute_type=compute_type, device=device)
         self.pipe = BatchedInferencePipeline(self.model)
+        self.batch_size = batch_size
 
     @daft.method(return_dtype=TranscriptionResult)
     def transcribe(self, audio_file: daft.File):
@@ -28,7 +48,7 @@ class FasterWhisperTranscriber:
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=500),
                 word_timestamps=True,
-                batch_size=BATCH_SIZE,
+                batch_size=self.batch_size,
             )
             segments = [asdict(seg) for seg in segments_iter]
             text = " ".join([seg["text"] for seg in segments])
@@ -39,9 +59,6 @@ class FasterWhisperTranscriber:
 if __name__ == "__main__":
     # Define Parameters & Constants
     SOURCE_URI = "hf://datasets/Eventual-Inc/sample-files/audio/*.mp3"
-    SAMPLE_RATE = 16000
-    DTYPE = "float32"
-    BATCH_SIZE = 16
 
     # Instantiate Transcription UDF
     fwt = FasterWhisperTranscriber()
