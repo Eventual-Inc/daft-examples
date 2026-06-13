@@ -3,9 +3,8 @@
 The model wrapper itself lives in ``model.py``; this file only owns the
 container image, Volumes, and entrypoints.
 
-DiffusionGemma support is not in a stable vLLM release yet
-(vllm-project/vllm#45163), so the image installs vLLM nightly wheels per the
-official recipe (vllm-project/recipes#520).
+DiffusionGemma support currently ships through the dedicated vLLM Gemma image,
+so this shell builds on that image and only adds Daft plus helper packages.
 """
 
 from __future__ import annotations
@@ -30,17 +29,23 @@ GPU_TYPE = "H100"
 app = modal.App("daft-diffusion-gemma")
 
 image = with_model_cache(
-    modal.Image.debian_slim(python_version="3.12")
-    .pip_install("uv")
-    .run_commands(
-        # Nightly wheels are the official install path until vLLM's diffusion
-        # support ships in a stable release (vllm-project/recipes#520).
-        "uv pip install --system --pre -U vllm 'daft>=0.7.14' huggingface_hub pillow"
-        " --extra-index-url https://wheels.vllm.ai/nightly/cu129"
-        " --extra-index-url https://download.pytorch.org/whl/cu129"
-        " --index-strategy unsafe-best-match"
+    modal.Image.from_registry("vllm/vllm-openai:gemma")
+    # The vLLM image exposes python3, while Modal's pip_install layer invokes
+    # python. Keep the base interpreter and add the conventional executable.
+    .run_commands("ln -sf $(which python3) /usr/local/bin/python")
+    .add_local_file(
+        "models/diffusion_gemma/modal_entrypoint.sh",
+        "/usr/local/bin/modal-python-entrypoint",
+        copy=True,
+    )
+    .run_commands("chmod +x /usr/local/bin/modal-python-entrypoint")
+    .entrypoint(["/usr/local/bin/modal-python-entrypoint"])
+    .cmd([])
+    .pip_install(
+        "daft>=0.7.14",
+        "huggingface_hub",
+        "pillow",
     ),
-    extra_env={"LD_LIBRARY_PATH": "/usr/local/lib/python3.12/site-packages/nvidia/cu13/lib"},
 )
 
 
@@ -145,5 +150,4 @@ def modal_main(
         seed=seed,
         enable_thinking=enable_thinking,
     )
-    for text in result["text"]:
-        print(text)
+    daft.from_pydict(result).show(format="fancy", max_width=100)

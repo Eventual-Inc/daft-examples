@@ -83,6 +83,7 @@ class DiffusionGemma:
             # tensors; with Gemma's 262K vocab anything above ~4 OOMs an 80 GB GPU.
             max_num_seqs=max_num_seqs,
             gpu_memory_utilization=gpu_memory_utilization,
+            diffusion_config={"canvas_length": canvas_length},
             # The checkpoint's generation_config.json caps max_tokens at one canvas
             # (256); "vllm" ignores it so per-request limits win.
             generation_config="vllm",

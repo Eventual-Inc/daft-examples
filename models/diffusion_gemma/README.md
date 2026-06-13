@@ -11,22 +11,21 @@ DiffusionGemma ([google/diffusiongemma-26B-A4B-it](https://huggingface.co/google
 
 The [vLLM announcement blog post](https://vllm-project.github.io/2026/06/10/diffusion-gemma) contains **no code**. The canonical usage examples are in:
 
-- [vllm-project/recipes#520](https://github.com/vllm-project/recipes/pull/520) — the official recipe (serve command, offline `LLM()` usage, flag rationale). Not yet merged, so it does not appear on the recipes site.
+- [DiffusionGemma vLLM recipe](https://recipes.vllm.ai/Google/diffusiongemma-26B-A4B-it) — the official recipe (serve command, offline `LLM()` usage, flag rationale).
 - [DiffusionGemma: The Developer Guide](https://developers.googleblog.com/en/diffusiongemma-the-developer-guide/) — the `vllm serve` command.
 - The [model card](https://huggingface.co/google/diffusiongemma-26B-A4B-it) — Transformers usage and sampler defaults.
 
 ## vLLM version requirement
 
-vLLM support is still an open PR ([vllm-project/vllm#45163](https://github.com/vllm-project/vllm/pull/45163), `dgemma` branch) and **requires nightly wheels** — it is not in any stable release:
+DiffusionGemma requires a vLLM build with diffusion model support. The official
+recipe currently publishes that support through the dedicated Gemma image:
 
 ```bash
-uv pip install -U vllm --pre \
-  --extra-index-url https://wheels.vllm.ai/nightly/cu129 \
-  --extra-index-url https://download.pytorch.org/whl/cu129 \
-  --index-strategy unsafe-best-match
+docker pull vllm/vllm-openai:gemma
 ```
 
-The Modal image in `modal_app.py` installs exactly this. A `vllm-openai:gemma-cu130` Docker image is also planned per the PR.
+The Modal image in `modal_app.py` builds on `vllm/vllm-openai:gemma` and adds
+Daft plus the small helper dependencies used by this example.
 
 ## Required engine flags
 
@@ -56,7 +55,7 @@ vllm serve google/diffusiongemma-26B-A4B-it \
 
 ## Run on Modal
 
-Prewarm model weights into the `diffusion-gemma-model-cache` Volume:
+Prewarm model weights into the shared `daft-model-cache` Volume:
 
 ```bash
 uv run --extra models modal run models/diffusion_gemma/modal_app.py --download-only
@@ -149,7 +148,7 @@ Deliberately not captured: `logprobs` / `cumulative_logprob` (always `None` unle
 
 - vLLM blog announcement: https://vllm-project.github.io/2026/06/10/diffusion-gemma
 - vLLM model support PR: https://github.com/vllm-project/vllm/pull/45163
-- Official recipe PR: https://github.com/vllm-project/recipes/pull/520
+- Official recipe: https://recipes.vllm.ai/Google/diffusiongemma-26B-A4B-it
 - Google developer guide: https://developers.googleblog.com/en/diffusiongemma-the-developer-guide/
 - Model card: https://huggingface.co/google/diffusiongemma-26B-A4B-it
 - Fine-tuning (Hackable Diffusion): https://github.com/google-deepmind/gemma/tree/main/gemma/diffusion
