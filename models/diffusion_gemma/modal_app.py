@@ -14,7 +14,7 @@ import modal
 
 import daft
 from daft import col
-from daft.functions import unnest
+from daft.functions import file, unnest
 from models.diffusion_gemma.model import (
     DEFAULT_CANVAS_LENGTH,
     DEFAULT_ENTROPY_BOUND,
@@ -35,7 +35,7 @@ image = with_model_cache(
     .run_commands(
         # Nightly wheels are the official install path until vLLM's diffusion
         # support ships in a stable release (vllm-project/recipes#520).
-        "uv pip install --system --pre -U vllm 'daft>=0.7.14' huggingface_hub"
+        "uv pip install --system --pre -U vllm 'daft>=0.7.14' huggingface_hub pillow"
         " --extra-index-url https://wheels.vllm.ai/nightly/cu129"
         " --extra-index-url https://download.pytorch.org/whl/cu129"
         " --index-strategy unsafe-best-match"
@@ -54,30 +54,9 @@ def download_model_weights(model: str = DEFAULT_MODEL, model_revision: str = "")
 
 
 @app.function(**function_kwargs(image, gpu=GPU_TYPE, memory=65536))
-def debug_initialize_model() -> str:
-    import traceback
-
-    try:
-        DiffusionGemma(max_model_len=4096)
-    except Exception:
-        return traceback.format_exc()
-    return "ok"
-
-
-@app.function(**function_kwargs(image, gpu=GPU_TYPE, memory=65536))
-def debug_generate_direct(prompt: str = DEFAULT_PROMPT) -> dict | str:
-    import traceback
-
-    try:
-        gemma = DiffusionGemma(max_model_len=4096)
-        return gemma.generate(prompt, max_tokens=32)
-    except Exception:
-        return traceback.format_exc()
-
-
-@app.function(**function_kwargs(image, gpu=GPU_TYPE, memory=65536))
 def run_on_modal(
     prompts: list[str],
+    image_path: str = "",
     model: str = DEFAULT_MODEL,
     model_revision: str = "",
     canvas_length: int = DEFAULT_CANVAS_LENGTH,
@@ -95,17 +74,30 @@ def run_on_modal(
         entropy_bound=entropy_bound,
         max_model_len=max_model_len,
     )
-    df = (
-        daft.from_pydict(
-            {
-                "prompt": prompts,
-                "seed": [seed + index for index in range(len(prompts))],
-                "max_tokens": [max_tokens] * len(prompts),
-                "temperature": [temperature] * len(prompts),
-                "enable_thinking": [enable_thinking] * len(prompts),
-            }
+    data = {
+        "prompt": prompts,
+        "seed": [seed + index for index in range(len(prompts))],
+        "max_tokens": [max_tokens] * len(prompts),
+        "temperature": [temperature] * len(prompts),
+        "enable_thinking": [enable_thinking] * len(prompts),
+    }
+    if image_path:
+        data["image_path"] = [image_path] * len(prompts)
+    df = daft.from_pydict(data)
+    if image_path:
+        df = df.with_column("image_file", file(col("image_path"))).with_column(
+            "result",
+            gemma.generate_from_image(
+                col("prompt"),
+                col("image_file"),
+                max_tokens=col("max_tokens"),
+                temperature=col("temperature"),
+                seed=col("seed"),
+                enable_thinking=col("enable_thinking"),
+            ),
         )
-        .with_column(
+    else:
+        df = df.with_column(
             "result",
             gemma.generate(
                 col("prompt"),
@@ -115,9 +107,7 @@ def run_on_modal(
                 enable_thinking=col("enable_thinking"),
             ),
         )
-        .select(unnest(col("result")))
-        .collect()
-    )
+    df = df.select(unnest(col("result"))).collect()
 
     MODEL_CACHE.commit()
     return df.to_pydict()
@@ -126,6 +116,7 @@ def run_on_modal(
 @app.local_entrypoint()
 def modal_main(
     prompt: str = DEFAULT_PROMPT,
+    image_path: str = "",
     model: str = DEFAULT_MODEL,
     model_revision: str = "",
     canvas_length: int = DEFAULT_CANVAS_LENGTH,
@@ -141,11 +132,9 @@ def modal_main(
         print(download_model_weights.remote(model=model, model_revision=model_revision))
         return
 
-    print(debug_initialize_model.remote())
-    print(debug_generate_direct.remote(prompt))
-
     result = run_on_modal.remote(
         prompts=[prompt],
+        image_path=image_path,
         model=model,
         model_revision=model_revision,
         canvas_length=canvas_length,

@@ -448,6 +448,7 @@ models = [
     { name = "faster-whisper" },
     { name = "huggingface-hub" },
     { name = "modal" },
+    { name = "pillow" },
 ]
 test = [
     { name = "pytest" },
@@ -475,6 +476,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'lakehouse'" },
     { name = "modal", marker = "extra == 'models'" },
     { name = "modal", marker = "extra == 'transcription'" },
+    { name = "pillow", marker = "extra == 'models'" },
     { name = "pyiceberg", extras = ["sql-sqlite", "gcsfs", "bigquery", "s3fs", "glue"], marker = "extra == 'lakehouse'" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.1.0" },

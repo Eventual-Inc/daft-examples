@@ -79,6 +79,19 @@ uv run --extra models modal run models/diffusion_gemma/modal_app.py \
   --enable-thinking
 ```
 
+Image+text prompt through Daft on Modal:
+
+```bash
+uv run --extra models modal run models/diffusion_gemma/modal_app.py \
+  --image-path hf://datasets/datasets-examples/doc-image-3/images/2.png \
+  --prompt "Describe this image in detail." \
+  --max-tokens 512
+```
+
+That path builds a Daft dataframe with an image path, wraps it as a `daft.File`
+column, and calls `DiffusionGemma.generate_from_image()`. The UDF materializes
+the image inside the worker and passes it to vLLM as `multi_modal_data`.
+
 ## Run Locally
 
 `model.py` also has a local CLI that calls the same `build_dataframe()` helper:
@@ -86,6 +99,15 @@ uv run --extra models modal run models/diffusion_gemma/modal_app.py \
 ```bash
 uv run python models/diffusion_gemma/model.py \
   --prompt "Why is the sky blue?" \
+  --max-tokens 512
+```
+
+It also accepts `--image-path` for the same image+text flow:
+
+```bash
+uv run python models/diffusion_gemma/model.py \
+  --image-path /path/to/image.png \
+  --prompt "Describe this image in detail." \
   --max-tokens 512
 ```
 
@@ -120,7 +142,7 @@ Deliberately not captured: `logprobs` / `cumulative_logprob` (always `None` unle
 ## Known Limitations
 
 - **TTFT** is ~10× the autoregressive baseline — a full canvas must denoise before the first token emits.
-- **Audio is not supported** — the diffusion checkpoints ship no audio encoder. (This UDF is text-only; the checkpoint does support images via the Gemma 4 vision encoder if you extend it.)
+- **Audio is not supported** — the diffusion checkpoints ship no audio encoder. This UDF supports text and single-image inputs.
 - Quantized FP8 / NVFP4 checkpoints exist for higher throughput; swap `--model` once their repo IDs are published.
 
 ## References

@@ -103,19 +103,71 @@ class DiffusionGemma:
         seed: int = 42,
         enable_thinking: bool = False,
     ) -> dict:
+        return self._generate(
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            seed=seed,
+            enable_thinking=enable_thinking,
+        )
+
+    @daft.method(return_dtype=DiffusionGemmaResult)
+    def generate_from_image(
+        self,
+        prompt: str,
+        image_file: daft.File,
+        *,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,
+        seed: int = 42,
+        enable_thinking: bool = False,
+    ) -> dict:
+        from PIL import Image
+
+        with image_file.to_tempfile() as tmp:
+            image = Image.open(tmp.name).convert("RGB")
+            image.load()
+
+        return self._generate(
+            prompt,
+            image=image,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            seed=seed,
+            enable_thinking=enable_thinking,
+        )
+
+    def _generate(
+        self,
+        prompt: str,
+        *,
+        image=None,
+        max_tokens: int = 1024,
+        temperature: float = 0.0,
+        seed: int = 42,
+        enable_thinking: bool = False,
+    ) -> dict:
         import time
 
         from vllm import SamplingParams
 
+        content = [{"type": "text", "text": prompt}]
+        if image is not None:
+            # DiffusionGemma prefers image content before text for VQA-style prompts.
+            content.insert(0, {"type": "image"})
         chat_prompt = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
+            [{"role": "user", "content": content}],
             tokenize=False,
             add_generation_prompt=True,
             enable_thinking=enable_thinking,
         )
+        llm_input = chat_prompt
+        if image is not None:
+            llm_input = {"prompt": chat_prompt, "multi_modal_data": {"image": image}}
+
         start = time.perf_counter()
         request_output = self.llm.generate(
-            chat_prompt,
+            llm_input,
             SamplingParams(temperature=temperature, max_tokens=max_tokens, seed=seed),
             use_tqdm=False,
         )[0]
@@ -157,6 +209,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", action="append", dest="prompts", default=[DEFAULT_PROMPT])
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--model-revision", default="")
+    parser.add_argument("--image-path", default="", help="Optional local or remote image path for multimodal prompting.")
     parser.add_argument("--canvas-length", type=int, default=DEFAULT_CANVAS_LENGTH)
     parser.add_argument("--entropy-bound", type=float, default=DEFAULT_ENTROPY_BOUND)
     parser.add_argument("--max-model-len", type=int, default=DEFAULT_MAX_MODEL_LEN)
@@ -179,17 +232,32 @@ if __name__ == "__main__":
         max_model_len=args.max_model_len,
     )
 
-    df = (
-        daft.from_pydict(
-            {
-                "prompt": prompts,
-                "seed": [args.seed + index for index in range(len(prompts))],
-                "max_tokens": [args.max_tokens] * len(prompts),
-                "temperature": [args.temperature] * len(prompts),
-                "enable_thinking": [args.enable_thinking] * len(prompts),
-            }
+    data = {
+        "prompt": prompts,
+        "seed": [args.seed + index for index in range(len(prompts))],
+        "max_tokens": [args.max_tokens] * len(prompts),
+        "temperature": [args.temperature] * len(prompts),
+        "enable_thinking": [args.enable_thinking] * len(prompts),
+    }
+    if args.image_path:
+        data["image_path"] = [args.image_path] * len(prompts)
+    df = daft.from_pydict(data)
+    if args.image_path:
+        from daft.functions import file
+
+        df = df.with_column("image_file", file(col("image_path"))).with_column(
+            "result",
+            gemma.generate_from_image(
+                col("prompt"),
+                col("image_file"),
+                max_tokens=col("max_tokens"),
+                temperature=col("temperature"),
+                seed=col("seed"),
+                enable_thinking=col("enable_thinking"),
+            ),
         )
-        .with_column(
+    else:
+        df = df.with_column(
             "result",
             gemma.generate(
                 col("prompt"),
@@ -199,8 +267,7 @@ if __name__ == "__main__":
                 enable_thinking=col("enable_thinking"),
             ),
         )
-        .select(unnest(col("result")))
-    )
+    df = df.select(unnest(col("result")))
     df = df.collect()
 
     df.show(format="fancy", max_width=100)

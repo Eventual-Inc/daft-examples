@@ -40,6 +40,7 @@ models = [
     "faster-whisper",
     "huggingface_hub",
     "modal",
+    "pillow",
 ]
 # Local helpers for the transcribe+diarize benchmark (metrics + entrypoints).
 # The GPU inference stacks (nemo, pyannote, ctranslate2) live in the lane images.
