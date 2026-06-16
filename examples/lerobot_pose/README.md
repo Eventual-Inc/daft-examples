@@ -1,4 +1,7 @@
 # LeRobot + H-RDT: per-frame 48-D action prediction with Daft
+
+> **Two pipelines over the same dataset:** the H-RDT **action-prediction** pipeline documented below, and a lighter **CLIP scenario-querying** pipeline — jump to [Scenario querying with CLIP (SigLIP)](#scenario-querying-with-clip-siglip).
+
 This example reads the [EgoDex test dataset](https://huggingface.co/datasets/pepijn223/egodex-test) (LeRobot v3 format) as a lazy Daft DataFrame — one row per frame, with the decoded camera image and the 48-D hand state — runs the [H-RDT](https://github.com/HongzheBi/H_RDT) policy on every frame, and stores the predicted 48-D action vector as a new column.
 
 ```
@@ -23,6 +26,10 @@ out/egodex_hrdt_predictions/
 | `predict_poses.py` | The pipeline: decode frames → batched H-RDT inference → write parquet (pure predictions). |
 | `compute_metrics.py` | Score the predictions: per-frame `avg_keypoint_distance_m` (EgoDex paper metric, arXiv:2505.11709 §4.3) + per-episode and overall summaries. Torch-free, re-runnable in seconds. |
 | `visualize_predictions.py` | Project predicted vs ground-truth hand poses onto frames; writes PNG overlays and per-episode mp4s. |
+| `clip_features.py` | SigLIP image/text embedding + `hand_curl` pose-feature UDFs, shared by the two CLIP scripts below. |
+| `run_clip_features.py` | Embed a chosen set of episodes once with SigLIP → small features parquet (the only GPU step). |
+| `query_local.py` | Cheap local scenario query over the stored embeddings: text → cosine similarity + hand-curl ranking (no GPU). |
+| `requirements-clip.txt` | Pip deps for the CLIP pipeline only (the H-RDT setup is heavier — see Setup). |
 
 ## Setup
 
@@ -105,4 +112,61 @@ uv run visualize_predictions.py
 `observation.state`, `ground_truth_action`, `predicted_action` (48-D
 `embedding` column), ready for `daft.read_parquet` to evaluate prediction error
 against the ground-truth actions.
+
+## Scenario querying with CLIP (SigLIP)
+
+A second, lighter pipeline on the same dataset. Instead of predicting actions,
+it makes each frame *searchable* by pairing a cheap geometric pose feature with
+semantic image embeddings — so you can ask for "a curled hand" near "a cup"
+without running any model at query time.
+
+The pattern is **embed once, query many**:
+
+1. `run_clip_features.py` decodes ~1 fps of a chosen list of episodes, runs
+   SigLIP once per frame, and writes a small parquet of unit-norm image
+   embeddings (plus `observation.state`). This is the only GPU step.
+2. `query_local.py` reads that parquet, derives `hand_curl` from the pose
+   locally (free), encodes your text query once, and ranks frames by cosine
+   similarity. No model runs over the frames here, so queries are instant and
+   run anywhere (CPU).
+
+```
+LeRobot v3 dataset ──► run_clip_features.py ──► out/clip_features/   (embed once, GPU)
+                                                      │
+                          query_local.py "a cup" ◄────┘             (query many, CPU)
+```
+
+### Run it on a GPU box (e.g. EC2)
+
+Plain single-node Daft against a released `daft` wheel — no build from source,
+no extra services.
+
+```bash
+git clone https://github.com/Eventual-Inc/daft-examples
+cd daft-examples/examples/lerobot_pose
+git checkout shreyas/lerobot-clip-ec2
+
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-clip.txt
+hf auth login                       # only needed for a private HF dataset
+
+# 1. Embed the chosen episodes once (GPU auto-detected). Edit EPISODES in
+#    clip_features.py, or read a local dataset copy with DATASET=/abs/path.
+python run_clip_features.py
+
+# 2. Ask scenario questions over the stored embeddings — instant, CPU-only.
+python query_local.py "a cup"
+python query_local.py "an open drawer"
+```
+
+- **Device.** `clip_features.py` auto-selects CUDA on the GPU box (CPU/MPS
+  otherwise); force it with `CLIP_DEVICE=cpu`. On a Linux GPU box the default
+  `pip install torch` wheel already includes CUDA.
+- **What to embed.** Episodes are chosen by `episode_index` (`EPISODES` in
+  `clip_features.py`); `SUBSAMPLE=30` keeps ~1 fps. The cheap
+  `episode_index`/`frame_index` filters push *below* the video decoder, so only
+  those frames are ever decoded.
+- **Ranking, not thresholds.** SigLIP cosine scores are small and not
+  0–1 calibrated, so `query_local.py` sorts by similarity (top-k). Use the
+  optional `SIM_MIN` / `CURL_MAX` cutoffs only after eyeballing the scores.
 
