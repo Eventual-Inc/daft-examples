@@ -56,6 +56,7 @@ SWAP_MATRIX: list[SwapConfig] = [
         "parakeet+sortformer",
         asr="parakeet",
         diarizer="sortformer",
+        vad="marblenet",
         note="★ fastest end-to-end; Sortformer = joint VAD+diar",
     ),
     SwapConfig(

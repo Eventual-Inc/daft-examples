@@ -35,8 +35,11 @@ Prefer backends in this order, and state the choice in the model's README:
 | --- | --- | --- |
 | [`cosmos3/`](./cosmos3/) | offline vLLM (vLLM-Omni) | text → image / video world generation |
 | [`diffusion_gemma/`](./diffusion_gemma/) | offline vLLM (nightly, block diffusion) | text → text generation |
-| [`sam3d_body/`](./sam3d_body/) | PyTorch | image → 3D human mesh recovery |
 | [`faster_whisper/`](./faster_whisper/) | CTranslate2 (PyTorch-family) | audio → transcript + VAD |
+| [`parakeet/`](./parakeet/) | NeMo (PyTorch) | audio → transcript + timestamps |
+| [`pyannote/`](./pyannote/) | PyTorch | audio → speaker diarization |
+| [`sam3d_body/`](./sam3d_body/) | PyTorch | image → 3D human mesh recovery |
+| [`sortformer/`](./sortformer/) | NeMo (PyTorch) | audio + transcript → speaker diarization |
 
 ## Import conventions
 

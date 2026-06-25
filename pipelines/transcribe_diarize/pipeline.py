@@ -18,6 +18,7 @@ if _REPO_ROOT not in sys.path:
 
 import daft
 from daft import col
+from daft.functions import audio_file, audio_metadata
 from models.common.speech import SegmentStruct, merge_speakers
 
 AUDIO_EXTENSION_RE = r".*\.(aac|flac|m4a|mp3|ogg|opus|wav)$"
@@ -40,31 +41,89 @@ def resolve_source(source: str) -> str:
 
 def _build_asr(asr: str, *, model: str = "", vad: str = "none", language: str = "", **kwargs):
     if asr == "parakeet" or asr == "canary":
-        from models.parakeet.model import DEFAULT_MODEL, ParakeetASR, attach_transcript
+        from models.parakeet.model import ParakeetASR, attach_transcript
 
-        processor = ParakeetASR(model=model or DEFAULT_MODEL, vad=vad, language=language, **kwargs)
+        processor_kwargs = {"vad": vad, "language": language, **kwargs}
+        if model:
+            processor_kwargs["model"] = model
+        processor = ParakeetASR(**processor_kwargs)
         return processor, attach_transcript
     if asr == "faster_whisper":
-        from models.faster_whisper.asr import DEFAULT_MODEL, FasterWhisperASR, attach_transcript
+        from models.faster_whisper.asr import FasterWhisperASR, attach_transcript
 
         whisper_vad = vad if vad in ("builtin", "none") else "builtin"
-        processor = FasterWhisperASR(model=model or DEFAULT_MODEL, vad=whisper_vad, language=language, **kwargs)
+        processor_kwargs = {"vad": whisper_vad, "language": language, **kwargs}
+        if model:
+            processor_kwargs["model"] = model
+        processor = FasterWhisperASR(**processor_kwargs)
         return processor, attach_transcript
     raise ValueError(f"unknown ASR backend '{asr}'")
 
 
 def _build_diarizer(diarizer: str, *, model: str = ""):
     if diarizer == "sortformer":
-        from models.sortformer.model import DEFAULT_MODEL, SortformerDiarizer, attach_speakers
+        from models.sortformer.model import SortformerDiarizer, attach_speakers
 
-        return SortformerDiarizer(model=model or DEFAULT_MODEL), attach_speakers
+        return SortformerDiarizer(**({"model": model} if model else {})), attach_speakers
     if diarizer == "pyannote":
-        from models.pyannote.model import DEFAULT_MODEL, PyannoteDiarizer, attach_speakers
+        from models.pyannote.model import PyannoteDiarizer, attach_speakers
 
-        return PyannoteDiarizer(model=model or DEFAULT_MODEL), attach_speakers
+        return PyannoteDiarizer(**({"model": model} if model else {})), attach_speakers
     if diarizer == "none":
         return None, None
     raise ValueError(f"unknown diarizer backend '{diarizer}'")
+
+
+def _build_nemo_dataframe(
+    source: str,
+    *,
+    asr: str,
+    diarizer: str,
+    vad: str,
+    asr_model: str,
+    diarizer_model: str,
+    language: str,
+    asr_kwargs: dict | None,
+    include_vad_stats: bool,
+) -> daft.DataFrame:
+    from models.parakeet.model import TranscribeDiarizeVad
+
+    if asr not in ("parakeet", "canary"):
+        raise ValueError(f"unknown NeMo ASR backend '{asr}'")
+    if diarizer not in ("sortformer", "none"):
+        raise ValueError(f"unknown NeMo diarizer backend '{diarizer}'")
+
+    processor_kwargs = {"vad": vad, "diarizer": diarizer, "language": language, **(asr_kwargs or {})}
+    if asr_model:
+        processor_kwargs["asr_model"] = asr_model
+    if diarizer_model:
+        processor_kwargs["diarizer_model"] = diarizer_model
+    processor = TranscribeDiarizeVad(**processor_kwargs)
+    df = (
+        daft.from_glob_path(resolve_source(source))
+        .where(col("size") > 0)
+        .where(col("path").lower().regexp(AUDIO_EXTENSION_RE))
+        .with_column("audio", audio_file(col("path")))
+        .with_column("audio_metadata", audio_metadata(col("audio")))
+        .with_column("duration", col("audio_metadata")["frames"] / col("audio_metadata")["sample_rate"])
+        .with_column("out", processor.process(col("audio"), col("duration")))
+        .with_column("transcript", col("out")["transcript"])
+        .with_column("segments", col("out")["segments"])
+        .with_column("speaker_segments", col("out")["speaker_segments"])
+        .with_column("info", col("out")["info"])
+        .where(col("transcript").length() > 0)
+    )
+
+    select_cols = ["path", "size", "transcript", "segments"]
+    if diarizer == "sortformer":
+        select_cols.append("speaker_segments")
+    select_cols.append("info")
+    if include_vad_stats:
+        df = df.with_column("vad_speech_seconds", col("out")["vad_speech_seconds"]).with_column(
+            "vad_seconds_removed", col("out")["vad_seconds_removed"]
+        )
+        select_cols.extend(["vad_speech_seconds", "vad_seconds_removed"])
+    return df.select(*select_cols)
 
 
 def build_dataframe(
@@ -78,8 +137,30 @@ def build_dataframe(
     language: str = "",
     row_batch_size: int = 16,
     asr_kwargs: dict | None = None,
+    include_vad_stats: bool = False,
 ) -> daft.DataFrame:
     """Build the transcribe(+diarize) DataFrame for one backend configuration."""
+    asr_lane = ASR_LANE.get(asr)
+    diarizer_lane = DIARIZER_LANE.get(diarizer, asr_lane)
+    if asr_lane is None:
+        raise ValueError(f"unknown ASR backend '{asr}'")
+    if diarizer_lane != asr_lane:
+        raise ValueError(
+            f"ASR backend '{asr}' and diarizer '{diarizer}' are in different lanes and cannot run in one pass"
+        )
+    if asr_lane == "nemo":
+        return _build_nemo_dataframe(
+            source,
+            asr=asr,
+            diarizer=diarizer,
+            vad=vad,
+            asr_model=asr_model,
+            diarizer_model=diarizer_model,
+            language=language,
+            asr_kwargs=asr_kwargs,
+            include_vad_stats=include_vad_stats,
+        )
+
     asr_processor, attach_transcript = _build_asr(
         asr, model=asr_model, vad=vad, language=language, **(asr_kwargs or {})
     )
