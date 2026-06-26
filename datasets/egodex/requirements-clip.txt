@@ -1,0 +1,15 @@
+# Dependencies for the CLIP scenario-querying pipeline only:
+#   clip_features.py + run_clip_features.py + query_local.py + the vendored lerobot.py reader.
+# The H-RDT action-prediction pipeline has a heavier, separate setup — see the README "Setup".
+#
+#   pip install -r requirements-clip.txt
+#
+# On a Linux GPU box the default `torch` wheel already bundles CUDA.
+daft>=0.7.15
+torch
+transformers>=5.0
+sentencepiece          # SigLIP's text tokenizer
+pillow                 # decode frames -> PIL images for the processor
+numpy
+av                     # PyAV: the reader decodes video frames by timestamp
+huggingface_hub        # token lookup for a private HF dataset
