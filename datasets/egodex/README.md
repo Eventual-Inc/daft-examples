@@ -37,7 +37,6 @@ redistribute the converted dataset or clips derived from it.
 | `clip_features.py` | SigLIP-2 image/text embedding UDF (`@daft.cls`). |
 | `run_clip_features.py` | Embed frames once with SigLIP → embeddings parquet (the only GPU step). |
 | `query_ui.py` | Gradio demo: filter by pose scenario, rank by semantic text, play matched segments. |
-| `test_skeleton_features.py` | Verify the 204-D geometry against synthetic + real data. |
 
 ## Run it
 
@@ -55,7 +54,6 @@ DATASET=./egodex_lerobot_full python run_clip_features.py     # → out/clip_fea
 DATASET=./egodex_lerobot_full python query_ui.py              # prints a local + share URL
 
 # verify the geometry library
-DATA=./egodex_lerobot_full python test_skeleton_features.py
 ```
 
 ## How it works
