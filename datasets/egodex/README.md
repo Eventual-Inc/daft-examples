@@ -52,8 +52,6 @@ DATASET=./egodex_lerobot_full python run_clip_features.py     # → out/clip_fea
 
 # 3) Launch the query UI
 DATASET=./egodex_lerobot_full python query_ui.py              # prints a local + share URL
-
-# verify the geometry library
 ```
 
 ## How it works
