@@ -1,0 +1,6 @@
+# local-only: data, outputs, envs (never commit — EgoDex is CC-BY-NC-ND)
+egodex_lerobot_full
+out
+.venv
+__pycache__/
+*.parquet

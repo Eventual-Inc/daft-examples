@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
+
 SIDES = ("left", "right")
 FINGERS = ("Thumb", "Index", "Middle", "Ring", "Little")
 
@@ -23,6 +24,7 @@ FINGERS = ("Thumb", "Index", "Middle", "Ring", "Little")
 # palm-facing convention. Calibrated against the 48-D rot6d palm normal
 # (see test_skeleton_features.py).
 PALM_SIGN = {"left": -1.0, "right": -1.0}
+
 
 
 def _build_joint_names():
@@ -45,10 +47,8 @@ def finger_joint_names(side, finger):
     infix = "" if finger == "Thumb" else "Finger"
     return [f"{side}{finger}{infix}{part}" for part in finger_part_names(finger)]
 
-
 JOINT_NAMES = _build_joint_names()
 JOINT_INDEX = {name: i for i, name in enumerate(JOINT_NAMES)}
-
 
 def joint_position(skeleton, joint_name):
     """(N, 3) world position of a named joint from the (N, 204) skeleton."""

@@ -20,9 +20,6 @@ from transformers import AutoModel, AutoProcessor
 # Resolve the device ONCE. CUDA on the EC2 GPU box; CPU/MPS for a local smoke
 # test. gpus=0 when there's no CUDA so @daft.cls doesn't demand a GPU on a CPU
 # machine. Force with CLIP_DEVICE=cpu (e.g. to test the CPU path on a Mac).
-_HAS_CUDA = torch.cuda.is_available()
-GPUS = 1 if _HAS_CUDA else 0
-
 
 def _auto_device() -> str:
     if _HAS_CUDA:
@@ -31,6 +28,8 @@ def _auto_device() -> str:
         return "mps"
     return "cpu"
 
+_HAS_CUDA = torch.cuda.is_available()
+GPUS = 1 if _HAS_CUDA else 0
 
 DEVICE = os.environ.get("CLIP_DEVICE", _auto_device())
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32

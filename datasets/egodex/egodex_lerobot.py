@@ -5,7 +5,7 @@
 # ///
 """EgoDex (raw HDF5) → LeRobot-format frame features, in Daft.
 
-Reads raw EgoDex HDF5 with daft.datasets.hdf5.read and produces the per-frame
+Reads raw EgoDex HDF5 with the vendored hdf5_example.read and produces the per-frame
 LeRobot feature columns (observation.state[48], observation.extrinsics[16],
 action[48], task), then writes an on-disk LeRobot v3 dataset (tabular only — the
 observation.image video feature is added separately by egodex_video.py).
@@ -17,17 +17,28 @@ import numpy as np
 import daft
 from daft import col
 from daft.datatype import DataType
-from daft.datasets import hdf5
+import hdf5_example  # vendored HDF5 reader; the real daft.datasets.hdf5 ships in Daft soon
 from daft.functions import coalesce, when
 from daft.udf import func
 from daft.window import Window
 import pathlib
 import shutil
 
-FPS = 30.0
+def finger_transforms(side, finger):
+    infix = "" if finger == "Thumb" else "Finger"
+    parts = (["Metacarpal"] if finger != "Thumb" else []) + ["Knuckle", "IntermediateBase", "IntermediateTip", "Tip"]
+    return [f"transforms/{side}{finger}{infix}{part}" for part in parts]
 
+def side_transforms(side):
+    arm = [f"transforms/{side}{j}" for j in ("Hand", "Forearm", "Arm", "Shoulder")]
+    fingers = [t for finger in FINGERS for t in finger_transforms(side, finger)]
+    return arm + fingers
+
+FPS = 30.0
+ 
 # observation.state is 48 floats: per hand, wrist xyz + rot6d (first two rotation
-# columns) + 5 fingertip xyz (thumb..little); left hand then right hand.
+# columns) + 5 fingertip xyz (thumb..little); left hand then right hand. observation.skeleton is 204 floats: 
+# the xyz translation of every joint, in joint order. 
 WRIST = {"left": "transforms/leftHand", "right": "transforms/rightHand"}
 TIPS = {
     "left": [
@@ -54,28 +65,10 @@ STATE_TRANSFORMS = [
     *TIPS["right"],
 ]
 ATTRS = ["llm_description", "llm_description2", "which_llm_description"]
-
-# observation.skeleton is 204 floats: the xyz translation of every joint, in
-# joint order. Per side: hand, forearm, arm, shoulder, then each finger chain
-# (thumb has 4 parts; index/middle/ring/little add a metacarpal); then body
-# joints (hip, spine1-7, neck1-4). Camera is excluded (it is observation.extrinsics).
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"]
-
-def finger_transforms(side, finger):
-    infix = "" if finger == "Thumb" else "Finger"
-    parts = (["Metacarpal"] if finger != "Thumb" else []) + ["Knuckle", "IntermediateBase", "IntermediateTip", "Tip"]
-    return [f"transforms/{side}{finger}{infix}{part}" for part in parts]
-
-def side_transforms(side):
-    arm = [f"transforms/{side}{j}" for j in ("Hand", "Forearm", "Arm", "Shoulder")]
-    fingers = [t for finger in FINGERS for t in finger_transforms(side, finger)]
-    return arm + fingers
-
 BODY_TRANSFORMS = [f"transforms/{j}" for j in ("hip", *(f"spine{i}" for i in range(1, 8)), *(f"neck{i}" for i in range(1, 5)))]
 SKELETON_TRANSFORMS = side_transforms("left") + side_transforms("right") + BODY_TRANSFORMS
 SKELETON_DIM = len(SKELETON_TRANSFORMS) * 3
-
-# Transforms every convertible episode must contain (used by egodex_preflight).
 REQUIRED_TRANSFORMS = SKELETON_TRANSFORMS + [CAMERA]
 
 def hand_block(wrist, tips):
@@ -104,7 +97,7 @@ def build_skeleton(*joints):
 
 def egodex_frames(path):
     """Read raw EgoDex HDF5 → per-frame LeRobot feature columns (no video)."""
-    df = hdf5.read(path, datasets=SKELETON_TRANSFORMS + [CAMERA], attrs=ATTRS)
+    df = hdf5_example.read(path, datasets=SKELETON_TRANSFORMS + [CAMERA], attrs=ATTRS)
     df = df.with_column("observation.state", build_state(*[col(n) for n in STATE_TRANSFORMS]))
     df = df.with_column("observation.skeleton", build_skeleton(*[col(n) for n in SKELETON_TRANSFORMS]))
     df = df.with_column("observation.extrinsics", build_extrinsics(col(CAMERA)))

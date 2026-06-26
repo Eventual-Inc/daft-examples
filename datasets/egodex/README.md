@@ -28,7 +28,7 @@ redistribute the converted dataset or clips derived from it.
 
 | File | Purpose |
 | --- | --- |
-| `hdf5.py` | Vendored `daft.datasets` HDF5 reader. |
+| `hdf5_example.py` | Vendored HDF5 reader (the real `daft.datasets.hdf5` ships in Daft soon). |
 | `lerobot.py` | Vendored `daft.datasets.lerobot` v3 reader (one row per frame, lazy video decode). |
 | `egodex_lerobot.py` | Convert raw EgoDex HDF5 → LeRobot v3, emitting 48-D `observation.state` and 204-D `observation.skeleton`. |
 | `pose_features.py` | Per-frame features from the 48-D state (curl, wrist, palm normal, pinch, aperture). |
