@@ -17,13 +17,6 @@ LeRobot v3 dataset
 query_ui.py                        # filter by pose scenario + rank by semantic text
 ```
 
-## ⚠️ Dataset license
-
-EgoDex is released under **CC-BY-NC-ND**: non-commercial use only, and **no redistribution of
-derivatives**. These scripts contain no EgoDex data — you must obtain your own copy from
-[apple/ml-egodex](https://github.com/apple/ml-egodex) and run the conversion locally. Do not
-redistribute the converted dataset or clips derived from it.
-
 ## Files
 
 | File | Purpose |
@@ -41,7 +34,7 @@ redistribute the converted dataset or clips derived from it.
 ## Run it
 
 ```bash
-# 0) Convert your licensed EgoDex HDF5 → a local LeRobot v3 dataset (one-time)
+# 0) Convert your EgoDex HDF5 → a local LeRobot v3 dataset (one-time)
 python egodex_lerobot.py                      # writes ./egodex_lerobot_full
 
 # 1) Geometry precompute — Daft windows, CPU, a few minutes
