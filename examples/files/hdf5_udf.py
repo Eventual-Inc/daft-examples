@@ -1,7 +1,11 @@
 # /// script
-# description = "Read a HDF5 file and return a struct of the requested fields"
+# description = "Runnable demo of the egodex facade: raw EgoDex HDF5 -> a queryable hand-pose dataset."
 # requires-python = ">=3.12, <3.13"
-# dependencies = ["daft[hdf5]>=0.7.16"]
+# dependencies = ["daft[hdf5]"]
+#
+# [tool.uv]
+# prerelease = "allow"
+# extra-index-url = ["https://nightly.daft.ai"]
 # ///
 import h5py
 
