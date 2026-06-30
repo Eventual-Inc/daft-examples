@@ -1,8 +1,3 @@
-# /// script
-# description = "Gradio UI: search EgoDex by hand-pose scenario plus SigLIP semantic text, with clip playback"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.15", "gradio>=5,<6", "torch", "transformers", "numpy"]
-# ///
 """Pose-first scenario search over EgoDex, with semantic ranking and per-match playback.
 
 Primary control is the HAND-POSE query (top, always visible) — a Daft DataFrame
@@ -33,17 +28,16 @@ from itertools import count
 import daft
 import gradio as gr
 import numpy as np
-import torch
-from daft import col, lit
-from transformers import AutoModel, AutoProcessor
+from daft import col
 
-import lerobot
+from daft.datasets import lerobot
+import egodex                       # facade: pose predicate, calibrate, segments, text encoder
 import pose_features as pf
-from clip_features import DEVICE, MODEL_ID, _normalized_embedding
+import skeleton_features as SK
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get("OUT", os.path.join(HERE, "out", "clip_features"))
-POSE_OUT = os.environ.get("POSE_OUT", os.path.join(HERE, "out", "pose_features"))  # precomputed geometry
+POSE_OUT = os.environ.get("POSE_OUT", os.path.join(HERE, "out", "pose_features"))  # facade features (continuous-only); written by run_pose_features.py
 DATASET = os.environ.get("DATASET", "./egodex_lerobot_full")  # full pose(48+204)+video dataset
 CLIPS_DIR, FRAMES_DIR = os.path.join(HERE, "ui_clips"), os.path.join(HERE, "ui_frames")
 os.makedirs(CLIPS_DIR, exist_ok=True)
@@ -58,7 +52,6 @@ MIN_CLIP_SECS = 1.2       # expand brief segments (e.g. a grasp) to at least thi
 SEG_CLIP_MAX = 12.0       # cap clip length; a long continuous match shows its middle 12 s
 SEMANTIC_WIN = 1.5        # seconds each side of the best frame for semantic-only (no pose) fallback
 MAX_THUMBS = 16           # max exact-matched-frame thumbnails shown per segment
-TWIST_ROLL_THR = 2.0      # rad/s of TRUE forearm roll (pronation/supination); absolute, not percentile
 
 # ── warm state: embeddings ──────────────────────────────────────────────────
 print("loading embeddings…")
@@ -86,7 +79,8 @@ for e, t, ci, fi, a, b in zip(_m["episode_index"], _m["tasks"], _m[f"videos/{_k}
 # ── warm state: raw pose, ONLY for the player's live skeleton overlay (viz) ──
 print("loading raw pose for the player overlay…")
 _p = lerobot.read(DATASET).where(col("episode_index").is_in(sorted(EP_ROWS))).select(
-    "episode_index", "frame_index", "observation.state", "observation.extrinsics").to_pydict()
+    "episode_index", "frame_index", "observation.state", "observation.extrinsics",
+    "observation.skeleton").to_pydict()
 pep = np.asarray(_p["episode_index"]); pfr = np.asarray(_p["frame_index"])
 S = np.asarray(_p["observation.state"], dtype=np.float32)
 X = np.asarray(_p["observation.extrinsics"], dtype=np.float32)
@@ -98,7 +92,8 @@ pf.add_angular_velocity(F, S, pep, pfr, FPS)
 # ── query features: read the PRECOMPUTED geometric parquet (run_pose_features.py) ──
 # Decoupled from the UI — scenarios are computed once offline, never recomputed here.
 print("loading precomputed pose features…")
-_q = daft.read_parquet(POSE_OUT).where(col("episode_index").is_in(sorted(EP_ROWS))).to_pydict()
+_pose = daft.read_parquet(POSE_OUT).where(col("episode_index").is_in(sorted(EP_ROWS)))
+_q = _pose.to_pydict()
 qep = np.asarray(_q["episode_index"]); qfr = np.asarray(_q["frame_index"])
 # nearest embedded frame per query row (bridges 30 fps pose <-> 1 fps embeddings)
 _by = defaultdict(list)
@@ -112,21 +107,15 @@ for e in np.unique(qep):
     prev = np.clip(pos - 1, 0, len(ef) - 1)
     emb_row[idx] = er[np.where(np.abs(ef[pos] - qfr[idx]) <= np.abs(ef[prev] - qfr[idx]), pos, prev)]
 POSE_DF = daft.from_pydict({**{k: np.asarray(v) for k, v in _q.items()}, "emb_row": emb_row}).collect()
-_allclose = np.concatenate([np.asarray(_q["closure_L"]), np.asarray(_q["closure_R"])])
-CLOSE_LO, CLOSE_HI = float(np.percentile(_allclose, 2)), float(np.percentile(_allclose, 98))
-print(f"  POSE_DF: {len(qep)} frames × precomputed pose features (read, not computed)")
+# All scenario thresholds (reach/still/articulation percentiles, grip cut-points, closure band)
+# computed once from the continuous columns — the same calibrate() the notebook/query() use.
+# Calibrate off the native parquet frame (`_pose`): it has true List columns, which calibrate's
+# .explode() needs — the from_pydict round-trip above retypes lists as fixed-size tensors.
+THRESHOLDS = egodex.calibrate(_pose)
+print(f"  POSE_DF: {len(qep)} frames × continuous pose features · thresholds calibrated")
 
-GRASP_RATE, LIFT_VEL = 0.20, 0.20    # 48-D thresholds: curl-closing rate (grasping), wrist up-speed (lifting)
-
-print("loading SigLIP-2 text tower…")
-_model = AutoModel.from_pretrained(MODEL_ID).to(DEVICE).eval()
-_proc = AutoProcessor.from_pretrained(MODEL_ID)
-
-
-def encode(text):
-    inp = _proc(text=[text], return_tensors="pt", padding="max_length").to(DEVICE)
-    with torch.no_grad():
-        return _normalized_embedding(_model.get_text_features(**inp))[0].cpu().numpy().astype(np.float32)
+# Text encoding is the facade's (egodex loads the SigLIP-2 text tower once at import).
+encode = egodex._encode_text
 
 
 # ── media: thumbnails + looping segment clips, LRU-cached ────────────────────
@@ -166,21 +155,41 @@ def get_frame(e, fr):
     _frame_put((e, fr), path); return path
 
 
+def _segment_geom(e, start, end):
+    """Single source of truth for a segment clip's geometry: (shard, start_ts, f0, n, dur).
+
+    The clip is centered on [start, end] (frame indices), expanded to >= MIN_CLIP_SECS
+    and capped at SEG_CLIP_MAX. The start is then SNAPPED to an exact frame boundary
+    (a + f0/FPS) so decoded-frame-k of the cut clip is exactly episode-frame (f0 + k) —
+    the same a+f/FPS grid get_frame() uses.
+
+    Why snap: ffmpeg returns the first frame whose pts >= start_ts (a `ceil`), but the
+    old code labeled that frame f0 = round((start_ts - a)*FPS) (a `round`). ceil and
+    round disagree by up to one frame whenever the fractional part is < 0.5, so the
+    skeleton was drawn one frame behind the video. Snapping makes start_ts land on
+    frame f0 exactly, so ceil == round == f0 and the overlay is frame-accurate.
+    """
+    shard, a, b = WINDOW[e]
+    want = min(SEG_CLIP_MAX, max(MIN_CLIP_SECS, (end - start) / FPS + 2 * CLIP_PAD))
+    center = a + (start + end) / 2 / FPS
+    start_ts = max(a, center - want / 2)
+    f0 = int(round((start_ts - a) * FPS))   # integer episode frame …
+    start_ts = a + f0 / FPS                  # … snapped to its exact timestamp (the frame grid)
+    n = max(1, int(round(min(want, b - start_ts) * FPS)))
+    return shard, start_ts, f0, n, n / FPS
+
+
 def get_segment_clip(e, start_frame, end_frame):
     """A short, playable clip covering exactly [start_frame, end_frame] (+pad) — meant to be looped."""
     key = (e, int(start_frame), int(end_frame))
     if (hit := _clip_get(key)):
         return hit
-    shard, a, b = WINDOW[e]
-    # center the clip on the segment, expanded to >= MIN_CLIP_SECS and capped at SEG_CLIP_MAX
-    want = min(SEG_CLIP_MAX, max(MIN_CLIP_SECS, (end_frame - start_frame) / FPS + 2 * CLIP_PAD))
-    center = a + (start_frame + end_frame) / 2 / FPS
-    start_ts = max(a, center - want / 2)
-    dur = max(0.4, min(want, b - start_ts))
+    shard, start_ts, _, _, dur = _segment_geom(e, start_frame, end_frame)
     path = os.path.join(CLIPS_DIR, f"ep{e:04d}_seg{int(start_frame):05d}_{int(end_frame):05d}.mp4")
     if not os.path.exists(path):
-        # re-encode (not stream-copy) so the cut is FRAME-ACCURATE to [start,end] — we want just the match
-        subprocess.run(["ffmpeg", "-y", "-ss", f"{start_ts:.4f}", "-i", shard, "-t", f"{dur:.4f}",
+        # re-encode (not stream-copy) so the cut is FRAME-ACCURATE to [start,end] — we want just the match.
+        # start_ts is frame-snapped (see _segment_geom); .5f keeps the boundary on-grid.
+        subprocess.run(["ffmpeg", "-y", "-ss", f"{start_ts:.5f}", "-i", shard, "-t", f"{dur:.5f}",
                         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "23",
                         "-movflags", "+faststart", path, "-loglevel", "error"], check=True)
     _clip_put(key, path); return path
@@ -191,49 +200,31 @@ def get_segment_clip(e, start_frame, end_frame):
 STATE_SCENARIOS = ["any", "hand openness", "writing grip", "hammer grip"]
 ACTION_SCENARIOS = ["any", "twisting", "lifting", "reaching", "grasping", "in-hand manipulation"]
 
+# UI dropdown labels -> the facade's scenario names (egodex.SCENARIOS keys). "any" passes
+# straight through to egodex.pose_predicate, which maps it to "no pose filter" (None).
+SCENARIO_NAMES = {
+    "hand openness": "openness",
+    "writing grip": "writing_grip",
+    "hammer grip": "hammer_grip",
+    "twisting": "twisting",
+    "reaching": "reaching",
+    "in-hand manipulation": "in_hand",
+    "grasping": "grasping",
+    "lifting": "lifting",
+}
+
 
 def scenario_predicate(category, scenario, hand, open_lo, open_hi):
-    """Daft boolean for one selected scenario, or None (no pose filter)."""
-    if scenario in (None, "any"):
-        return None
-    # openness in [0,1] (1 = fully open palm) -> closure bounds (low closure = open)
-    span = (CLOSE_HI - CLOSE_LO) or 1.0
-    clo_lo = CLOSE_HI - open_hi * span       # higher openness -> lower closure
-    clo_hi = CLOSE_HI - open_lo * span
+    """Daft boolean for one selected scenario, or None (no pose filter).
 
-    def for_hand(h):
-        if scenario == "hand openness":      # openness band, mapped onto the closure column
-            return (col(f"closure_{h}") >= clo_lo) & (col(f"closure_{h}") <= clo_hi)
-        if scenario == "writing grip":
-            return col(f"sc_writing_{h}")
-        if scenario == "hammer grip":
-            return col(f"sc_hammer_{h}")
-        if scenario == "twisting":
-            return col(f"sc_twisting_{h}")
-        if scenario == "reaching":
-            return col(f"sc_reaching_{h}")
-        if scenario == "in-hand manipulation":
-            return col(f"sc_inhand_{h}")
-        if scenario == "grasping":           # action: 48-D curl closing
-            return col(f"curl_rate_{h}") <= -GRASP_RATE
-        if scenario == "lifting":            # action: 48-D wrist moving up
-            return col(f"wrist_vert_vel_{h}") >= LIFT_VEL
-        return lit(True)
-    return for_hand("L") if hand == "left" else for_hand("R") if hand == "right" else (for_hand("L") | for_hand("R"))
+    Delegates to the facade: same predicate the notebook/query() build, evaluated at query
+    time over the continuous-geometry columns against THRESHOLDS (calibrated once at warm-up).
+    """
+    name = SCENARIO_NAMES.get(scenario, scenario)
+    return egodex.pose_predicate(name, hand, THRESHOLDS, open_lo, open_hi)
 
 
-def segments_of(frames):
-    """Contiguous matching runs (merging gaps < SEG_GAP_MERGE). Returns [(start, end), …]."""
-    frames = sorted(frames)
-    if not frames:
-        return []
-    runs, s, prev = [], frames[0], frames[0]
-    for f in frames[1:]:
-        if f - prev > SEG_GAP_MERGE:
-            runs.append((s, prev)); s = f
-        prev = f
-    runs.append((s, prev))
-    return [(a, b) for a, b in runs if b - a + 1 >= SEG_MIN_FRAMES] or runs
+segments_of = egodex.segments_of   # contiguous matching runs (merging gaps < SEG_GAP_MERGE)
 
 
 def search(query, k, hand, category, scenario, open_lo, open_hi):
@@ -289,6 +280,50 @@ _DER_KEYS = ("curl", "palm_up", "pinch", "wrist_speed", "curl_rate", "wrist_angv
 FX = FY = 736.6339            # EgoDex constant camera intrinsics (apple/ml-egodex), 1920x1080
 CX, CY = 960.0, 540.0
 
+# EgoDex's hand-pose stream lags the video by a small, constant amount (no drift —
+# verified by cross-correlating wrist pixel-motion vs frame-differenced image motion,
+# and frame counts/timestamps match exactly). So the overlay for video frame f draws
+# the pose from frame f + POSE_FRAME_OFFSET. 0 = off; +1 is the measured center (bump
+# to +2 if the skeleton still trails fast motion by eye).
+POSE_FRAME_OFFSET = 1
+
+# ── full-skeleton overlay (mirrors export_query_clips): edges from joint chains ──
+SKEL = np.asarray(_p["observation.skeleton"], dtype=np.float32)   # (rows, 204) world joints, POSE_ROW-indexed
+HALF = len(SK.JOINT_NAMES) // 2                                   # first half = left joints, second = right
+
+
+def _skeleton_edges():
+    """Bone connectivity (shoulder→arm→forearm→hand, then each finger chain), per side."""
+    edges = []
+    for side in SK.SIDES:
+        hand = f"{side}Hand"
+        for a, b in [(f"{side}Shoulder", f"{side}Arm"), (f"{side}Arm", f"{side}Forearm"), (f"{side}Forearm", hand)]:
+            edges.append([SK.JOINT_INDEX[a], SK.JOINT_INDEX[b]])
+        for finger in SK.FINGERS:
+            chain = [hand] + SK.finger_joint_names(side, finger)
+            edges += [[SK.JOINT_INDEX[a], SK.JOINT_INDEX[b]] for a, b in zip(chain[:-1], chain[1:])]
+    return edges
+
+
+SKEL_EDGES = _skeleton_edges()
+
+
+def _project_skeleton(skel204, extr16):
+    """Project all 68 world joints to image pixels; flat [x0,y0,x1,y1,...] (None behind camera)."""
+    cfw = np.linalg.inv(np.asarray(extr16, np.float64).reshape(4, 4))
+    world = np.asarray(skel204, np.float64).reshape(68, 3)
+    cam = (cfw @ np.hstack([world, np.ones((68, 1))]).T).T[:, :3]
+    z = cam[:, 2]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        u, v = FX * cam[:, 0] / z + CX, FY * cam[:, 1] / z + CY
+    flat = []
+    for k in range(68):
+        if z[k] <= 0 or not (np.isfinite(u[k]) and np.isfinite(v[k])):
+            flat += [None, None]
+        else:
+            flat += [round(float(u[k]), 1), round(float(v[k]), 1)]
+    return flat
+
 
 def _project(state48, extr16):
     """Project a frame's wrist+5 fingertips (both hands) to image pixels (visualize_predictions math).
@@ -324,13 +359,10 @@ def file_url(path):
 
 
 def _clip_bounds(e, start, end):
-    """Mirror get_segment_clip's trim math so the embedded data aligns with the video."""
-    _, a, b = WINDOW[e]
-    want = min(SEG_CLIP_MAX, max(MIN_CLIP_SECS, (end - start) / FPS + 2 * CLIP_PAD))
-    center = a + (start + end) / 2 / FPS
-    start_ts = max(a, center - want / 2)
-    dur = max(0.4, min(want, b - start_ts))
-    return int(round((start_ts - a) * FPS)), max(1, int(round(dur * FPS)))
+    """(f0, n) for a segment clip — the SAME geometry get_segment_clip cuts, so the
+    overlaid pose aligns with the video frame-for-frame (see _segment_geom)."""
+    _, _, f0, n, _ = _segment_geom(e, start, end)
+    return f0, n
 
 
 def _seg_json(e, start, end, matched):
@@ -338,20 +370,24 @@ def _seg_json(e, start, end, matched):
     per-frame `mt` flag (1 = this exact frame satisfied the pose predicate)."""
     path = get_segment_clip(e, start, end)
     f0, n = _clip_bounds(e, start, end)
-    fing, der, pts, mt, last = [], [], [], [], None
+    fing, der, skel, mt, last, lastp = [], [], [], [], None, None
     for k in range(n):
-        i = POSE_ROW.get((e, f0 + k), last)
+        i = POSE_ROW.get((e, f0 + k), last)                    # video-frame f0+k: table + match flag
         if i is None:
             continue
         last = i
+        # the overlaid pose comes from f0+k+POSE_FRAME_OFFSET (compensates the GT↔video lag)
+        p = POSE_ROW.get((e, f0 + k + POSE_FRAME_OFFSET), lastp if lastp is not None else i)
+        lastp = p
         dL, dR = F["fingerdist_L"][i], F["fingerdist_R"][i]
         fing.append([round(float(x), 3) for x in dL] + [round(float(x), 3) for x in dR])
         der.append([round(float(F[f"{kk}_L"][i]), 3) for kk in _DER_KEYS]
                    + [round(float(F[f"{kk}_R"][i]), 3) for kk in _DER_KEYS])
-        pts.append(_project(S[i], X[i]))                       # 2D landmark overlay for this frame
+        skel.append(_project_skeleton(SKEL[p], X[p]))          # full 68-joint skeleton overlay for this frame
         mt.append(1 if (f0 + k) in matched else 0)             # did THIS frame satisfy the predicate?
     return {"url": file_url(path), "fps": FPS, "f0": f0,
-            "label": f"{_t(start)}–{_t(end)} ({(end-start)/FPS:.1f}s)", "fing": fing, "der": der, "pts": pts, "mt": mt}
+            "label": f"{_t(start)}–{_t(end)} ({(end-start)/FPS:.1f}s)", "fing": fing, "der": der,
+            "skel": skel, "edges": SKEL_EDGES, "half": HALF, "mt": mt}
 
 
 _render_seq = count(1)   # unique token per player render, so the JS re-inits on every new click
@@ -422,17 +458,22 @@ BOOTSTRAP_JS = """() => {
     const v = $('poseVideo'), c = $('poseCanvas'); if (!v || !c) return;
     const W = v.clientWidth, H = v.clientHeight; c.width = W; c.height = H;
     const ctx = c.getContext('2d'); ctx.clearRect(0, 0, W, H);
-    if (!window.POVERLAY || !S.pts || !S.pts[i]) return;
-    const sx = W / (v.videoWidth || 1920), sy = H / (v.videoHeight || 1080), P = S.pts[i];
-    const hand = (off, color) => {
-      const wx = P[off], wy = P[off + 1]; if (wx == null) return;
-      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
-      for (let t = 0; t < 5; t++) { const tx = P[off + 2 + t*2], ty = P[off + 3 + t*2]; if (tx == null) continue;
-        ctx.beginPath(); ctx.moveTo(wx*sx, wy*sy); ctx.lineTo(tx*sx, ty*sy); ctx.stroke();
-        ctx.beginPath(); ctx.arc(tx*sx, ty*sy, 4, 0, 6.283); ctx.fill(); }
-      ctx.beginPath(); ctx.arc(wx*sx, wy*sy, 6, 0, 6.283); ctx.fill();
-    };
-    hand(0, '#22d3ee'); hand(12, '#f59e0b');   // left = cyan, right = amber
+    if (!window.POVERLAY || !S.skel || !S.skel[i]) return;
+    const sx = W / (v.videoWidth || 1920), sy = H / (v.videoHeight || 1080);
+    const P = S.skel[i], half = S.half || 34;                 // P = flat [x0,y0,x1,y1,...] for 68 joints
+    const colOf = (j) => j < half ? '#22d3ee' : '#f59e0b';    // left = cyan, right = amber
+    const xy = (j) => { const x = P[2*j], y = P[2*j+1]; return (x == null) ? null : [x*sx, y*sy]; };
+    ctx.lineWidth = 2;                                        // bones
+    for (const [a, b] of (S.edges || [])) {
+      const pa = xy(a), pb = xy(b); if (!pa || !pb) continue;
+      ctx.strokeStyle = colOf(a);
+      ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+    }
+    for (let j = 0; j < (P.length >> 1); j++) {               // joints
+      const p = xy(j); if (!p) continue;
+      ctx.fillStyle = colOf(j);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 3, 0, 6.283); ctx.fill();
+    }
   };
   window.poseLoad = (i) => {
     if (!window.PSEGS) return;

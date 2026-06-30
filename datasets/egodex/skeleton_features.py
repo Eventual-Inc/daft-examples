@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 SIDES = ("left", "right")
 FINGERS = ("Thumb", "Index", "Middle", "Ring", "Little")
 
@@ -24,7 +23,6 @@ FINGERS = ("Thumb", "Index", "Middle", "Ring", "Little")
 # palm-facing convention. Calibrated against the 48-D rot6d palm normal
 # (see test_skeleton_features.py).
 PALM_SIGN = {"left": -1.0, "right": -1.0}
-
 
 
 def _build_joint_names():
@@ -47,8 +45,10 @@ def finger_joint_names(side, finger):
     infix = "" if finger == "Thumb" else "Finger"
     return [f"{side}{finger}{infix}{part}" for part in finger_part_names(finger)]
 
+
 JOINT_NAMES = _build_joint_names()
 JOINT_INDEX = {name: i for i, name in enumerate(JOINT_NAMES)}
+
 
 def joint_position(skeleton, joint_name):
     """(N, 3) world position of a named joint from the (N, 204) skeleton."""
@@ -180,33 +180,7 @@ def compute_state_features(skeleton: np.ndarray) -> dict:
     return features
 
 
-def calibrate_grip_thresholds(features: dict) -> dict:
-    """Data-driven thresholds for the (static) grip predicates."""
-    flexion = np.concatenate([features["flex_nonthumb_L"], features["flex_nonthumb_R"]])
-    thumb_to_tip = np.concatenate([features["thumb_tip_dist_L"][:, :2], features["thumb_tip_dist_R"][:, :2]])
-    thumb_to_knuckle = np.concatenate([features["thumb_knuckle_dist_L"][:, :2], features["thumb_knuckle_dist_R"][:, :2]])
-    return {
-        "curled_flexion": float(np.percentile(flexion, 70)),                                  # above => a curled finger
-        "curl_gap": float(np.radians(20)),                                                    # ring/little must exceed index/middle by this
-        "thumb_on_tip": float(np.percentile(np.minimum(thumb_to_tip[:, 0], thumb_to_tip[:, 1]), 25)),
-        "thumb_on_knuckle": float(np.percentile(np.minimum(thumb_to_knuckle[:, 0], thumb_to_knuckle[:, 1]), 15)),
-    }
-
-
-def is_writing_grip(features, thresholds, tag):
-    """Tripod: thumb on the index/middle tip, those two not fisted, ring+little more curled."""
-    flexion = features[f"flex_nonthumb_{tag}"]               # (N, 4) index, middle, ring, little
-    thumb_to_tip = features[f"thumb_tip_dist_{tag}"]
-    thumb_on_a_tip = np.minimum(thumb_to_tip[:, 0], thumb_to_tip[:, 1]) < thresholds["thumb_on_tip"]
-    index_middle_not_fisted = (flexion[:, 0] < thresholds["curled_flexion"]) & (flexion[:, 1] < thresholds["curled_flexion"])
-    ring_little_more_curled = ((flexion[:, 2] > flexion[:, 0] + thresholds["curl_gap"])
-                               & (flexion[:, 3] > flexion[:, 1] + thresholds["curl_gap"]))
-    return thumb_on_a_tip & index_middle_not_fisted & ring_little_more_curled
-
-
-def is_hammer_grip(features, thresholds, tag):
-    """Power: all four fingers curled and the thumb tip wrapped across a proximal knuckle."""
-    all_fingers_curled = (features[f"flex_nonthumb_{tag}"] > thresholds["curled_flexion"]).all(1)
-    thumb_to_knuckle = features[f"thumb_knuckle_dist_{tag}"]
-    thumb_wrapped = np.minimum(thumb_to_knuckle[:, 0], thumb_to_knuckle[:, 1]) < thresholds["thumb_on_knuckle"]
-    return all_fingers_curled & thumb_wrapped
+# The grip predicates (writing/hammer) and their threshold calibration used to live here as
+# NumPy. They now live in the Daft layer: egodex.py wraps them as @daft.func
+# (_is_writing_grip / _is_hammer_grip) and egodex.calibrate() derives the thresholds at query
+# time. This module stays pure NumPy — the continuous geometry compute_state_features emits.
