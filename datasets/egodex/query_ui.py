@@ -1,3 +1,8 @@
+# /// script
+# description = "Pose-first scenario search over EgoDex, with semantic ranking and per-match playback."
+# requires-python = ">=3.12, <3.13"
+# dependencies = ["daft[transformers, hdf5, video]>=0.7.16", "gradio"]
+# ///
 """Pose-first scenario search over EgoDex, with semantic ranking and per-match playback.
 
 Primary control is the HAND-POSE query (top, always visible) — a Daft DataFrame
@@ -31,32 +36,33 @@ import numpy as np
 from daft import col
 
 from daft.datasets import lerobot
-import egodex                       # facade: pose predicate, calibrate, segments, text encoder
-import pose_features as pf
-import skeleton_features as SK
+from egodex_lib import egodex, pose_features as pf, skeleton_features as SK
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get("OUT", os.path.join(HERE, "out", "clip_features"))
-POSE_OUT = os.environ.get("POSE_OUT", os.path.join(HERE, "out", "pose_features"))  # facade features (continuous-only); written by run_pose_features.py
+POSE_OUT = os.environ.get(
+    "POSE_OUT", os.path.join(HERE, "out", "pose_features")
+)  # facade features (continuous-only); written by run_pose_features.py
 DATASET = os.environ.get("DATASET", "./egodex_lerobot_full")  # full pose(48+204)+video dataset
 CLIPS_DIR, FRAMES_DIR = os.path.join(HERE, "ui_clips"), os.path.join(HERE, "ui_frames")
 os.makedirs(CLIPS_DIR, exist_ok=True)
 os.makedirs(FRAMES_DIR, exist_ok=True)
 
-KMAX = 24                 # max episodes in the master gallery
-SEG_GAP_MERGE = 5         # merge matching runs separated by < this many frames (~0.17s); keeps spans tight
-SEG_MIN_FRAMES = 1        # keep even instant (1-frame) events, e.g. the moment of grasping
-MAX_SEGS = 12             # cap segments shown per episode (keep the longest)
-CLIP_PAD = 0.3            # seconds of lead-in / lead-out around a segment clip
-MIN_CLIP_SECS = 1.2       # expand brief segments (e.g. a grasp) to at least this, so the loop is watchable
-SEG_CLIP_MAX = 12.0       # cap clip length; a long continuous match shows its middle 12 s
-SEMANTIC_WIN = 1.5        # seconds each side of the best frame for semantic-only (no pose) fallback
-MAX_THUMBS = 16           # max exact-matched-frame thumbnails shown per segment
+KMAX = 24  # max episodes in the master gallery
+SEG_GAP_MERGE = 5  # merge matching runs separated by < this many frames (~0.17s); keeps spans tight
+SEG_MIN_FRAMES = 1  # keep even instant (1-frame) events, e.g. the moment of grasping
+MAX_SEGS = 12  # cap segments shown per episode (keep the longest)
+CLIP_PAD = 0.3  # seconds of lead-in / lead-out around a segment clip
+MIN_CLIP_SECS = 1.2  # expand brief segments (e.g. a grasp) to at least this, so the loop is watchable
+SEG_CLIP_MAX = 12.0  # cap clip length; a long continuous match shows its middle 12 s
+SEMANTIC_WIN = 1.5  # seconds each side of the best frame for semantic-only (no pose) fallback
+MAX_THUMBS = 16  # max exact-matched-frame thumbnails shown per segment
 
 # ── warm state: embeddings ──────────────────────────────────────────────────
 print("loading embeddings…")
 _e = daft.read_parquet(OUT).to_pydict()
-EP = np.asarray(_e["episode_index"]); FR = np.asarray(_e["frame_index"])
+EP = np.asarray(_e["episode_index"])
+FR = np.asarray(_e["frame_index"])
 E = np.asarray(_e["clip_emb"], dtype=np.float32)
 EP_ROWS = {int(x): np.where(EP == x)[0] for x in np.unique(EP)}
 print(f"  {E.shape[0]} embeddings over {len(EP_ROWS)} episodes")
@@ -64,24 +70,45 @@ print(f"  {E.shape[0]} embeddings over {len(EP_ROWS)} episodes")
 print("loading episode metadata…")
 FPS = float(lerobot._read_info(lerobot._normalize_dataset_root(DATASET))["fps"])
 _k = "observation.image"
-_m = lerobot.read_episodes(DATASET, include_video_metadata=True).select(
-    "episode_index", "tasks", f"videos/{_k}/chunk_index", f"videos/{_k}/file_index",
-    f"videos/{_k}/from_timestamp", f"videos/{_k}/to_timestamp").to_pydict()
+_m = (
+    lerobot.read_episodes(DATASET, include_video_metadata=True)
+    .select(
+        "episode_index",
+        "tasks",
+        f"videos/{_k}/chunk_index",
+        f"videos/{_k}/file_index",
+        f"videos/{_k}/from_timestamp",
+        f"videos/{_k}/to_timestamp",
+    )
+    .to_pydict()
+)
 TASK, WINDOW = {}, {}
-for e, t, ci, fi, a, b in zip(_m["episode_index"], _m["tasks"], _m[f"videos/{_k}/chunk_index"],
-                              _m[f"videos/{_k}/file_index"], _m[f"videos/{_k}/from_timestamp"],
-                              _m[f"videos/{_k}/to_timestamp"]):
+for e, t, ci, fi, a, b in zip(
+    _m["episode_index"],
+    _m["tasks"],
+    _m[f"videos/{_k}/chunk_index"],
+    _m[f"videos/{_k}/file_index"],
+    _m[f"videos/{_k}/from_timestamp"],
+    _m[f"videos/{_k}/to_timestamp"],
+):
     e = int(e)
-    TASK[e] = (t[0] if isinstance(t, (list, tuple)) and t else (t or ""))
-    WINDOW[e] = (os.path.join(DATASET, "videos", _k, f"chunk-{int(ci):03d}", f"file-{int(fi):03d}.mp4"),
-                 float(a), float(b))
+    TASK[e] = t[0] if isinstance(t, (list, tuple)) and t else (t or "")
+    WINDOW[e] = (
+        os.path.join(DATASET, "videos", _k, f"chunk-{int(ci):03d}", f"file-{int(fi):03d}.mp4"),
+        float(a),
+        float(b),
+    )
 
 # ── warm state: raw pose, ONLY for the player's live skeleton overlay (viz) ──
 print("loading raw pose for the player overlay…")
-_p = lerobot.read(DATASET).where(col("episode_index").is_in(sorted(EP_ROWS))).select(
-    "episode_index", "frame_index", "observation.state", "observation.extrinsics",
-    "observation.skeleton").to_pydict()
-pep = np.asarray(_p["episode_index"]); pfr = np.asarray(_p["frame_index"])
+_p = (
+    lerobot.read(DATASET)
+    .where(col("episode_index").is_in(sorted(EP_ROWS)))
+    .select("episode_index", "frame_index", "observation.state", "observation.extrinsics", "observation.skeleton")
+    .to_pydict()
+)
+pep = np.asarray(_p["episode_index"])
+pfr = np.asarray(_p["frame_index"])
 S = np.asarray(_p["observation.state"], dtype=np.float32)
 X = np.asarray(_p["observation.extrinsics"], dtype=np.float32)
 # 48-D features for the live inspection table + landmark overlay ONLY (not the query path)
@@ -94,7 +121,8 @@ pf.add_angular_velocity(F, S, pep, pfr, FPS)
 print("loading precomputed pose features…")
 _pose = daft.read_parquet(POSE_OUT).where(col("episode_index").is_in(sorted(EP_ROWS)))
 _q = _pose.to_pydict()
-qep = np.asarray(_q["episode_index"]); qfr = np.asarray(_q["frame_index"])
+qep = np.asarray(_q["episode_index"])
+qfr = np.asarray(_q["frame_index"])
 # nearest embedded frame per query row (bridges 30 fps pose <-> 1 fps embeddings)
 _by = defaultdict(list)
 for i, (e, f) in enumerate(zip(EP, FR)):
@@ -102,7 +130,8 @@ for i, (e, f) in enumerate(zip(EP, FR)):
 _ep_emb = {e: (np.array([x[0] for x in sorted(v)]), np.array([x[1] for x in sorted(v)])) for e, v in _by.items()}
 emb_row = np.empty(len(qep), dtype=np.int64)
 for e in np.unique(qep):
-    idx = np.where(qep == e)[0]; ef, er = _ep_emb[int(e)]
+    idx = np.where(qep == e)[0]
+    ef, er = _ep_emb[int(e)]
     pos = np.clip(np.searchsorted(ef, qfr[idx]), 0, len(ef) - 1)
     prev = np.clip(pos - 1, 0, len(ef) - 1)
     emb_row[idx] = er[np.where(np.abs(ef[pos] - qfr[idx]) <= np.abs(ef[prev] - qfr[idx]), pos, prev)]
@@ -124,7 +153,8 @@ def _lru(maxsize):
 
     def put(key, path):
         with lock:
-            cache[key] = path; cache.move_to_end(key)
+            cache[key] = path
+            cache.move_to_end(key)
             while len(cache) > maxsize:
                 _, old = cache.popitem(last=False)
                 try:
@@ -135,8 +165,10 @@ def _lru(maxsize):
     def get(key):
         with lock:
             if key in cache:
-                cache.move_to_end(key); return cache[key]
+                cache.move_to_end(key)
+                return cache[key]
         return None
+
     return get, put
 
 
@@ -145,14 +177,31 @@ _frame_get, _frame_put = _lru(2000)
 
 
 def get_frame(e, fr):
-    if (hit := _frame_get((e, fr))):
+    if hit := _frame_get((e, fr)):
         return hit
     path = os.path.join(FRAMES_DIR, f"ep{e:04d}_f{fr:05d}.jpg")
     if not os.path.exists(path):
         shard, a, _ = WINDOW[e]
-        subprocess.run(["ffmpeg", "-y", "-ss", f"{a + fr / FPS:.4f}", "-i", shard, "-frames:v", "1", "-q:v", "3",
-                        path, "-loglevel", "error"], check=True)
-    _frame_put((e, fr), path); return path
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                f"{a + fr / FPS:.4f}",
+                "-i",
+                shard,
+                "-frames:v",
+                "1",
+                "-q:v",
+                "3",
+                path,
+                "-loglevel",
+                "error",
+            ],
+            check=True,
+        )
+    _frame_put((e, fr), path)
+    return path
 
 
 def _segment_geom(e, start, end):
@@ -173,8 +222,8 @@ def _segment_geom(e, start, end):
     want = min(SEG_CLIP_MAX, max(MIN_CLIP_SECS, (end - start) / FPS + 2 * CLIP_PAD))
     center = a + (start + end) / 2 / FPS
     start_ts = max(a, center - want / 2)
-    f0 = int(round((start_ts - a) * FPS))   # integer episode frame …
-    start_ts = a + f0 / FPS                  # … snapped to its exact timestamp (the frame grid)
+    f0 = int(round((start_ts - a) * FPS))  # integer episode frame …
+    start_ts = a + f0 / FPS  # … snapped to its exact timestamp (the frame grid)
     n = max(1, int(round(min(want, b - start_ts) * FPS)))
     return shard, start_ts, f0, n, n / FPS
 
@@ -182,17 +231,41 @@ def _segment_geom(e, start, end):
 def get_segment_clip(e, start_frame, end_frame):
     """A short, playable clip covering exactly [start_frame, end_frame] (+pad) — meant to be looped."""
     key = (e, int(start_frame), int(end_frame))
-    if (hit := _clip_get(key)):
+    if hit := _clip_get(key):
         return hit
     shard, start_ts, _, _, dur = _segment_geom(e, start_frame, end_frame)
     path = os.path.join(CLIPS_DIR, f"ep{e:04d}_seg{int(start_frame):05d}_{int(end_frame):05d}.mp4")
     if not os.path.exists(path):
         # re-encode (not stream-copy) so the cut is FRAME-ACCURATE to [start,end] — we want just the match.
         # start_ts is frame-snapped (see _segment_geom); .5f keeps the boundary on-grid.
-        subprocess.run(["ffmpeg", "-y", "-ss", f"{start_ts:.5f}", "-i", shard, "-t", f"{dur:.5f}",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "23",
-                        "-movflags", "+faststart", path, "-loglevel", "error"], check=True)
-    _clip_put(key, path); return path
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                f"{start_ts:.5f}",
+                "-i",
+                shard,
+                "-t",
+                f"{dur:.5f}",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "23",
+                "-movflags",
+                "+faststart",
+                path,
+                "-loglevel",
+                "error",
+            ],
+            check=True,
+        )
+    _clip_put(key, path)
+    return path
 
 
 # ── pose predicate (Daft) + segment extraction ──────────────────────────────
@@ -224,7 +297,7 @@ def scenario_predicate(category, scenario, hand, open_lo, open_hi):
     return egodex.pose_predicate(name, hand, THRESHOLDS, open_lo, open_hi)
 
 
-segments_of = egodex.segments_of   # contiguous matching runs (merging gaps < SEG_GAP_MERGE)
+segments_of = egodex.segments_of  # contiguous matching runs (merging gaps < SEG_GAP_MERGE)
 
 
 def search(query, k, hand, category, scenario, open_lo, open_hi):
@@ -242,7 +315,13 @@ def search(query, k, hand, category, scenario, open_lo, open_hi):
     if pred is not None:
         df = df.where(pred)
     score = (col("sim").max() if has_text else col("frame_index").count()).alias("score")
-    ranked = df.groupby("episode_index").agg(col("frame_index").count().alias("n"), score).sort("score", desc=True).limit(int(k)).to_pydict()
+    ranked = (
+        df.groupby("episode_index")
+        .agg(col("frame_index").count().alias("n"), score)
+        .sort("score", desc=True)
+        .limit(int(k))
+        .to_pydict()
+    )
     top = [int(e) for e in ranked["episode_index"]]
     scores = list(ranked["score"])
 
@@ -256,28 +335,42 @@ def search(query, k, hand, category, scenario, open_lo, open_hi):
     for e, sc in zip(top, scores):
         if pred is not None:
             segs = sorted(sorted(segments_of(frames_by_ep[e]), key=lambda p: p[1] - p[0], reverse=True)[:MAX_SEGS])
-            framelist = sorted(frames_by_ep[e])                    # exact frames where the predicate is true
+            framelist = sorted(frames_by_ep[e])  # exact frames where the predicate is true
         else:  # semantic-only: a window around the episode's best-matching frame
             j = EP_ROWS[e][int(np.argmax(sims[EP_ROWS[e]]))]
-            c = int(FR[j]); w = int(SEMANTIC_WIN * FPS)
+            c = int(FR[j])
+            w = int(SEMANTIC_WIN * FPS)
             segs = [(max(0, c - w), c + w)]
             framelist = list(range(segs[0][0], segs[0][1] + 1, max(1, int(FPS // 3))))
         if segs:
-            results.append({"ep": e, "score": float(sc), "has_text": has_text, "segs": segs, "frames": framelist, "task": TASK.get(e, "")})
+            results.append(
+                {
+                    "ep": e,
+                    "score": float(sc),
+                    "has_text": has_text,
+                    "segs": segs,
+                    "frames": framelist,
+                    "task": TASK.get(e, ""),
+                }
+            )
 
     items = []
     for r in results:
         s0 = r["segs"][0][0]
         sct = f"sim {r['score']:.3f}" if has_text else f"{int(r['score'])} frames"
         items.append((get_frame(r["ep"], s0), f"ep {r['ep']} · {sct} · {len(r['segs'])} match(es)"))
-    status = f"✅ {len(results)} episodes" + (f" · ranked by {query.strip()!r}" if has_text else "") + " · click one (left) to inspect its matches"
+    status = (
+        f"✅ {len(results)} episodes"
+        + (f" · ranked by {query.strip()!r}" if has_text else "")
+        + " · click one (left) to inspect its matches"
+    )
     return items, gr.update(value=status), results, ""
 
 
 # ── client-side player: per-frame pose pushed to the browser, synced to <video> ──
 POSE_ROW = {(int(e), int(f)): i for i, (e, f) in enumerate(zip(pep, pfr))}  # (episode,frame) -> pose-feature row
 _DER_KEYS = ("curl", "palm_up", "pinch", "wrist_speed", "curl_rate", "wrist_angvel")
-FX = FY = 736.6339            # EgoDex constant camera intrinsics (apple/ml-egodex), 1920x1080
+FX = FY = 736.6339  # EgoDex constant camera intrinsics (apple/ml-egodex), 1920x1080
 CX, CY = 960.0, 540.0
 
 # EgoDex's hand-pose stream lags the video by a small, constant amount (no drift —
@@ -288,8 +381,8 @@ CX, CY = 960.0, 540.0
 POSE_FRAME_OFFSET = 1
 
 # ── full-skeleton overlay (mirrors export_query_clips): edges from joint chains ──
-SKEL = np.asarray(_p["observation.skeleton"], dtype=np.float32)   # (rows, 204) world joints, POSE_ROW-indexed
-HALF = len(SK.JOINT_NAMES) // 2                                   # first half = left joints, second = right
+SKEL = np.asarray(_p["observation.skeleton"], dtype=np.float32)  # (rows, 204) world joints, POSE_ROW-indexed
+HALF = len(SK.JOINT_NAMES) // 2  # first half = left joints, second = right
 
 
 def _skeleton_edges():
@@ -335,8 +428,9 @@ def _project(state48, extr16):
     flat = []
     for side in (0, 1):
         base = side * 24
-        world = np.vstack([np.asarray(state48[base:base + 3]),
-                           np.asarray(state48[base + 9:base + 24]).reshape(5, 3)])
+        world = np.vstack(
+            [np.asarray(state48[base : base + 3]), np.asarray(state48[base + 9 : base + 24]).reshape(5, 3)]
+        )
         cam = (cfw @ np.hstack([world, np.ones((6, 1))]).T).T[:, :3]
         z = cam[:, 2]
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -355,7 +449,7 @@ def _t(frame):
 
 
 def file_url(path):
-    return "/gradio_api/file=" + path           # Gradio serves allowed_paths files here
+    return "/gradio_api/file=" + path  # Gradio serves allowed_paths files here
 
 
 def _clip_bounds(e, start, end):
@@ -372,7 +466,7 @@ def _seg_json(e, start, end, matched):
     f0, n = _clip_bounds(e, start, end)
     fing, der, skel, mt, last, lastp = [], [], [], [], None, None
     for k in range(n):
-        i = POSE_ROW.get((e, f0 + k), last)                    # video-frame f0+k: table + match flag
+        i = POSE_ROW.get((e, f0 + k), last)  # video-frame f0+k: table + match flag
         if i is None:
             continue
         last = i
@@ -381,30 +475,44 @@ def _seg_json(e, start, end, matched):
         lastp = p
         dL, dR = F["fingerdist_L"][i], F["fingerdist_R"][i]
         fing.append([round(float(x), 3) for x in dL] + [round(float(x), 3) for x in dR])
-        der.append([round(float(F[f"{kk}_L"][i]), 3) for kk in _DER_KEYS]
-                   + [round(float(F[f"{kk}_R"][i]), 3) for kk in _DER_KEYS])
-        skel.append(_project_skeleton(SKEL[p], X[p]))          # full 68-joint skeleton overlay for this frame
-        mt.append(1 if (f0 + k) in matched else 0)             # did THIS frame satisfy the predicate?
-    return {"url": file_url(path), "fps": FPS, "f0": f0,
-            "label": f"{_t(start)}–{_t(end)} ({(end-start)/FPS:.1f}s)", "fing": fing, "der": der,
-            "skel": skel, "edges": SKEL_EDGES, "half": HALF, "mt": mt}
+        der.append(
+            [round(float(F[f"{kk}_L"][i]), 3) for kk in _DER_KEYS]
+            + [round(float(F[f"{kk}_R"][i]), 3) for kk in _DER_KEYS]
+        )
+        skel.append(_project_skeleton(SKEL[p], X[p]))  # full 68-joint skeleton overlay for this frame
+        mt.append(1 if (f0 + k) in matched else 0)  # did THIS frame satisfy the predicate?
+    return {
+        "url": file_url(path),
+        "fps": FPS,
+        "f0": f0,
+        "label": f"{_t(start)}–{_t(end)} ({(end - start) / FPS:.1f}s)",
+        "fing": fing,
+        "der": der,
+        "skel": skel,
+        "edges": SKEL_EDGES,
+        "half": HALF,
+        "mt": mt,
+    }
 
 
-_render_seq = count(1)   # unique token per player render, so the JS re-inits on every new click
+_render_seq = count(1)  # unique token per player render, so the JS re-inits on every new click
 
 
 def build_player(result):
     """Prefetch all of an episode's segment clips + embed per-frame pose → a self-contained JS player."""
     e, segs = result["ep"], result["segs"]
     token = next(_render_seq)
-    with ThreadPoolExecutor(max_workers=8) as ex:          # prefetch every segment clip in parallel
+    with ThreadPoolExecutor(max_workers=8) as ex:  # prefetch every segment clip in parallel
         list(ex.map(lambda seg: get_segment_clip(e, seg[0], seg[1]), segs))
     matched = set(result["frames"])
     payload = json.dumps([_seg_json(e, s, en, matched) for s, en in segs])
-    _, a, b = WINDOW[e]; total = max(1.0, (b - a) * FPS)
-    bars = "".join(f'<div class="seg-bar" style="position:absolute;left:{100*s/total:.1f}%;'
-                   f'width:{max(0.6, 100*(en-s)/total):.1f}%;top:0;bottom:0;border-radius:2px;background:#93c5fd"></div>'
-                   for s, en in segs)
+    _, a, b = WINDOW[e]
+    total = max(1.0, (b - a) * FPS)
+    bars = "".join(
+        f'<div class="seg-bar" style="position:absolute;left:{100 * s / total:.1f}%;'
+        f'width:{max(0.6, 100 * (en - s) / total):.1f}%;top:0;bottom:0;border-radius:2px;background:#93c5fd"></div>'
+        for s, en in segs
+    )
     bs = "padding:4px 12px;border:1px solid #ccc;border-radius:6px;background:#f7f7f7;cursor:pointer;font-size:14px"
     return f'''<div style="font-family:system-ui,sans-serif">
   <div style="font-weight:600;margin-bottom:8px">ep {e} — {result["task"][:90]}</div>
@@ -514,28 +622,34 @@ def on_select(results, evt: gr.SelectData):
 
 
 # ── layout: compact query bar on top; left = episodes, right = live player ───
-with gr.Blocks(title="EgoDex pose dashboard", css=".gradio-container{max-width:100% !important}", js=BOOTSTRAP_JS) as demo:
-    gr.Markdown("## EgoDex — pose query dashboard &nbsp;<span style='font-weight:400;color:#888'>pose filter (Daft) defines matches · semantic ranks them · click an episode; the table tracks the video live</span>")
+with gr.Blocks(
+    title="EgoDex pose dashboard", css=".gradio-container{max-width:100% !important}", js=BOOTSTRAP_JS
+) as demo:
+    gr.Markdown(
+        "## EgoDex — pose query dashboard &nbsp;<span style='font-weight:400;color:#888'>pose filter (Daft) defines matches · semantic ranks them · click an episode; the table tracks the video live</span>"
+    )
 
-    with gr.Row():     # compact query bar: Type (State/Action) → Scenario
+    with gr.Row():  # compact query bar: Type (State/Action) → Scenario
         hand = gr.Dropdown(["either", "left", "right"], value="either", label="Hand", scale=1)
         category = gr.Dropdown(["State", "Action"], value="State", label="Type", scale=1)
         scenario = gr.Dropdown(STATE_SCENARIOS, value="any", label="Scenario", scale=2)
         query = gr.Textbox(label="Semantic query (optional)", scale=3)
         k_in = gr.Number(label="Max eps", value=12, precision=0, scale=1)
         btn = gr.Button("Search", variant="primary", scale=1)
-    with gr.Row(visible=False) as closure_row:   # shown only for the 'hand openness' state
-        open_lo = gr.Slider(0.0, 1.0, value=0.6, step=0.02,
-                            label="Openness ≥  (0 = fist · 1 = fully open palm)", scale=1)
-        open_hi = gr.Slider(0.0, 1.0, value=1.0, step=0.02,
-                            label="Openness ≤  (keep at 1 to include fully-open hands)", scale=1)
+    with gr.Row(visible=False) as closure_row:  # shown only for the 'hand openness' state
+        open_lo = gr.Slider(
+            0.0, 1.0, value=0.6, step=0.02, label="Openness ≥  (0 = fist · 1 = fully open palm)", scale=1
+        )
+        open_hi = gr.Slider(
+            0.0, 1.0, value=1.0, step=0.02, label="Openness ≤  (keep at 1 to include fully-open hands)", scale=1
+        )
     status = gr.Markdown()
 
     with gr.Row():
-        with gr.Column(scale=2):   # left: episode selection
+        with gr.Column(scale=2):  # left: episode selection
             gr.Markdown("**Episodes** — click one to load the player")
             ep_gallery = gr.Gallery(columns=2, height=560, object_fit="contain", show_label=False)
-        with gr.Column(scale=8):   # right: self-contained client-side player (video + live table + match nav)
+        with gr.Column(scale=8):  # right: self-contained client-side player (video + live table + match nav)
             player = gr.HTML()
 
     results_state = gr.State([])

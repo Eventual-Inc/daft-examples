@@ -23,11 +23,12 @@ also run `embed_frames(df)` (a separate ~1 fps branch) to add `clip_emb`, then p
 `text=`/`text_embeddings=` to query(). `query` is the single ranking core - both this
 script and the live UI (query_ui) call it. See egodex_demo.py for the runnable version.
 """
+
 from __future__ import annotations
 import torch
 from transformers import AutoModel, AutoProcessor
-from clip_features import DEVICE, MODEL_ID, _normalized_embedding
-import clip_features
+from .clip_features import DEVICE, MODEL_ID, _normalized_embedding
+from . import clip_features
 import glob
 import math
 from collections import defaultdict
@@ -42,9 +43,7 @@ import numpy as np
 from daft import DataType, col
 from daft.functions import euclidean_distance
 from daft.window import Window
-import egodex_lerobot 
-import pose_features          # 48-D state features (curl, wrist, rot6d) - numpy
-import skeleton_features      # 204-D skeleton features (closure, grips, arm extension) - numpy
+from . import convert_egodex_to_lerobot, pose_features, skeleton_features
 
 # Action thresholds, surfaced so the blog (and callers) can see/tune them. These
 # mirror query_ui: grasping = curl closing fast enough, lifting = wrist rising fast
@@ -81,6 +80,7 @@ def _rotation_matrix(rot6d):
     second = second / (np.linalg.norm(second) + 1e-9)
     return np.stack([first, second, np.cross(first, second)], axis=1)
 
+
 # daft udf
 @daft.func(return_dtype=DataType.float64())
 def forearm_roll(rot6d, rot6d_next, forearm_axis):
@@ -96,20 +96,24 @@ def forearm_roll(rot6d, rot6d_next, forearm_axis):
     return float(abs(angle * np.dot(axis / magnitude, np.asarray(forearm_axis))))
 
 
-
 # build a Daft boolean from the continuous columns + thresholds ──
 # Each takes (hand 'L'/'R', thr=calibrate() dict). Booleans live here, at query time —
 # features store only continuous geometry. The two grips need per-finger logic, so they
 # drop into a tiny row UDF; everything else is a native comparison.
 # daft udf
 
+
 @daft.func(return_dtype=DataType.bool())
 def _is_writing_grip(flex_nonthumb, thumb_min_tip, curled_flexion, curl_gap, thumb_on_tip):
     """Tripod: thumb on the index/middle tip, those two not fisted, ring+little more curled."""
     flex = np.asarray(flex_nonthumb)
-    return bool(thumb_min_tip < thumb_on_tip
-                and flex[0] < curled_flexion and flex[1] < curled_flexion
-                and flex[2] > flex[0] + curl_gap and flex[3] > flex[1] + curl_gap)
+    return bool(
+        thumb_min_tip < thumb_on_tip
+        and flex[0] < curled_flexion
+        and flex[1] < curled_flexion
+        and flex[2] > flex[0] + curl_gap
+        and flex[3] > flex[1] + curl_gap
+    )
 
 
 # daft udf
@@ -119,42 +123,56 @@ def _is_hammer_grip(flex_nonthumb, thumb_min_knuckle, curled_flexion, thumb_on_k
     flex = np.asarray(flex_nonthumb)
     return bool(bool((flex > curled_flexion).all()) and thumb_min_knuckle < thumb_on_knuckle)
 
+
 # daft expression
 def writing_grip(hand, thr):
     """Tripod/precision grip on `hand` from flexion + thumb-tip distance vs calibrated thresholds."""
-    return _is_writing_grip(col(f"flex_nonthumb_{hand}"), col(f"thumb_min_tip_{hand}"),
-                            thr["curled_flexion"], thr["curl_gap"], thr["thumb_on_tip"])
+    return _is_writing_grip(
+        col(f"flex_nonthumb_{hand}"),
+        col(f"thumb_min_tip_{hand}"),
+        thr["curled_flexion"],
+        thr["curl_gap"],
+        thr["thumb_on_tip"],
+    )
+
 
 # daft expression
 def hammer_grip(hand, thr):
     """Power grip on `hand` from flexion + thumb-knuckle distance vs calibrated thresholds."""
-    return _is_hammer_grip(col(f"flex_nonthumb_{hand}"), col(f"thumb_min_knuckle_{hand}"),
-                           thr["curled_flexion"], thr["thumb_on_knuckle"])
+    return _is_hammer_grip(
+        col(f"flex_nonthumb_{hand}"), col(f"thumb_min_knuckle_{hand}"), thr["curled_flexion"], thr["thumb_on_knuckle"]
+    )
+
 
 # daft expression
 def twisting(hand, thr):
     """Forearm roll past a fixed rate (action) on `hand`."""
     return col(f"roll_{hand}") > TWIST_ROLL_RATE
 
+
 # daft expression
 def reaching(hand, thr):
     """Arm extending faster than the calibrated rate (action) on `hand`."""
     return col(f"arm_ext_rate_{hand}") >= thr["reach"]
+
 
 # daft expression
 def in_hand(hand, thr):
     """Wrist still while fingers move, both vs calibrated thresholds (action) on `hand`."""
     return (col(f"wrist_speed_{hand}") < thr["still"]) & (col(f"articulation_{hand}") > thr["articulation"])
 
+
 # daft expression
 def grasping(hand, thr):
     """Fingers closing fast enough (action): curl rate <= -GRASP_RATE on `hand`."""
     return col(f"curl_rate_{hand}") <= -GRASP_RATE
 
+
 # daft expression
 def lifting(hand, thr):
     """Wrist rising fast enough (action): vertical velocity >= LIFT_VEL on `hand`."""
     return col(f"wrist_vert_vel_{hand}") >= LIFT_VEL
+
 
 # daft expression
 def openness(hand, thr, open_lo=0.0, open_hi=1.0):
@@ -277,9 +295,21 @@ def _encode_text(text):
         return _normalized_embedding(_TEXT_MODEL.get_text_features(**inputs))[0].cpu().numpy().astype(np.float32)
 
 
-def query(frames, pose=None, text=None, k=5, hand="either",
-          open_lo=0.0, open_hi=1.0, thresholds=None, encode=_encode_text, text_sims=None,
-          fps=DEFAULT_FPS, semantic_window=SEMANTIC_WIN, max_segments=MAX_SEGS):
+def query(
+    frames,
+    pose=None,
+    text=None,
+    k=5,
+    hand="either",
+    open_lo=0.0,
+    open_hi=1.0,
+    thresholds=None,
+    encode=_encode_text,
+    text_sims=None,
+    fps=DEFAULT_FPS,
+    semantic_window=SEMANTIC_WIN,
+    max_segments=MAX_SEGS,
+):
     """Rank episodes by a pose scenario and/or a semantic text query - the one query API.
 
     The single ranking core used by both the notebook and the live UI (query_ui
@@ -324,18 +354,26 @@ def query(frames, pose=None, text=None, k=5, hand="either",
             sims = np.asarray(text_sims, dtype=np.float32)
         else:
             sims = np.asarray(keyed["clip_emb"], dtype=np.float32) @ encode(text)
-        sim_table = daft.from_pydict({"episode_index": keyed["episode_index"],
-                                      "frame_index": keyed["frame_index"],
-                                      "sim": sims.astype(np.float32)})
+        sim_table = daft.from_pydict(
+            {
+                "episode_index": keyed["episode_index"],
+                "frame_index": keyed["frame_index"],
+                "sim": sims.astype(np.float32),
+            }
+        )
         scored = scored.join(sim_table, on=["episode_index", "frame_index"])
     if predicate is not None:
         scored = scored.where(predicate)
 
     # rank: pose-only by match count, text by max similarity
     score_column = (col("sim").max() if has_text else col("frame_index").count()).alias("score")
-    ranked = (scored.groupby("episode_index")
-              .agg(col("frame_index").count().alias("n_frames"), score_column)
-              .sort("score", desc=True).limit(int(k)).to_pydict())
+    ranked = (
+        scored.groupby("episode_index")
+        .agg(col("frame_index").count().alias("n_frames"), score_column)
+        .sort("score", desc=True)
+        .limit(int(k))
+        .to_pydict()
+    )
     top_episodes = [int(e) for e in ranked["episode_index"]]
 
     # segments for the ranked episodes (computed on the small, top-k-bounded result)
@@ -352,27 +390,29 @@ def query(frames, pose=None, text=None, k=5, hand="either",
         window = int(semantic_window * fps)
         segments = {e: [(max(0, best_frame[e] - window), best_frame[e] + window)] for e in top_episodes}
 
-    return [{"episode_index": episode, "score": float(score), "n_frames": int(n_frames),
-             "segments": segments[episode]}
-            for episode, score, n_frames in zip(top_episodes, ranked["score"], ranked["n_frames"])]
+    return [
+        {"episode_index": episode, "score": float(score), "n_frames": int(n_frames), "segments": segments[episode]}
+        for episode, score, n_frames in zip(top_episodes, ranked["score"], ranked["n_frames"])
+    ]
 
 
 # ── pipeline stages (the rest of the 6-line notebook interface) ──────────────
 HANDS = (("L", "left"), ("R", "right"))
-WRIST_DIM = 3                  # wrist xyz
-LOCAL_JOINTS_DIM = 72          # hand joints in the hand frame, flattened (24 joints x 3)
+WRIST_DIM = 3  # wrist xyz
+LOCAL_JOINTS_DIM = 72  # hand joints in the hand frame, flattened (24 joints x 3)
+
 
 def convert_egodex_to_lerobot(hdf5_glob, repo_id, output_dir):
     """Convert raw EgoDex HDF5 episodes into a LeRobot v3 dataset on disk; returns output_dir.
 
-    Thin wrapper over egodex_lerobot.write_lerobot, which reads each episode with
+    Thin wrapper over convert_egodex_to_lerobot.write_lerobot, which reads each episode with
     Daft's new Hdf5File type. Requires a Daft build that has the Hdf5File API.
     """
-    
+
     files = sorted(glob.glob(hdf5_glob))
     if not files:
         raise FileNotFoundError(f"no HDF5 files matched {hdf5_glob!r}")
-    return egodex_lerobot.write_lerobot(files, repo_id=repo_id, output_dir=output_dir)
+    return convert_egodex_to_lerobot.write_lerobot(files, repo_id=repo_id, output_dir=output_dir)
 
 
 def embed_frames(df, subsample=None, image_column="observation.image"):
@@ -407,7 +447,7 @@ def frame_geometry(state, skeleton):
     """One frame's hand geometry. Daft auto-converts the tensor cells to numpy; we reuse the
     vectorized geometry libs at N=1 via [None] and return a struct — no whole-frame to_pydict."""
     state = np.asarray(state, dtype=np.float64)
-    raw = pose_features.compute_raw_features(state[None])              # per-frame: curl, wrist
+    raw = pose_features.compute_raw_features(state[None])  # per-frame: curl, wrist
     geo = skeleton_features.compute_state_features(np.asarray(skeleton, dtype=np.float64)[None])
     out = {}
     for tag, side in HANDS:
@@ -416,7 +456,7 @@ def frame_geometry(state, skeleton):
         out[f"curl_{tag}"] = float(raw[f"curl_{tag}"][0])
         out[f"wrist_height_{tag}"] = float(raw[f"wrist_{tag}"][0][1])
         out[f"arm_extension_{tag}"] = float(geo[f"arm_extension_{tag}"][0])
-        out[f"thumb_min_tip_{tag}"] = float(min(thumb_tip[0], thumb_tip[1]))          # writing grip
+        out[f"thumb_min_tip_{tag}"] = float(min(thumb_tip[0], thumb_tip[1]))  # writing grip
         out[f"thumb_min_knuckle_{tag}"] = float(min(thumb_knuckle[0], thumb_knuckle[1]))  # hammer grip
         out[f"wrist_{tag}"] = raw[f"wrist_{tag}"][0].tolist()
         out[f"local_joints_{tag}"] = geo[f"local_joints_{tag}"][0].reshape(-1).tolist()
@@ -451,28 +491,62 @@ def add_skeleton_features(df, fps=DEFAULT_FPS):
     smooth = Window().partition_by("episode_index").order_by("frame_index").rows_between(-2, 2)
     for tag, _ in HANDS:
         # euclidean_distance needs fixed-size-list inputs; materialize the casts once per hand
-        df = df.with_column(f"_wrist_v_{tag}", col(f"wrist_{tag}").cast(DataType.fixed_size_list(DataType.float64(), WRIST_DIM)))
-        df = df.with_column(f"_joints_v_{tag}", col(f"local_joints_{tag}").cast(DataType.fixed_size_list(DataType.float64(), LOCAL_JOINTS_DIM)))
-        df = df.with_column(f"curl_rate_{tag}",
-            ((col(f"curl_{tag}").lead(1).over(per_episode) - col(f"curl_{tag}")) / dt).fill_null(0.0))
-        df = df.with_column(f"wrist_vert_vel_{tag}",
-            ((col(f"wrist_height_{tag}").lead(1).over(per_episode) - col(f"wrist_height_{tag}")) / dt).fill_null(0.0))
-        df = df.with_column(f"arm_ext_rate_{tag}",
-            ((col(f"arm_extension_{tag}").lead(1).over(per_episode) - col(f"arm_extension_{tag}")) / dt).fill_null(0.0))
-        df = df.with_column(f"wrist_speed_{tag}",
-            (euclidean_distance(col(f"_wrist_v_{tag}"), col(f"_wrist_v_{tag}").lead(1).over(per_episode)) / dt).fill_null(0.0))
-        df = df.with_column(f"articulation_{tag}",
-            (euclidean_distance(col(f"_joints_v_{tag}"), col(f"_joints_v_{tag}").lead(1).over(per_episode)) / dt).fill_null(0.0))
-        df = df.with_column(f"roll_raw_{tag}",
-            forearm_roll(col(f"wrist_rot6d_{tag}"), col(f"wrist_rot6d_{tag}").lead(1).over(per_episode),
-                         col(f"forearm_axis_{tag}")) / dt)
+        df = df.with_column(
+            f"_wrist_v_{tag}", col(f"wrist_{tag}").cast(DataType.fixed_size_list(DataType.float64(), WRIST_DIM))
+        )
+        df = df.with_column(
+            f"_joints_v_{tag}",
+            col(f"local_joints_{tag}").cast(DataType.fixed_size_list(DataType.float64(), LOCAL_JOINTS_DIM)),
+        )
+        df = df.with_column(
+            f"curl_rate_{tag}",
+            ((col(f"curl_{tag}").lead(1).over(per_episode) - col(f"curl_{tag}")) / dt).fill_null(0.0),
+        )
+        df = df.with_column(
+            f"wrist_vert_vel_{tag}",
+            ((col(f"wrist_height_{tag}").lead(1).over(per_episode) - col(f"wrist_height_{tag}")) / dt).fill_null(0.0),
+        )
+        df = df.with_column(
+            f"arm_ext_rate_{tag}",
+            ((col(f"arm_extension_{tag}").lead(1).over(per_episode) - col(f"arm_extension_{tag}")) / dt).fill_null(0.0),
+        )
+        df = df.with_column(
+            f"wrist_speed_{tag}",
+            (
+                euclidean_distance(col(f"_wrist_v_{tag}"), col(f"_wrist_v_{tag}").lead(1).over(per_episode)) / dt
+            ).fill_null(0.0),
+        )
+        df = df.with_column(
+            f"articulation_{tag}",
+            (
+                euclidean_distance(col(f"_joints_v_{tag}"), col(f"_joints_v_{tag}").lead(1).over(per_episode)) / dt
+            ).fill_null(0.0),
+        )
+        df = df.with_column(
+            f"roll_raw_{tag}",
+            forearm_roll(
+                col(f"wrist_rot6d_{tag}"),
+                col(f"wrist_rot6d_{tag}").lead(1).over(per_episode),
+                col(f"forearm_axis_{tag}"),
+            )
+            / dt,
+        )
         df = df.with_column(f"roll_{tag}", col(f"roll_raw_{tag}").mean().over(smooth))
 
     keep = ["episode_index", "frame_index"]
     for tag, _ in HANDS:
-        keep += [f"closure_{tag}", f"flex_nonthumb_{tag}", f"thumb_min_tip_{tag}", f"thumb_min_knuckle_{tag}",
-                 f"curl_rate_{tag}", f"wrist_vert_vel_{tag}", f"arm_ext_rate_{tag}",
-                 f"wrist_speed_{tag}", f"articulation_{tag}", f"roll_{tag}"]
+        keep += [
+            f"closure_{tag}",
+            f"flex_nonthumb_{tag}",
+            f"thumb_min_tip_{tag}",
+            f"thumb_min_knuckle_{tag}",
+            f"curl_rate_{tag}",
+            f"wrist_vert_vel_{tag}",
+            f"arm_ext_rate_{tag}",
+            f"wrist_speed_{tag}",
+            f"articulation_{tag}",
+            f"roll_{tag}",
+        ]
     return df.select(*keep)
 
 
@@ -489,28 +563,46 @@ def overlay(dataset, episode_index, frame_index, io_config=None):
     with the EgoDex intrinsics, and draws them (left = cyan, right = amber). Lazy-imports the
     video/render deps so importing egodex stays light.
     """
-    
 
     key = "observation.image"
-    meta = (lerobot.read_episodes(dataset, include_video_metadata=True)
-            .where(col("episode_index") == episode_index)
-            .select(f"videos/{key}/chunk_index", f"videos/{key}/file_index", f"videos/{key}/from_timestamp")
-            .to_pydict())
+    meta = (
+        lerobot.read_episodes(dataset, include_video_metadata=True)
+        .where(col("episode_index") == episode_index)
+        .select(f"videos/{key}/chunk_index", f"videos/{key}/file_index", f"videos/{key}/from_timestamp")
+        .to_pydict()
+    )
     chunk = int(meta[f"videos/{key}/chunk_index"][0])
     file_index = int(meta[f"videos/{key}/file_index"][0])
     start = float(meta[f"videos/{key}/from_timestamp"][0])
     shard = os.path.join(dataset, "videos", key, f"chunk-{chunk:03d}", f"file-{file_index:03d}.mp4")
 
-    frame = (lerobot.read(dataset, io_config=io_config)
-             .where((col("episode_index") == episode_index) & (col("frame_index") == frame_index))
-             .select("observation.skeleton", "observation.extrinsics").to_pydict())
+    frame = (
+        lerobot.read(dataset, io_config=io_config)
+        .where((col("episode_index") == episode_index) & (col("frame_index") == frame_index))
+        .select("observation.skeleton", "observation.extrinsics")
+        .to_pydict()
+    )
     joints = np.asarray(frame["observation.skeleton"][0], dtype=np.float64).reshape(68, 3)
     world_to_camera = np.linalg.inv(np.asarray(frame["observation.extrinsics"][0], dtype=np.float64).reshape(4, 4))
 
     with tempfile.TemporaryDirectory() as tmp:
         png = os.path.join(tmp, "frame.png")
-        subprocess.run(["ffmpeg", "-y", "-ss", f"{start + frame_index / DEFAULT_FPS:.5f}", "-i", shard,
-                        "-frames:v", "1", png, "-loglevel", "error"], check=True)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                f"{start + frame_index / DEFAULT_FPS:.5f}",
+                "-i",
+                shard,
+                "-frames:v",
+                "1",
+                png,
+                "-loglevel",
+                "error",
+            ],
+            check=True,
+        )
         image = Image.open(png).convert("RGB")
 
     camera = (world_to_camera @ np.hstack([joints, np.ones((68, 1))]).T).T[:, :3]
@@ -521,7 +613,7 @@ def overlay(dataset, episode_index, frame_index, io_config=None):
     for joint in range(68):
         if depth[joint] <= 0:
             continue
-        color = (34, 211, 238) if joint < 34 else (245, 158, 11)   # left hand cyan, right hand amber
+        color = (34, 211, 238) if joint < 34 else (245, 158, 11)  # left hand cyan, right hand amber
         u, v = pixels_u[joint], pixels_v[joint]
         draw.ellipse([u - 5, v - 5, u + 5, v + 5], fill=color)
     return image

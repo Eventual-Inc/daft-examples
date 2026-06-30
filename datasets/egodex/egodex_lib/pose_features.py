@@ -5,6 +5,7 @@ xyz [9:24] (order [thumb, index, middle, ring, pinky]). Left hand is [0:24],
 right hand [24:48]. World +y is up (verified: wrists sit ~0.93 up, left hand -x /
 right hand +x, units ~meters). Everything is vectorized over N frames and model-free.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -14,9 +15,9 @@ FINGERS = ["thumb", "index", "middle", "ring", "pinky"]
 # 48-D observation.state layout: per hand, 24 dims = wrist xyz (3) + wrist rot6d (6)
 # + 5 fingertips xyz (15). Left hand occupies [0:24], right hand [24:48].
 HAND_BLOCK_DIM = 24
-ROT6D_OFFSET = 3          # rot6d sits at [3:9] within a hand block
+ROT6D_OFFSET = 3  # rot6d sits at [3:9] within a hand block
 ROT6D_LEN = 6
-FINGERTIP_OFFSET = 9      # 5 fingertips xyz sit at [9:24]
+FINGERTIP_OFFSET = 9  # 5 fingertips xyz sit at [9:24]
 HAND_BASE = {"left": 0, "right": HAND_BLOCK_DIM}
 HAND_TAGS = [("left", "L"), ("right", "R")]
 
@@ -28,9 +29,9 @@ def rot6d_slice(side):
 
 
 def _split_hand(state, base):
-    wrist = state[:, base:base + 3]
-    rot6d = state[:, base + ROT6D_OFFSET:base + ROT6D_OFFSET + ROT6D_LEN]
-    fingertips = state[:, base + FINGERTIP_OFFSET:base + HAND_BLOCK_DIM].reshape(-1, 5, 3)
+    wrist = state[:, base : base + 3]
+    rot6d = state[:, base + ROT6D_OFFSET : base + ROT6D_OFFSET + ROT6D_LEN]
+    fingertips = state[:, base + FINGERTIP_OFFSET : base + HAND_BLOCK_DIM].reshape(-1, 5, 3)
     return wrist, rot6d, fingertips
 
 
@@ -60,12 +61,12 @@ def compute_raw_features(state: np.ndarray) -> dict:
     features = {}
     for side, tag in HAND_TAGS:
         wrist, rot6d, fingertips = _split_hand(state, HAND_BASE[side])
-        tip_to_wrist = np.linalg.norm(fingertips - wrist[:, None, :], axis=2)        # (N, 5)
+        tip_to_wrist = np.linalg.norm(fingertips - wrist[:, None, :], axis=2)  # (N, 5)
         features[f"fingerdist_{tag}"] = tip_to_wrist
-        features[f"curl_{tag}"] = tip_to_wrist.mean(1)                               # small = curled
+        features[f"curl_{tag}"] = tip_to_wrist.mean(1)  # small = curled
         palm_normal = palm_normal_from_rot6d(rot6d)
         features[f"palmnormal_{tag}"] = palm_normal
-        features[f"palm_up_{tag}"] = palm_normal[:, 1]                               # +y component
+        features[f"palm_up_{tag}"] = palm_normal[:, 1]  # +y component
         features[f"pinch_{tag}"] = np.linalg.norm(fingertips[:, 0] - fingertips[:, 1], axis=1)  # thumb-index
         tip_pairs = fingertips[:, :, None, :] - fingertips[:, None, :, :]
         features[f"aperture_{tag}"] = np.linalg.norm(tip_pairs, axis=3).max((1, 2))  # max tip-tip spread
@@ -77,6 +78,7 @@ def compute_raw_features(state: np.ndarray) -> dict:
 # The batch precompute computes these rates with Daft window functions instead;
 # see run_pose_features.py. These NumPy versions exist only so the UI can fill the
 # live inspection table for whichever single clip is on screen.
+
 
 def _difference_per_episode(episode_index, frame_index, values, fps):
     """d(values)/dt within each episode, ordered by frame. values: (N,) or (N, d)."""

@@ -12,6 +12,7 @@ out) plus the grip predicates. The per-episode ACTION rates (reaching, twisting,
 in-hand) are computed in run_pose_features.py with Daft window functions.
 Everything here is vectorized over N frames and model-free.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -53,7 +54,7 @@ JOINT_INDEX = {name: i for i, name in enumerate(JOINT_NAMES)}
 def joint_position(skeleton, joint_name):
     """(N, 3) world position of a named joint from the (N, 204) skeleton."""
     start = JOINT_INDEX[joint_name] * 3
-    return skeleton[:, start:start + 3]
+    return skeleton[:, start : start + 3]
 
 
 def _unit(vectors, epsilon=1e-9):
@@ -91,7 +92,7 @@ def palm_normal(skeleton, side):
     points = np.stack([wrist] + knuckles, axis=1)
     centered = points - points.mean(1, keepdims=True)
     covariance = np.einsum("nki,nkj->nij", centered, centered)
-    _, eigenvectors = np.linalg.eigh(covariance)            # ascending; [:, :, 0] = smallest
+    _, eigenvectors = np.linalg.eigh(covariance)  # ascending; [:, :, 0] = smallest
     normal = eigenvectors[:, :, 0]
     # orient deterministically by handedness, then flip to the palm-facing convention
     index_knuckle = joint_position(skeleton, f"{side}IndexFingerKnuckle")
@@ -115,9 +116,11 @@ def arm_extension(skeleton, side):
     upper_arm = joint_position(skeleton, side + "Arm")
     forearm = joint_position(skeleton, side + "Forearm")
     wrist = joint_position(skeleton, side + "Hand")
-    arm_length = (np.linalg.norm(upper_arm - shoulder, axis=1)
-                  + np.linalg.norm(forearm - upper_arm, axis=1)
-                  + np.linalg.norm(wrist - forearm, axis=1))
+    arm_length = (
+        np.linalg.norm(upper_arm - shoulder, axis=1)
+        + np.linalg.norm(forearm - upper_arm, axis=1)
+        + np.linalg.norm(wrist - forearm, axis=1)
+    )
     return np.linalg.norm(wrist - shoulder, axis=1) / (arm_length + 1e-9)
 
 
@@ -134,11 +137,13 @@ def hand_local_joints(skeleton, side):
     fingers' own motion (used to detect in-hand manipulation).
     """
     wrist = joint_position(skeleton, side + "Hand")
-    across_palm = joint_position(skeleton, f"{side}LittleFingerKnuckle") - joint_position(skeleton, f"{side}IndexFingerKnuckle")
+    across_palm = joint_position(skeleton, f"{side}LittleFingerKnuckle") - joint_position(
+        skeleton, f"{side}IndexFingerKnuckle"
+    )
     z_axis = _unit(palm_normal(skeleton, side))
     x_axis = _unit(across_palm - (across_palm * z_axis).sum(1, keepdims=True) * z_axis)
     y_axis = np.cross(z_axis, x_axis)
-    frame = np.stack([x_axis, y_axis, z_axis], axis=1)                 # (N, 3, 3), rows = axes
+    frame = np.stack([x_axis, y_axis, z_axis], axis=1)  # (N, 3, 3), rows = axes
     joint_names = [name for finger in FINGERS for name in finger_joint_names(side, finger)]
     positions = np.stack([joint_position(skeleton, name) for name in joint_names], axis=1)  # (N, K, 3)
     return np.einsum("nij,nkj->nki", frame, positions - wrist[:, None, :])
@@ -161,7 +166,7 @@ def compute_state_features(skeleton: np.ndarray) -> dict:
     features = {}
     for side, tag in (("left", "L"), ("right", "R")):
         per_finger_flexion = np.stack([finger_flexion(skeleton, side, f).sum(1) for f in FINGERS], axis=1)  # (N, 5)
-        features[f"flex_nonthumb_{tag}"] = per_finger_flexion[:, 1:]            # index..little
+        features[f"flex_nonthumb_{tag}"] = per_finger_flexion[:, 1:]  # index..little
         features[f"closure_{tag}"] = per_finger_flexion[:, 1:].mean(1)
 
         scale = hand_scale(skeleton, side)
@@ -169,9 +174,11 @@ def compute_state_features(skeleton: np.ndarray) -> dict:
         fingertips = {f: joint_position(skeleton, f"{side}{f}FingerTip") for f in FINGERS[1:]}
         knuckles = {f: joint_position(skeleton, f"{side}{f}FingerKnuckle") for f in FINGERS[1:]}
         features[f"thumb_tip_dist_{tag}"] = np.stack(
-            [np.linalg.norm(thumb_tip - fingertips[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]], axis=1)
+            [np.linalg.norm(thumb_tip - fingertips[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]], axis=1
+        )
         features[f"thumb_knuckle_dist_{tag}"] = np.stack(
-            [np.linalg.norm(thumb_tip - knuckles[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]], axis=1)
+            [np.linalg.norm(thumb_tip - knuckles[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]], axis=1
+        )
 
         features[f"arm_extension_{tag}"] = arm_extension(skeleton, side)
         features[f"wrist_{tag}"] = joint_position(skeleton, side + "Hand")

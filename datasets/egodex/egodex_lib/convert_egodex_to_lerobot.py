@@ -58,17 +58,22 @@ ATTRS = ["llm_description", "llm_description2", "which_llm_description"]
 # joints (hip, spine1-7, neck1-4). Camera is excluded (it is observation.extrinsics).
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"]
 
+
 def finger_transforms(side, finger):
     infix = "" if finger == "Thumb" else "Finger"
     parts = (["Metacarpal"] if finger != "Thumb" else []) + ["Knuckle", "IntermediateBase", "IntermediateTip", "Tip"]
     return [f"transforms/{side}{finger}{infix}{part}" for part in parts]
+
 
 def side_transforms(side):
     arm = [f"transforms/{side}{j}" for j in ("Hand", "Forearm", "Arm", "Shoulder")]
     fingers = [t for finger in FINGERS for t in finger_transforms(side, finger)]
     return arm + fingers
 
-BODY_TRANSFORMS = [f"transforms/{j}" for j in ("hip", *(f"spine{i}" for i in range(1, 8)), *(f"neck{i}" for i in range(1, 5)))]
+
+BODY_TRANSFORMS = [
+    f"transforms/{j}" for j in ("hip", *(f"spine{i}" for i in range(1, 8)), *(f"neck{i}" for i in range(1, 5)))
+]
 SKELETON_TRANSFORMS = side_transforms("left") + side_transforms("right") + BODY_TRANSFORMS
 SKELETON_DIM = len(SKELETON_TRANSFORMS) * 3
 
@@ -127,11 +132,13 @@ def next_frame_action(state):
 def resolve_task(attributes):
     """Task text for one episode: llm_description, or llm_description2 for reversible tasks
     (which_llm_description == "2"); falls back to llm_description when absent."""
+
     def text(name):
         value = attributes.get(name)
         if isinstance(value, bytes):
             return value.decode("utf-8", "replace")
         return None if value is None else str(value)
+
     chosen = text("llm_description2") if text("which_llm_description") == "2" else text("llm_description")
     return chosen or ""
 
@@ -146,9 +153,11 @@ def state_names():
             names += [f"{side}_{finger}_{a}" for a in "xyz"]
     return names
 
+
 def skeleton_names():
     # The 204 per-dimension names for observation.skeleton (joint xyz, in transform order).
     return [f"{t.split('/')[-1]}_{a}" for t in SKELETON_TRANSFORMS for a in "xyz"]
+
 
 def features():
     return {
@@ -157,6 +166,7 @@ def features():
         "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
         "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
     }
+
 
 def write_lerobot(files, repo_id, output_dir, batch_size=64):
     """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
@@ -191,13 +201,15 @@ def write_lerobot(files, repo_id, output_dir, batch_size=64):
             action = next_frame_action(state)
             task = resolve_task(episode["attributes"])
             for frame in range(len(state)):
-                ds.add_frame({
-                    "observation.state": state[frame],
-                    "observation.skeleton": skeleton[frame],
-                    "observation.extrinsics": extrinsics[frame],
-                    "action": action[frame],
-                    "task": task,
-                })
+                ds.add_frame(
+                    {
+                        "observation.state": state[frame],
+                        "observation.skeleton": skeleton[frame],
+                        "observation.extrinsics": extrinsics[frame],
+                        "action": action[frame],
+                        "task": task,
+                    }
+                )
             ds.save_episode()
             episodes += 1
     ds.finalize()
