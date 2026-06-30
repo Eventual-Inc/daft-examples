@@ -11,15 +11,16 @@ The read is per-episode: `hdf5_file` makes an `Hdf5File` column, the
 and `write_lerobot` slices those arrays into frames as it feeds the LeRobot
 writer. No per-frame explode is needed — the writer consumes one episode at a time.
 """
+import pathlib
+import shutil
 
-from __future__ import annotations
 import numpy as np
+
+import h5py
 import daft
 from daft import col
 from daft.datatype import DataType
-from daft.functions import hdf5_file, hdf5_attrs
-import pathlib
-import shutil
+from daft.functions import hdf5_attrs, hdf5_file
 
 FPS = 30.0
 
@@ -43,6 +44,7 @@ TIPS = {
     ],
 }
 CAMERA = "transforms/camera"
+
 # The 12 transforms feeding build_state, in the order it expects them.
 STATE_TRANSFORMS = [
     WRIST["left"],
@@ -81,20 +83,7 @@ SKELETON_DIM = len(SKELETON_TRANSFORMS) * 3
 # and exactly the datasets read_transforms pulls from each HDF5 file.
 REQUIRED_TRANSFORMS = SKELETON_TRANSFORMS + [CAMERA]
 
-
-@daft.func(return_dtype=DataType.struct({name: DataType.tensor(DataType.float32()) for name in REQUIRED_TRANSFORMS}))
-def read_transforms(trajectory):
-    """Read every required transform dataset from one episode's HDF5 file.
-
-    `trajectory` is an `Hdf5File` (one per episode). A single `read` of all the
-    dataset paths opens the file once and returns each as its whole (N, 4, 4)
-    array of per-frame 4x4 poses.
-    """
-    arrays = trajectory.read(REQUIRED_TRANSFORMS)
-    return {name: arrays[name].astype(np.float32) for name in REQUIRED_TRANSFORMS}
-
-
-def hand_block(wrist, tips):
+def hand_block(wrist: np.ndarray, tips: list[np.ndarray]) -> np.ndarray:
     """One hand's 24 state dims over a whole episode.
 
     wrist is (N, 4, 4); tips is five (N, 4, 4) arrays. Returns (N, 24):
@@ -106,19 +95,19 @@ def hand_block(wrist, tips):
     return np.concatenate([translation, rotation, fingertips], axis=1)
 
 
-def build_state(transforms):
+def build_state(transforms: h5py.File) -> np.ndarray:
     """observation.state (N, 48): left hand block then right hand block."""
     left = hand_block(transforms[WRIST["left"]], [transforms[name] for name in TIPS["left"]])
     right = hand_block(transforms[WRIST["right"]], [transforms[name] for name in TIPS["right"]])
     return np.concatenate([left, right], axis=1).astype(np.float32)
 
 
-def build_skeleton(transforms):
+def build_skeleton(transforms: h5py.File) -> np.ndarray:
     """observation.skeleton (N, 204): the xyz translation of every joint, in SKELETON_TRANSFORMS order."""
     return np.concatenate([transforms[name][:, :3, 3] for name in SKELETON_TRANSFORMS], axis=1).astype(np.float32)
 
 
-def build_extrinsics(transforms):
+def build_extrinsics(transforms: h5py.File) -> np.ndarray:
     """observation.extrinsics (N, 16): the camera 4x4, row-major, per frame."""
     camera = transforms[CAMERA]
     return camera.reshape(camera.shape[0], 16).astype(np.float32)
@@ -127,6 +116,27 @@ def build_extrinsics(transforms):
 def next_frame_action(state):
     """action (N, 48): each frame's target is the next frame's state; the last frame repeats itself (no wrap)."""
     return np.vstack([state[1:], state[-1:]]).astype(np.float32)
+
+@daft.func(return_dtype=DataType.struct({name: DataType.tensor(DataType.float32()) for name in REQUIRED_TRANSFORMS}))
+def process_transforms(file_: daft.File, attrs: dict) -> dict[str, np.ndarray]:
+
+    hdf5_file = file_.as_hdf5() 
+
+    with hdf5_file.open() as h:
+        state = build_state(h)
+        skeleton = build_skeleton(h)
+        extrinsics = build_extrinsics(h)
+        action = next_frame_action(state)
+        task = resolve_task(h.attrs)
+        
+        return {
+            "state": state,
+            "skeleton": skeleton,
+            "extrinsics": extrinsics,
+            "action": action,
+            "task": task,
+        }
+
 
 
 def resolve_task(attributes):
@@ -158,16 +168,6 @@ def skeleton_names():
     # The 204 per-dimension names for observation.skeleton (joint xyz, in transform order).
     return [f"{t.split('/')[-1]}_{a}" for t in SKELETON_TRANSFORMS for a in "xyz"]
 
-
-def features():
-    return {
-        "observation.state": {"dtype": "float32", "shape": (48,), "names": state_names()},
-        "observation.skeleton": {"dtype": "float32", "shape": (SKELETON_DIM,), "names": skeleton_names()},
-        "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
-        "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
-    }
-
-
 def write_lerobot(files, repo_id, output_dir, batch_size=64):
     """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
 
@@ -182,9 +182,44 @@ def write_lerobot(files, repo_id, output_dir, batch_size=64):
     if out.exists():
         shutil.rmtree(out)
     ds = LeRobotDataset.create(
-        repo_id=repo_id, fps=int(FPS), features=features(), root=str(out), robot_type="hand", use_videos=False
+        repo_id=repo_id, 
+        fps=int(FPS), 
+        features={
+            "observation.state": {"dtype": "float32", "shape": (48,), "names": state_names()},
+            "observation.skeleton": {"dtype": "float32", "shape": (SKELETON_DIM,), "names": skeleton_names()},
+            "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
+            "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
+        }, 
+        root=str(out), 
+        robot_type="hand", 
+        use_videos=False
     )
     episodes = 0
+
+
+    h5_df = (
+        daft.from_files(dataset_dir)
+        .where(col("file").guess_mime_type() == "application/x-hdf5")
+        .select("transforms", process_transforms(col("file")))
+    )
+
+    df = (
+        df
+    
+        .with_column("state", build_state(col("transforms")))
+        .with_column("skeleton", build_skeleton(col("transforms")))
+        .with_column("extrinsics", build_extrinsics(col("transforms")))
+
+        .with_column("action", next_frame_action(col("state")))
+        .with_column("task", resolve_task(col("attributes")))
+        .select("*", unnest(col("state")))
+        .select("*", unnest(col("skeleton")))
+        .select("*", unnest(col("extrinsics")))
+        .select("*", unnest(col("action")))
+        .select("*", unnest(col("task")))
+    )
+
+
     for start in range(0, len(files), batch_size):
         batch = (
             daft.from_pydict({"path": list(files[start : start + batch_size])})

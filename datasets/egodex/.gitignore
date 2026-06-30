@@ -1,4 +1,5 @@
 # local-only: data, outputs, envs (never commit — EgoDex is CC-BY-NC-ND)
+.data
 egodex_lerobot_full
 out
 .venv

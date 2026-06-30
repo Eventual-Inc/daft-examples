@@ -25,25 +25,27 @@ script and the live UI (query_ui) call it. See egodex_demo.py for the runnable v
 """
 
 from __future__ import annotations
-import torch
-from transformers import AutoModel, AutoProcessor
-from .clip_features import DEVICE, MODEL_ID, _normalized_embedding
-from . import clip_features
+
 import glob
 import math
-from collections import defaultdict
-from typing import Callable
 import os
 import subprocess
 import tempfile
-from PIL import Image, ImageDraw
-from daft.datasets import lerobot
-import daft
+from collections import defaultdict
+from collections.abc import Callable
+
 import numpy as np
+import torch
+from PIL import Image, ImageDraw
+from transformers import AutoModel, AutoProcessor
+
+import daft
 from daft import DataType, col
 from daft.functions import euclidean_distance
 from daft.window import Window
-from . import convert_egodex_to_lerobot, pose_features, skeleton_features
+
+from . import clip_features, convert_egodex_to_lerobot, pose_features, skeleton_features
+from .clip_features import DEVICE, MODEL_ID, _normalized_embedding
 
 # Action thresholds, surfaced so the blog (and callers) can see/tune them. These
 # mirror query_ui: grasping = curl closing fast enough, lifting = wrist rising fast
@@ -566,7 +568,7 @@ def overlay(dataset, episode_index, frame_index, io_config=None):
 
     key = "observation.image"
     meta = (
-        lerobot.read_episodes(dataset, include_video_metadata=True)
+        daft.datasets.lerobot.read_episodes(dataset, include_video_metadata=True)
         .where(col("episode_index") == episode_index)
         .select(f"videos/{key}/chunk_index", f"videos/{key}/file_index", f"videos/{key}/from_timestamp")
         .to_pydict()
@@ -577,7 +579,7 @@ def overlay(dataset, episode_index, frame_index, io_config=None):
     shard = os.path.join(dataset, "videos", key, f"chunk-{chunk:03d}", f"file-{file_index:03d}.mp4")
 
     frame = (
-        lerobot.read(dataset, io_config=io_config)
+        daft.datasets.lerobot.read(dataset, io_config=io_config)
         .where((col("episode_index") == episode_index) & (col("frame_index") == frame_index))
         .select("observation.skeleton", "observation.extrinsics")
         .to_pydict()
