@@ -48,10 +48,20 @@ def _probe(path: str) -> dict[str, Any]:
 # the dataset viewer shows blank video unless we transcode to h264 or av1.
 _VENC = {
     "copy": ["-c", "copy"],
-    "h264": ["-c:v", "libx264", "-preset", "fast", "-crf", "23",
-             "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"],
-    "av1": ["-c:v", "libsvtav1", "-crf", "30",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"],
+    "h264": [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-an",
+    ],
+    "av1": ["-c:v", "libsvtav1", "-crf", "30", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"],
 }
 
 
@@ -64,8 +74,20 @@ def _concat(ffmpeg: str, mp4s: list[str], out_path: pathlib.Path, codec: str = "
         listfile = lf.name
     try:
         subprocess.run(
-            [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", listfile,
-             *_VENC[codec], "-loglevel", "error", str(out_path)],
+            [
+                ffmpeg,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                listfile,
+                *_VENC[codec],
+                "-loglevel",
+                "error",
+                str(out_path),
+            ],
             check=True,
         )
     finally:

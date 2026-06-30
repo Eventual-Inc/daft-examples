@@ -11,6 +11,7 @@ The read is per-episode: `hdf5_file` makes an `Hdf5File` column, the
 and `write_lerobot` slices those arrays into frames as it feeds the LeRobot
 writer. No per-frame explode is needed — the writer consumes one episode at a time.
 """
+
 import pathlib
 import shutil
 
@@ -84,6 +85,7 @@ SKELETON_DIM = len(SKELETON_TRANSFORMS) * 3
 # and exactly the datasets read_transforms pulls from each HDF5 file.
 REQUIRED_TRANSFORMS = SKELETON_TRANSFORMS + [CAMERA]
 
+
 def hand_block(wrist: np.ndarray, tips: list[np.ndarray]) -> np.ndarray:
     """One hand's 24 state dims over a whole episode.
 
@@ -118,38 +120,6 @@ def next_frame_action(state):
     """action (N, 48): each frame's target is the next frame's state; the last frame repeats itself (no wrap)."""
     return np.vstack([state[1:], state[-1:]]).astype(np.float32)
 
-EPISODE_DTYPE = DataType.struct(
-    {
-        "state": DataType.tensor(DataType.float32()),
-        "skeleton": DataType.tensor(DataType.float32()),
-        "extrinsics": DataType.tensor(DataType.float32()),
-        "action": DataType.tensor(DataType.float32()),
-        "task": DataType.string(),
-    }
-)
-
-
-@daft.func(return_dtype=EPISODE_DTYPE)
-def process_egodex_episode(file_: daft.File) -> dict[str, np.ndarray]:
-
-    hdf5_file = file_.as_hdf5()
-
-    with hdf5_file.open() as h:
-        state = build_state(h)
-        skeleton = build_skeleton(h)
-        extrinsics = build_extrinsics(h)
-        action = next_frame_action(state)
-        task = resolve_task(h.attrs)
-        
-        return {
-            "state": state,
-            "skeleton": skeleton,
-            "extrinsics": extrinsics,
-            "action": action,
-            "task": task,
-        }
-
-
 
 def resolve_task(attributes):
     """Task text for one episode: llm_description, or llm_description2 for reversible tasks
@@ -180,27 +150,39 @@ def skeleton_names():
     # The 204 per-dimension names for observation.skeleton (joint xyz, in transform order).
     return [f"{t.split('/')[-1]}_{a}" for t in SKELETON_TRANSFORMS for a in "xyz"]
 
+
 @daft.cls()
-class LeRobotDatasetWriter:
+class EgoDexLeRobotDatasetWriter:
     def __init__(self, lr_dataset: LeRobotDataset):
         self.ds = lr_dataset
         self.episodes = 0
 
-    def write(self, data):
-        self.episodes += 1
-        for frame in range(len(data["state"])):
-            self.ds.add_frame(
-                {
-                    "observation.state": data["state"][frame],
-                    "observation.skeleton": data["skeleton"][frame],
-                    "observation.extrinsics": data["extrinsics"][frame],
-                    "action": data["action"][frame],
-                    "task": data["task"],
-                }
-            )
-        self.ds.save_episode() 
-        
-        return self.episodes
+    def write(self, file_: daft.File) -> int:
+        hdf5_file = file_.as_hdf5()
+
+        with hdf5_file.open() as h5:
+            state = build_state(h5)
+            skeleton = build_skeleton(h5)
+            extrinsics = build_extrinsics(h5)
+            action = next_frame_action(state)
+            task = resolve_task(h5.attrs)
+
+            self.episodes += 1
+            for frame in range(len(state)):
+                self.ds.add_frame(
+                    {
+                        "episode_index": self.episodes,
+                        "observation.state": state[frame],
+                        "observation.skeleton": skeleton[frame],
+                        "observation.extrinsics": extrinsics[frame],
+                        "action": action[frame],
+                        "task": task,
+                    }
+                )
+            self.ds.save_episode()
+
+            return self.episodes
+
 
 def write_lerobot(dataset_dir, repo_id: str, output_dir):
     """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
@@ -220,7 +202,11 @@ def write_lerobot(dataset_dir, repo_id: str, output_dir):
         features={
             "observation.state": {"dtype": "float32", "shape": (48,), "names": state_names()},
             "observation.skeleton": {"dtype": "float32", "shape": (SKELETON_DIM,), "names": skeleton_names()},
-            "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
+            "observation.extrinsics": {
+                "dtype": "float32",
+                "shape": (16,),
+                "names": [f"extrinsic_{i}" for i in range(16)],
+            },
             "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
         },
         root=str(out),
@@ -228,13 +214,13 @@ def write_lerobot(dataset_dir, repo_id: str, output_dir):
         use_videos=True,
     )
 
-    writer = LeRobotDatasetWriter(lr_dataset)
+    writer = EgoDexLeRobotDatasetWriter(lr_dataset)
     (
-        daft.from_files(dataset_dir)
-        .sort(col("file").file_path())
-        .where(daft.functions.guess_mime_type(col("file")).eq("application/x-hdf5"))
-        .with_column("data", process_egodex_episode(col("file")))
-        .with_column("episode_index", writer.write(col("data")))
+        daft.from_glob_path(dataset_dir)
+        .sort(col("path"))
+        .with_column("file", daft.functions.file(col("path")))
+        .where(daft.functions.guess_mime_type(col("file")) == daft.lit("application/x-hdf5"))
+        .with_column("episode_index", writer.write(col("file")))
     ).collect()
 
     lr_dataset.finalize()

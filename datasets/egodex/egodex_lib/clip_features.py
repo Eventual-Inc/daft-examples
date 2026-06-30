@@ -75,7 +75,7 @@ class SiglipEmbedder:
     @daft.method.batch(return_dtype=DataType.embedding(DataType.float32(), EMB_DIM), batch_size=16)
     def embed_image(self, images: Series):
         inputs = self.processor(images=images.to_pylist(), return_tensors="pt").to(DEVICE)
-        
+
         with torch.no_grad():
             model_output = self.model.get_image_features(**inputs)
             embeddings = _normalized_embedding(model_output)
