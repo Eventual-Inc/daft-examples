@@ -15,6 +15,7 @@ import pathlib
 import shutil
 
 import numpy as np
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 import h5py
 import daft
@@ -117,10 +118,21 @@ def next_frame_action(state):
     """action (N, 48): each frame's target is the next frame's state; the last frame repeats itself (no wrap)."""
     return np.vstack([state[1:], state[-1:]]).astype(np.float32)
 
-@daft.func(return_dtype=DataType.struct({name: DataType.tensor(DataType.float32()) for name in REQUIRED_TRANSFORMS}))
-def process_transforms(file_: daft.File, attrs: dict) -> dict[str, np.ndarray]:
+EPISODE_DTYPE = DataType.struct(
+    {
+        "state": DataType.tensor(DataType.float32()),
+        "skeleton": DataType.tensor(DataType.float32()),
+        "extrinsics": DataType.tensor(DataType.float32()),
+        "action": DataType.tensor(DataType.float32()),
+        "task": DataType.string(),
+    }
+)
 
-    hdf5_file = file_.as_hdf5() 
+
+@daft.func(return_dtype=EPISODE_DTYPE)
+def process_egodex_episode(file_: daft.File) -> dict[str, np.ndarray]:
+
+    hdf5_file = file_.as_hdf5()
 
     with hdf5_file.open() as h:
         state = build_state(h)
@@ -168,7 +180,29 @@ def skeleton_names():
     # The 204 per-dimension names for observation.skeleton (joint xyz, in transform order).
     return [f"{t.split('/')[-1]}_{a}" for t in SKELETON_TRANSFORMS for a in "xyz"]
 
-def write_lerobot(files, repo_id, output_dir, batch_size=64):
+@daft.cls()
+class LeRobotDatasetWriter:
+    def __init__(self, lr_dataset: LeRobotDataset):
+        self.ds = lr_dataset
+        self.episodes = 0
+
+    def write(self, data):
+        self.episodes += 1
+        for frame in range(len(data["state"])):
+            self.ds.add_frame(
+                {
+                    "observation.state": data["state"][frame],
+                    "observation.skeleton": data["skeleton"][frame],
+                    "observation.extrinsics": data["extrinsics"][frame],
+                    "action": data["action"][frame],
+                    "task": data["task"],
+                }
+            )
+        self.ds.save_episode() 
+        
+        return self.episodes
+
+def write_lerobot(dataset_dir, repo_id: str, output_dir):
     """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
 
     Daft reads a batch of files in parallel as an episode-level DataFrame (one row =
@@ -176,76 +210,32 @@ def write_lerobot(files, repo_id, output_dir, batch_size=64):
     sliced in order and fed to the serial LeRobotDataset writer. The batch size bounds
     driver memory.
     """
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset  # heavy optional dep; only needed to write
-
     out = pathlib.Path(output_dir)
     if out.exists():
         shutil.rmtree(out)
-    ds = LeRobotDataset.create(
-        repo_id=repo_id, 
-        fps=int(FPS), 
+
+    lr_dataset = LeRobotDataset.create(
+        repo_id=repo_id,
+        fps=int(FPS),
         features={
             "observation.state": {"dtype": "float32", "shape": (48,), "names": state_names()},
             "observation.skeleton": {"dtype": "float32", "shape": (SKELETON_DIM,), "names": skeleton_names()},
             "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
             "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
-        }, 
-        root=str(out), 
-        robot_type="hand", 
-        use_videos=False
+        },
+        root=str(out),
+        robot_type="hand",
+        use_videos=True,
     )
-    episodes = 0
 
-
-    h5_df = (
+    writer = LeRobotDatasetWriter(lr_dataset)
+    (
         daft.from_files(dataset_dir)
-        .where(col("file").guess_mime_type() == "application/x-hdf5")
-        .select("transforms", process_transforms(col("file")))
-    )
+        .sort(col("file").file_path())
+        .where(daft.functions.guess_mime_type(col("file")).eq("application/x-hdf5"))
+        .with_column("data", process_egodex_episode(col("file")))
+        .with_column("episode_index", writer.write(col("data")))
+    ).collect()
 
-    df = (
-        df
-    
-        .with_column("state", build_state(col("transforms")))
-        .with_column("skeleton", build_skeleton(col("transforms")))
-        .with_column("extrinsics", build_extrinsics(col("transforms")))
-
-        .with_column("action", next_frame_action(col("state")))
-        .with_column("task", resolve_task(col("attributes")))
-        .select("*", unnest(col("state")))
-        .select("*", unnest(col("skeleton")))
-        .select("*", unnest(col("extrinsics")))
-        .select("*", unnest(col("action")))
-        .select("*", unnest(col("task")))
-    )
-
-
-    for start in range(0, len(files), batch_size):
-        batch = (
-            daft.from_pydict({"path": list(files[start : start + batch_size])})
-            .with_column("trajectory", hdf5_file(col("path")))
-            .with_column("attributes", hdf5_attrs(col("trajectory")))
-            .with_column("transforms", read_transforms(col("trajectory")))
-            .sort("path")
-        )
-        for episode in batch.to_pylist():
-            transforms = {name: np.asarray(array, dtype=np.float32) for name, array in episode["transforms"].items()}
-            state = build_state(transforms)
-            skeleton = build_skeleton(transforms)
-            extrinsics = build_extrinsics(transforms)
-            action = next_frame_action(state)
-            task = resolve_task(episode["attributes"])
-            for frame in range(len(state)):
-                ds.add_frame(
-                    {
-                        "observation.state": state[frame],
-                        "observation.skeleton": skeleton[frame],
-                        "observation.extrinsics": extrinsics[frame],
-                        "action": action[frame],
-                        "task": task,
-                    }
-                )
-            ds.save_episode()
-            episodes += 1
-    ds.finalize()
-    return str(out), episodes
+    lr_dataset.finalize()
+    return str(out), writer.episodes
