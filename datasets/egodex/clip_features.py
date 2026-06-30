@@ -10,10 +10,8 @@ from __future__ import annotations
 import os
 
 import daft
-import numpy as np
 import torch
 from daft import DataType, Series
-from PIL import Image
 from transformers import AutoModel, AutoProcessor
 
 # --- device / config ------------------------------------------------------
@@ -72,11 +70,9 @@ class SiglipEmbedder:
 
     @daft.method.batch(return_dtype=DataType.embedding(DataType.float32(), EMB_DIM), batch_size=16)
     def embed_image(self, images: Series):
-        pil_frames = []
-        for array in images.to_pylist():
-            pil_frames.append(Image.fromarray(np.asarray(array, dtype=np.uint8)))
-
-        inputs = self.processor(images=pil_frames, return_tensors="pt").to(DEVICE)
+        # images.to_pylist() yields uint8 H×W×C numpy arrays; the SigLIP processor takes them
+        # directly (verified identical to the PIL path), so no per-frame Image.fromarray needed.
+        inputs = self.processor(images=images.to_pylist(), return_tensors="pt").to(DEVICE)
         with torch.no_grad():
             model_output = self.model.get_image_features(**inputs)
             embeddings = _normalized_embedding(model_output)

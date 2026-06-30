@@ -22,11 +22,11 @@ from egodex import (convert_egodex_to_lerobot, add_state_features,
 lerobot_dir = convert_egodex_to_lerobot("egodex/**/*.hdf5", repo_id="egodex", output_dir="egodex_lerobot/")  # 1. HDF5 -> LeRobot
 
 df = lerobot.read(lerobot_dir)                       # 2. LeRobot -> DataFrame (one row per frame)
-df = add_state_features(df)                          # 3. per-frame geometry  (closure, flexion, thumb distances, ...)
-df = add_skeleton_features(df)                       # 4. + action rates over frames (curl_rate, wrist_speed, roll, ...)
-df.write_parquet("features/")                        # 5. continuous pose features (30 fps) — compute once
+emb = embed_frames(lerobot.read(lerobot_dir, load_video_frames="observation.image"))   # 3. SigLIP-2 image embeddings (~1 fps)
+df = add_state_features(df)                          # 4. per-frame geometry  (closure, flexion, thumb distances, ...)
+df = add_skeleton_features(df)                       # 5. + action rates over frames (curl_rate, wrist_speed, roll, ...)
+df.write_parquet("features/")                        # 6. continuous pose features (30 fps) — compute once
 
-emb = embed_frames(lerobot.read(lerobot_dir, load_video_frames="observation.image"))   # 6. SigLIP-2 image embeddings (~1 fps)
 emb.select("episode_index", "frame_index", "clip_emb").write_parquet("embeddings/")     #    a separate semantic branch
 
 # ── Query ────────────────────────────────────────────────────────────────────
