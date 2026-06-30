@@ -1,15 +1,15 @@
-# /// script
-# description = "Convert raw EgoDex HDF5 episodes into a LeRobot v3 dataset (48-D state + 204-D skeleton)"
-# requires-python = ">=3.10, <3.13"
-# dependencies = ["daft>=0.7.15", "numpy", "h5py", "lerobot"]
-# ///
 """EgoDex (raw HDF5) → LeRobot-format frame features, in Daft.
 
-Reads raw EgoDex HDF5 with the vendored hdf5_example.read and produces the per-frame
-LeRobot feature columns (observation.state[48], observation.extrinsics[16],
+Reads raw EgoDex HDF5 with Daft's first-class `Hdf5File` type (one row per
+episode file) and produces the per-frame LeRobot feature columns
+(observation.state[48], observation.skeleton[204], observation.extrinsics[16],
 action[48], task), then writes an on-disk LeRobot v3 dataset (tabular only — the
 observation.image video feature is added separately by egodex_video.py).
 
+The read is per-episode: `hdf5_file` makes an `Hdf5File` column, the
+`read_transforms` UDF pulls every transform dataset as a whole (N, 4, 4) array,
+and `write_lerobot` slices those arrays into frames as it feeds the LeRobot
+writer. No per-frame explode is needed — the writer consumes one episode at a time.
 """
 
 from __future__ import annotations
@@ -17,28 +17,14 @@ import numpy as np
 import daft
 from daft import col
 from daft.datatype import DataType
-import hdf5_example  # vendored HDF5 reader; the real daft.datasets.hdf5 ships in Daft soon
-from daft.functions import coalesce, when
-from daft.udf import func
-from daft.window import Window
+from daft.functions import hdf5_file, hdf5_attrs
 import pathlib
 import shutil
 
-def finger_transforms(side, finger):
-    infix = "" if finger == "Thumb" else "Finger"
-    parts = (["Metacarpal"] if finger != "Thumb" else []) + ["Knuckle", "IntermediateBase", "IntermediateTip", "Tip"]
-    return [f"transforms/{side}{finger}{infix}{part}" for part in parts]
-
-def side_transforms(side):
-    arm = [f"transforms/{side}{j}" for j in ("Hand", "Forearm", "Arm", "Shoulder")]
-    fingers = [t for finger in FINGERS for t in finger_transforms(side, finger)]
-    return arm + fingers
-
 FPS = 30.0
- 
+
 # observation.state is 48 floats: per hand, wrist xyz + rot6d (first two rotation
-# columns) + 5 fingertip xyz (thumb..little); left hand then right hand. observation.skeleton is 204 floats: 
-# the xyz translation of every joint, in joint order. 
+# columns) + 5 fingertip xyz (thumb..little); left hand then right hand.
 WRIST = {"left": "transforms/leftHand", "right": "transforms/rightHand"}
 TIPS = {
     "left": [
@@ -65,53 +51,90 @@ STATE_TRANSFORMS = [
     *TIPS["right"],
 ]
 ATTRS = ["llm_description", "llm_description2", "which_llm_description"]
+
+# observation.skeleton is 204 floats: the xyz translation of every joint, in
+# joint order. Per side: hand, forearm, arm, shoulder, then each finger chain
+# (thumb has 4 parts; index/middle/ring/little add a metacarpal); then body
+# joints (hip, spine1-7, neck1-4). Camera is excluded (it is observation.extrinsics).
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"]
+
+def finger_transforms(side, finger):
+    infix = "" if finger == "Thumb" else "Finger"
+    parts = (["Metacarpal"] if finger != "Thumb" else []) + ["Knuckle", "IntermediateBase", "IntermediateTip", "Tip"]
+    return [f"transforms/{side}{finger}{infix}{part}" for part in parts]
+
+def side_transforms(side):
+    arm = [f"transforms/{side}{j}" for j in ("Hand", "Forearm", "Arm", "Shoulder")]
+    fingers = [t for finger in FINGERS for t in finger_transforms(side, finger)]
+    return arm + fingers
+
 BODY_TRANSFORMS = [f"transforms/{j}" for j in ("hip", *(f"spine{i}" for i in range(1, 8)), *(f"neck{i}" for i in range(1, 5)))]
 SKELETON_TRANSFORMS = side_transforms("left") + side_transforms("right") + BODY_TRANSFORMS
 SKELETON_DIM = len(SKELETON_TRANSFORMS) * 3
+
+# Transforms every convertible episode must contain (used by egodex_preflight),
+# and exactly the datasets read_transforms pulls from each HDF5 file.
 REQUIRED_TRANSFORMS = SKELETON_TRANSFORMS + [CAMERA]
 
+
+@daft.func(return_dtype=DataType.struct({name: DataType.tensor(DataType.float32()) for name in REQUIRED_TRANSFORMS}))
+def read_transforms(trajectory):
+    """Read every required transform dataset from one episode's HDF5 file.
+
+    `trajectory` is an `Hdf5File` (one per episode). A single `read` of all the
+    dataset paths opens the file once and returns each as its whole (N, 4, 4)
+    array of per-frame 4x4 poses.
+    """
+    arrays = trajectory.read(REQUIRED_TRANSFORMS)
+    return {name: arrays[name].astype(np.float32) for name in REQUIRED_TRANSFORMS}
+
+
 def hand_block(wrist, tips):
-    # wrist xyz (translation) + rot6d (first two rotation columns) + each fingertip xyz
-    w = np.asarray(wrist, dtype=np.float32).reshape(4, 4)
-    out = list(w[:3, 3]) + list(w[:3, 0]) + list(w[:3, 1])
-    for tip in tips:
-        out += list(np.asarray(tip, dtype=np.float32).reshape(4, 4)[:3, 3])
-    return out
+    """One hand's 24 state dims over a whole episode.
 
-@func(return_dtype=DataType.tensor(DataType.float32(), shape=(16,)))
-def build_extrinsics(camera):
-    return np.asarray(camera, dtype=np.float32).reshape(16)  # camera 4x4, row-major
+    wrist is (N, 4, 4); tips is five (N, 4, 4) arrays. Returns (N, 24):
+    wrist xyz (translation) + rot6d (first two rotation columns) + each fingertip xyz.
+    """
+    translation = wrist[:, :3, 3]
+    rotation = np.concatenate([wrist[:, :3, 0], wrist[:, :3, 1]], axis=1)
+    fingertips = np.concatenate([tip[:, :3, 3] for tip in tips], axis=1)
+    return np.concatenate([translation, rotation, fingertips], axis=1)
 
-@func(return_dtype=DataType.tensor(DataType.float32(), shape=(48,)))
-def build_state(left_hand, left_thumb, left_index, left_middle, left_ring, left_little,
-                right_hand, right_thumb, right_index, right_middle, right_ring, right_little):
-    block = hand_block(left_hand, [left_thumb, left_index, left_middle, left_ring, left_little])
-    block += hand_block(right_hand, [right_thumb, right_index, right_middle, right_ring, right_little])
-    return np.asarray(block, dtype=np.float32)
 
-@func(return_dtype=DataType.tensor(DataType.float32(), shape=(SKELETON_DIM,)))
-def build_skeleton(*joints):
-    # Each joint is a 4x4 transform; take its xyz translation, in SKELETON_TRANSFORMS order.
-    return np.concatenate([np.asarray(j, dtype=np.float32).reshape(4, 4)[:3, 3] for j in joints])
+def build_state(transforms):
+    """observation.state (N, 48): left hand block then right hand block."""
+    left = hand_block(transforms[WRIST["left"]], [transforms[name] for name in TIPS["left"]])
+    right = hand_block(transforms[WRIST["right"]], [transforms[name] for name in TIPS["right"]])
+    return np.concatenate([left, right], axis=1).astype(np.float32)
 
-def egodex_frames(path):
-    """Read raw EgoDex HDF5 → per-frame LeRobot feature columns (no video)."""
-    df = hdf5_example.read(path, datasets=SKELETON_TRANSFORMS + [CAMERA], attrs=ATTRS)
-    df = df.with_column("observation.state", build_state(*[col(n) for n in STATE_TRANSFORMS]))
-    df = df.with_column("observation.skeleton", build_skeleton(*[col(n) for n in SKELETON_TRANSFORMS]))
-    df = df.with_column("observation.extrinsics", build_extrinsics(col(CAMERA)))
-    # task = llm_description, or llm_description2 for reversible tasks (which_llm_description="2");
-    # fill_null(False) makes the absent-which case fall through to llm_description.
-    df = df.with_column(
-        "task",
-        when((col("which_llm_description") == "2").fill_null(False), col("llm_description2"))
-        .otherwise(col("llm_description")),
-    )
-    # action = next frame's state within the episode; the last frame repeats itself (no wrap).
-    window = Window().partition_by("path").order_by("row_index")
-    df = df.with_column("action", coalesce(col("observation.state").lead(1).over(window), col("observation.state")))
-    return df.select("path", "row_index", "observation.state", "observation.skeleton", "observation.extrinsics", "action", "task")
+
+def build_skeleton(transforms):
+    """observation.skeleton (N, 204): the xyz translation of every joint, in SKELETON_TRANSFORMS order."""
+    return np.concatenate([transforms[name][:, :3, 3] for name in SKELETON_TRANSFORMS], axis=1).astype(np.float32)
+
+
+def build_extrinsics(transforms):
+    """observation.extrinsics (N, 16): the camera 4x4, row-major, per frame."""
+    camera = transforms[CAMERA]
+    return camera.reshape(camera.shape[0], 16).astype(np.float32)
+
+
+def next_frame_action(state):
+    """action (N, 48): each frame's target is the next frame's state; the last frame repeats itself (no wrap)."""
+    return np.vstack([state[1:], state[-1:]]).astype(np.float32)
+
+
+def resolve_task(attributes):
+    """Task text for one episode: llm_description, or llm_description2 for reversible tasks
+    (which_llm_description == "2"); falls back to llm_description when absent."""
+    def text(name):
+        value = attributes.get(name)
+        if isinstance(value, bytes):
+            return value.decode("utf-8", "replace")
+        return None if value is None else str(value)
+    chosen = text("llm_description2") if text("which_llm_description") == "2" else text("llm_description")
+    return chosen or ""
+
 
 def state_names():
     # The 48 per-dimension names for observation.state.
@@ -138,10 +161,10 @@ def features():
 def write_lerobot(files, repo_id, output_dir, batch_size=64):
     """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
 
-    Daft reads + transforms a batch of files in parallel (one file = one episode); each
-    episode's frames are then fed in order to the serial LeRobotDataset writer. The batch
-    size bounds driver memory, and the action window partitions by path so episodes in a
-    batch never bleed together.
+    Daft reads a batch of files in parallel as an episode-level DataFrame (one row =
+    one HDF5 file, transforms held as whole arrays); each episode's frames are then
+    sliced in order and fed to the serial LeRobotDataset writer. The batch size bounds
+    driver memory.
     """
     from lerobot.datasets.lerobot_dataset import LeRobotDataset  # heavy optional dep; only needed to write
 
@@ -153,21 +176,28 @@ def write_lerobot(files, repo_id, output_dir, batch_size=64):
     )
     episodes = 0
     for start in range(0, len(files), batch_size):
-        rows = egodex_frames(files[start : start + batch_size]).sort(["path", "row_index"]).to_pydict()
-        paths = rows["path"]
-        n = len(paths)
-        i = 0
-        while i < n:  # group consecutive rows sharing a path into one episode
-            p = paths[i]
-            while i < n and paths[i] == p:
+        batch = (
+            daft.from_pydict({"path": list(files[start : start + batch_size])})
+            .with_column("trajectory", hdf5_file(col("path")))
+            .with_column("attributes", hdf5_attrs(col("trajectory")))
+            .with_column("transforms", read_transforms(col("trajectory")))
+            .sort("path")
+        )
+        for episode in batch.to_pylist():
+            transforms = {name: np.asarray(array, dtype=np.float32) for name, array in episode["transforms"].items()}
+            state = build_state(transforms)
+            skeleton = build_skeleton(transforms)
+            extrinsics = build_extrinsics(transforms)
+            action = next_frame_action(state)
+            task = resolve_task(episode["attributes"])
+            for frame in range(len(state)):
                 ds.add_frame({
-                    "observation.state": np.asarray(rows["observation.state"][i], dtype=np.float32),
-                    "observation.skeleton": np.asarray(rows["observation.skeleton"][i], dtype=np.float32),
-                    "observation.extrinsics": np.asarray(rows["observation.extrinsics"][i], dtype=np.float32),
-                    "action": np.asarray(rows["action"][i], dtype=np.float32),
-                    "task": rows["task"][i],
+                    "observation.state": state[frame],
+                    "observation.skeleton": skeleton[frame],
+                    "observation.extrinsics": extrinsics[frame],
+                    "action": action[frame],
+                    "task": task,
                 })
-                i += 1
             ds.save_episode()
             episodes += 1
     ds.finalize()
