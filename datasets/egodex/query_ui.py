@@ -21,6 +21,7 @@ Flow:
 
 from __future__ import annotations
 
+import glob
 import os
 import json
 import subprocess
@@ -32,18 +33,19 @@ from itertools import count
 
 import daft
 import gradio as gr
+import h5py
 import numpy as np
 from daft import col
 
-from daft.datasets import lerobot
 from egodex_lib import egodex, pose_features as pf, skeleton_features as SK
+from egodex_lib.convert_egodex_to_lerobot import build_state, build_skeleton, build_extrinsics, resolve_task
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get("OUT", os.path.join(HERE, "out", "clip_features"))
 POSE_OUT = os.environ.get(
     "POSE_OUT", os.path.join(HERE, "out", "pose_features")
 )  # facade features (continuous-only); written by run_pose_features.py
-DATASET = os.environ.get("DATASET", "./egodex_lerobot_full")  # full pose(48+204)+video dataset
+DATASET = os.environ.get("DATASET", os.path.join(HERE, ".data", "**", "*.hdf5"))  # raw EgoDex HDF5 glob
 CLIPS_DIR, FRAMES_DIR = os.path.join(HERE, "ui_clips"), os.path.join(HERE, "ui_frames")
 os.makedirs(CLIPS_DIR, exist_ok=True)
 os.makedirs(FRAMES_DIR, exist_ok=True)
@@ -67,50 +69,35 @@ E = np.asarray(_e["clip_emb"], dtype=np.float32)
 EP_ROWS = {int(x): np.where(EP == x)[0] for x in np.unique(EP)}
 print(f"  {E.shape[0]} embeddings over {len(EP_ROWS)} episodes")
 
-print("loading episode metadata…")
-FPS = float(lerobot._read_info(lerobot._normalize_dataset_root(DATASET))["fps"])
-_k = "observation.image"
-_m = (
-    lerobot.read_episodes(DATASET, include_video_metadata=True)
-    .select(
-        "episode_index",
-        "tasks",
-        f"videos/{_k}/chunk_index",
-        f"videos/{_k}/file_index",
-        f"videos/{_k}/from_timestamp",
-        f"videos/{_k}/to_timestamp",
-    )
-    .to_pydict()
-)
+print("loading episode metadata + raw pose from HDF5…")
+FPS = egodex.DEFAULT_FPS
+# episode_index is the position in the file-sorted HDF5 glob (matches read_egodex). Read
+# each embedded episode's file once: task + sibling-mp4 window (metadata) and the per-frame
+# state/extrinsics/skeleton the player's live overlay needs. No LeRobot, no full-dataset scan.
+_files = sorted(glob.glob(DATASET, recursive=True))
 TASK, WINDOW = {}, {}
-for e, t, ci, fi, a, b in zip(
-    _m["episode_index"],
-    _m["tasks"],
-    _m[f"videos/{_k}/chunk_index"],
-    _m[f"videos/{_k}/file_index"],
-    _m[f"videos/{_k}/from_timestamp"],
-    _m[f"videos/{_k}/to_timestamp"],
-):
-    e = int(e)
-    TASK[e] = t[0] if isinstance(t, (list, tuple)) and t else (t or "")
-    WINDOW[e] = (
-        os.path.join(DATASET, "videos", _k, f"chunk-{int(ci):03d}", f"file-{int(fi):03d}.mp4"),
-        float(a),
-        float(b),
-    )
+_pep, _pfr, _S, _X, _SKEL = [], [], [], [], []
+for e in sorted(EP_ROWS):
+    hdf5_path = _files[e]
+    mp4_path = hdf5_path[: -len(".hdf5")] + ".mp4"  # each <n>.hdf5 has a sibling <n>.mp4
+    with h5py.File(hdf5_path, "r") as h:
+        state = build_state(h).astype(np.float32)
+        extrinsics = build_extrinsics(h).astype(np.float32)
+        skeleton = build_skeleton(h).astype(np.float32)
+        TASK[e] = resolve_task(h.attrs)
+    n = len(state)
+    WINDOW[e] = (mp4_path, 0.0, n / FPS)  # per-episode mp4: from_timestamp=0, to_timestamp=duration
+    _pep.append(np.full(n, e, np.int64))
+    _pfr.append(np.arange(n, dtype=np.int64))
+    _S.append(state)
+    _X.append(extrinsics)
+    _SKEL.append(skeleton)
 
-# ── warm state: raw pose, ONLY for the player's live skeleton overlay (viz) ──
-print("loading raw pose for the player overlay…")
-_p = (
-    lerobot.read(DATASET)
-    .where(col("episode_index").is_in(sorted(EP_ROWS)))
-    .select("episode_index", "frame_index", "observation.state", "observation.extrinsics", "observation.skeleton")
-    .to_pydict()
-)
-pep = np.asarray(_p["episode_index"])
-pfr = np.asarray(_p["frame_index"])
-S = np.asarray(_p["observation.state"], dtype=np.float32)
-X = np.asarray(_p["observation.extrinsics"], dtype=np.float32)
+pep = np.concatenate(_pep)
+pfr = np.concatenate(_pfr)
+S = np.concatenate(_S)
+X = np.concatenate(_X)
+SKEL = np.concatenate(_SKEL)  # (rows, 204) world joints, POSE_ROW-indexed
 # 48-D features for the live inspection table + landmark overlay ONLY (not the query path)
 F = pf.compute_raw_features(S)
 pf.add_temporal_features(F, pep, pfr, FPS)
@@ -381,7 +368,7 @@ CX, CY = 960.0, 540.0
 POSE_FRAME_OFFSET = 1
 
 # ── full-skeleton overlay (mirrors export_query_clips): edges from joint chains ──
-SKEL = np.asarray(_p["observation.skeleton"], dtype=np.float32)  # (rows, 204) world joints, POSE_ROW-indexed
+# SKEL (rows, 204 world joints, POSE_ROW-indexed) is loaded with the rest of the raw pose above.
 HALF = len(SK.JOINT_NAMES) // 2  # first half = left joints, second = right
 
 

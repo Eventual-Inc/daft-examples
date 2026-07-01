@@ -3,7 +3,6 @@
 # requires-python = ">=3.12, <3.13"
 # dependencies = [
 #     "daft[transformers,hdf5,video]",
-#     "lerobot",
 #     "sentencepiece",
 # ]
 #
@@ -18,91 +17,67 @@ Daft details under each). Copy-paste and run:
 
     uv run egodex_demo.py
 
-Two feature branches come off the same LeRobot read:
+Two feature branches come off one read of the raw HDF5 (no LeRobot, no Hugging Face):
   - pose geometry at 30 fps  (add_state_features -> add_skeleton_features)
   - SigLIP-2 embeddings at ~1 fps  (embed_frames)
-queried together at the end. Notes:
-  - Step 1 (convert) needs a Daft build with the new `Hdf5File` API (nightly / >= next
-    release) plus `pip install lerobot` for the write. If you already have the LeRobot
-    dataset, skip step 1 and point `lerobot.read` at it directly.
+queried together at the end. `read_egodex` uses Daft's native Hdf5File type and needs a
+Daft build that has it (nightly / >= next release); `with_video=True` also needs `av`.
 """
 
 import os
 
-import torch
-from transformers import AutoModel, AutoProcessor
-from PIL import Image
-import numpy as np
+from egodex_lib.egodex import (
+    read_egodex,
+    add_state_features,
+    add_skeleton_features,
+    embed_frames,
+    calibrate,
+    query,
+)
 
-import daft
-from daft import Series, DataType
-
-from egodex_lib.egodex import convert_egodex_to_lerobot, add_state_features, add_skeleton_features, embed_frames, query
-
-
-
-
-
-
-def convert_egodex_to_lerobot(hdf5_glob, repo_id, output_dir):
-    """Convert raw EgoDex HDF5 episodes into a LeRobot v3 dataset on disk; returns output_dir.
-
-    Thin wrapper over convert_egodex_to_lerobot.write_lerobot, which reads each episode with
-    Daft's new Hdf5File type. Requires a Daft build that has the Hdf5File API.
-    """
-    from egodex_lib.convert_egodex_to_lerobot import write_lerobot
-
-    files = sorted(glob.glob(hdf5_glob))
-    if not files:
-        raise FileNotFoundError(f"no HDF5 files matched {hdf5_glob!r}")
-    return write_lerobot(files, repo_id=repo_id, output_dir=output_dir)
+# Raw EgoDex HDF5 episodes (each <n>.hdf5 has a sibling <n>.mp4). Point this at your
+# download; RAW_HDF5 can be overridden to run the demo on a subset.
+RAW_HDF5 = os.environ.get("RAW_HDF5", os.path.join(os.path.dirname(__file__), ".data", "**", "*.hdf5"))
 
 
 if __name__ == "__main__":
+    # ── Build the features ──────────────────────────────────────────────────────
+    # 1. Raw EgoDex HDF5 -> one row per frame (native Hdf5File, no LeRobot round-trip).
+    #    with_video=True adds a lazily-decoded observation.image column for SigLIP.
+    df = read_egodex(RAW_HDF5, with_video=True)
 
-    DATA_URI = os.path.join(os.path.dirname(__file__), ".data/")
+    # 2. SigLIP-2 image embeddings (~1 fps) — a separate semantic branch.
+    emb = embed_frames(df)
+    emb.select("episode_index", "frame_index", "clip_emb").write_parquet("embeddings/")
 
-    # -- Build the features ────────────────────────────────────────────────────────
-    # 1. HDF5 -> LeRobot from egodex_lib.convert_egodex_to_lerobot
-    lerobot_dir = convert_egodex_to_lerobot(
-        "egodex/**/*.hdf5", 
-        repo_id="egodex", 
-        output_dir="egodex_lerobot/"
-    )
+    # 3. per-frame geometry (closure, flexion, thumb distances, ...)
+    feats = add_state_features(df)
 
-    # 2. LeRobot -> DataFrame (one row per frame)
-    df = daft.datasets.lerobot.read(lerobot_dir, load_video_frames="observation.image") 
-    
-    # 3. SigLIP-2 image embeddings (~1 fps)
-    emb = embed_frames(df)  
-    emb.select("episode_index", "frame_index", "clip_emb").write_parquet("embeddings/")  #    a separate semantic branch
+    # 4. + action rates over frames (curl_rate, wrist_speed, roll, ...)
+    feats = add_skeleton_features(feats)
 
-    # 4. per-frame geometry  (closure, flexion, thumb distances, ...)
-    df = add_state_features(df) 
+    # 5. continuous pose features (30 fps) — compute once
+    feats.write_parquet("features/")
 
-    # 5. + action rates over frames (curl_rate, wrist_speed, roll, ...)
-    df = add_skeleton_features(df)  
+    # ── Query ───────────────────────────────────────────────────────────────────
+    import daft
 
-    # 6. continuous pose features (30 fps) — compute once
-    df.write_parquet("features/")  
-
-    # ── Query ────────────────────────────────────────────────────────────────────
-    # load the features wherever you like
-    features = daft.read_parquet("features/")  
+    features = daft.read_parquet("features/")
     embeddings = daft.read_parquet("embeddings/")
+    thresholds = calibrate(features)
 
-    # 7a. rank by a hand-pose scenario (match count)
-    pose_hits = query(features, pose="writing_grip", k=5)  
+    # 6a. rank by a hand-pose scenario (match count)
+    pose_hits = query(features, pose="writing_grip", k=5, thresholds=thresholds)
 
-    # 7b. rank by semantic text (facade encodes it with SigLIP)
-    text_hits = query(embeddings, text="chopsticks", k=5)  
+    # 6b. rank by semantic text (facade encodes it with SigLIP)
+    text_hits = query(embeddings, text="chopsticks", k=5)
 
-    # 7c. pose AND text: join so each frame carries both pose features and an embedding, then filter by the grip and rank what's left by visual similarity.
+    # 6c. pose AND text: join so each frame carries both pose features and an embedding,
+    #     filter by the grip, then rank what's left by visual similarity.
     frames = features.join(embeddings, on=["episode_index", "frame_index"])
-    combined_hits = query(frames, pose="hammer_grip", text="stapler", k=5)
+    combined_hits = query(frames, pose="hammer_grip", text="stapler", k=5, thresholds=thresholds)
 
-    # -- Display the results ────────────────────────────────────────────────────────
-
+    # ── Display ─────────────────────────────────────────────────────────────────
     for title, hits in [
         ("writing_grip", pose_hits),
         ("text 'chopsticks'", text_hits),

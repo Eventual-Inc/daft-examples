@@ -1,15 +1,14 @@
-"""egodex - facade API for the EgoDex scenario-search pipeline (blog post #1).
+"""egodex - API for the EgoDex scenario-search pipeline (blog post #1).
 
 This is the thin, public-facing layer the notebook imports. Each function wraps
 heavier logic that lives in the existing modules (clip_features, pose_features,
 skeleton_features, query_ui) so a reader runs the whole pipeline in a handful of
 lines:
 
-    import daft, lerobot
-    from egodex import convert_egodex_to_lerobot, add_state_features, add_skeleton_features, query
+    import daft
+    from egodex import read_egodex, add_state_features, add_skeleton_features, query
 
-    lerobot_dir = convert_egodex_to_lerobot("egodex/**/*.hdf5", repo_id="egodex", output_dir="egodex_lerobot/")
-    df = lerobot.read(lerobot_dir)            # one row per frame
+    df = read_egodex(".data/**/*.hdf5")       # raw EgoDex HDF5 -> one row per frame (native Hdf5File)
     df = add_state_features(df)               # per-frame geometry (closure, flexion, thumb distances, ...)
     df = add_skeleton_features(df)            # + action rates over frames (curl_rate, wrist_speed, roll, ...)
     df.write_parquet("features/")             # continuous features, one parquet (compute once)
@@ -404,17 +403,15 @@ WRIST_DIM = 3  # wrist xyz
 LOCAL_JOINTS_DIM = 72  # hand joints in the hand frame, flattened (24 joints x 3)
 
 
-def convert_egodex_to_lerobot(hdf5_glob, repo_id, output_dir):
-    """Convert raw EgoDex HDF5 episodes into a LeRobot v3 dataset on disk; returns output_dir.
+def read_egodex(hdf5_glob, with_video=False):
+    """Read raw EgoDex HDF5 directly into the per-frame DataFrame the pipeline expects.
 
-    Thin wrapper over convert_egodex_to_lerobot.write_lerobot, which reads each episode with
-    Daft's new Hdf5File type. Requires a Daft build that has the Hdf5File API.
+    One row per frame, sourced purely from local HDF5 via Daft's native Hdf5File type -
+    no LeRobot write, no Hugging Face round-trip. Output columns match
+    daft.datasets.lerobot.read() so add_state_features/add_skeleton_features/embed_frames/
+    query run against it unchanged. Thin wrapper over convert_egodex_to_lerobot.read_egodex.
     """
-
-    files = sorted(glob.glob(hdf5_glob))
-    if not files:
-        raise FileNotFoundError(f"no HDF5 files matched {hdf5_glob!r}")
-    return convert_egodex_to_lerobot.write_lerobot(files, repo_id=repo_id, output_dir=output_dir)
+    return convert_egodex_to_lerobot.read_egodex(hdf5_glob, with_video=with_video)
 
 
 def embed_frames(df, subsample=None, image_column="observation.image"):
@@ -557,35 +554,30 @@ CAMERA_FX = CAMERA_FY = 736.6339
 CAMERA_CX, CAMERA_CY = 960.0, 540.0
 
 
-def overlay(dataset, episode_index, frame_index, io_config=None):
+def overlay(hdf5_glob, episode_index, frame_index):
     """Return a PIL image of one EgoDex frame with its 68-joint skeleton drawn on it.
 
-    Notebook/visual helper: pulls the frame's skeleton + camera extrinsics, extracts that exact
-    video frame (frame-accurate, snapped to a + frame/fps), projects the world joints to pixels
-    with the EgoDex intrinsics, and draws them (left = cyan, right = amber). Lazy-imports the
-    video/render deps so importing egodex stays light.
+    Notebook/visual helper, sourced straight from the raw HDF5 (no LeRobot): resolves the
+    episode's file as the episode_index-th in sorted(hdf5_glob), reads that frame's skeleton +
+    camera extrinsics from the HDF5, extracts the matching frame from the sibling .mp4 (snapped
+    to frame/fps), projects the world joints to pixels with the EgoDex intrinsics, and draws
+    them (left = cyan, right = amber). Lazy-imports the video/render deps so importing egodex
+    stays light.
     """
+    import h5py
 
-    key = "observation.image"
-    meta = (
-        daft.datasets.lerobot.read_episodes(dataset, include_video_metadata=True)
-        .where(col("episode_index") == episode_index)
-        .select(f"videos/{key}/chunk_index", f"videos/{key}/file_index", f"videos/{key}/from_timestamp")
-        .to_pydict()
-    )
-    chunk = int(meta[f"videos/{key}/chunk_index"][0])
-    file_index = int(meta[f"videos/{key}/file_index"][0])
-    start = float(meta[f"videos/{key}/from_timestamp"][0])
-    shard = os.path.join(dataset, "videos", key, f"chunk-{chunk:03d}", f"file-{file_index:03d}.mp4")
+    # episode_index is the position in the file-sorted order (matches read_egodex).
+    # recursive=True so `**` spans nested dirs, matching Daft's recursive glob in read_egodex;
+    # without it glob.glob returns nothing for a `.data/**/*.hdf5`-style pattern.
+    files = sorted(glob.glob(hdf5_glob, recursive=True))
+    hdf5_path = files[episode_index]
+    mp4_path = hdf5_path[: -len(".hdf5")] + ".mp4"  # each <n>.hdf5 has a sibling <n>.mp4
 
-    frame = (
-        daft.datasets.lerobot.read(dataset, io_config=io_config)
-        .where((col("episode_index") == episode_index) & (col("frame_index") == frame_index))
-        .select("observation.skeleton", "observation.extrinsics")
-        .to_pydict()
-    )
-    joints = np.asarray(frame["observation.skeleton"][0], dtype=np.float64).reshape(68, 3)
-    world_to_camera = np.linalg.inv(np.asarray(frame["observation.extrinsics"][0], dtype=np.float64).reshape(4, 4))
+    with h5py.File(hdf5_path, "r") as h:
+        skeleton = convert_egodex_to_lerobot.build_skeleton(h)[frame_index]
+        extrinsics = convert_egodex_to_lerobot.build_extrinsics(h)[frame_index]
+    joints = np.asarray(skeleton, dtype=np.float64).reshape(68, 3)
+    world_to_camera = np.linalg.inv(np.asarray(extrinsics, dtype=np.float64).reshape(4, 4))
 
     with tempfile.TemporaryDirectory() as tmp:
         png = os.path.join(tmp, "frame.png")
@@ -594,9 +586,9 @@ def overlay(dataset, episode_index, frame_index, io_config=None):
                 "ffmpeg",
                 "-y",
                 "-ss",
-                f"{start + frame_index / DEFAULT_FPS:.5f}",
+                f"{frame_index / DEFAULT_FPS:.5f}",
                 "-i",
-                shard,
+                mp4_path,
                 "-frames:v",
                 "1",
                 png,

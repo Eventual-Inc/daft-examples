@@ -11,17 +11,13 @@ The read is per-episode: `hdf5_file` makes an `Hdf5File` column, the
 and `write_lerobot` slices those arrays into frames as it feeds the LeRobot
 writer. No per-frame explode is needed — the writer consumes one episode at a time.
 """
-import pathlib
-import shutil
-
 import numpy as np
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 import h5py
 import daft
-from daft import col
+from daft import col, Window
 from daft.datatype import DataType
-from daft.functions import hdf5_attrs, hdf5_file
+from daft.functions import row_number
 
 FPS = 30.0
 
@@ -110,7 +106,7 @@ def build_skeleton(transforms: h5py.File) -> np.ndarray:
 
 def build_extrinsics(transforms: h5py.File) -> np.ndarray:
     """observation.extrinsics (N, 16): the camera 4x4, row-major, per frame."""
-    camera = transforms[CAMERA]
+    camera = transforms[CAMERA][:]  # read the h5py Dataset into a numpy array before reshaping
     return camera.reshape(camera.shape[0], 16).astype(np.float32)
 
 
@@ -118,36 +114,60 @@ def next_frame_action(state):
     """action (N, 48): each frame's target is the next frame's state; the last frame repeats itself (no wrap)."""
     return np.vstack([state[1:], state[-1:]]).astype(np.float32)
 
+# One frame's row. observation.* names are applied here so downstream stages
+# (add_state_features etc.) need no renaming after the explode.
+FRAME_DTYPE = DataType.struct(
+    {
+        "frame_index": DataType.int64(),
+        "observation.state": DataType.tensor(DataType.float32()),       # (48,)
+        "observation.skeleton": DataType.tensor(DataType.float32()),    # (204,)
+        "observation.extrinsics": DataType.tensor(DataType.float32()),  # (16,)
+        "action": DataType.tensor(DataType.float32()),                  # (48,)
+    }
+)
+
+# One episode's row: the per-episode task string + its N per-frame structs.
+# task rides alongside `frames` so explode() broadcasts it onto every frame row.
 EPISODE_DTYPE = DataType.struct(
     {
-        "state": DataType.tensor(DataType.float32()),
-        "skeleton": DataType.tensor(DataType.float32()),
-        "extrinsics": DataType.tensor(DataType.float32()),
-        "action": DataType.tensor(DataType.float32()),
         "task": DataType.string(),
+        "frames": DataType.list(FRAME_DTYPE),
     }
 )
 
 
 @daft.func(return_dtype=EPISODE_DTYPE)
-def process_egodex_episode(file_: daft.File) -> dict[str, np.ndarray]:
+def process_egodex_episode(file_: daft.File) -> dict:
+    """One EgoDex HDF5 episode -> {task, frames}; frames is a list of N per-frame structs.
 
-    hdf5_file = file_.as_hdf5()
+    Opens the file through Daft's native Hdf5File type, then hands the byte stream to
+    h5py so the build_* helpers can slice datasets by name. The caller explodes `frames`
+    into one row per frame.
+    """
+    h = file_.as_hdf5()
 
-    with hdf5_file.open() as h:
-        state = build_state(h)
-        skeleton = build_skeleton(h)
-        extrinsics = build_extrinsics(h)
-        action = next_frame_action(state)
-        task = resolve_task(h.attrs)
-        
-        return {
-            "state": state,
-            "skeleton": skeleton,
-            "extrinsics": extrinsics,
-            "action": action,
-            "task": task,
+    # Native batched read -> {name: ndarray}. ~100x faster than handing the byte stream
+    # to h5py (which seeks per-dataset through the file abstraction). The dict supports the
+    # same transforms[name][:, :3, 3] access the build_* helpers use, so they're unchanged.
+    transforms = h.read(list(dict.fromkeys(STATE_TRANSFORMS + SKELETON_TRANSFORMS + [CAMERA])))
+
+    state = build_state(transforms)
+    skeleton = build_skeleton(transforms)
+    extrinsics = build_extrinsics(transforms)
+    action = next_frame_action(state)
+    task = resolve_task(h.attrs())  # native attrs() returns a dict
+
+    frames = [
+        {
+            "frame_index": i,
+            "observation.state": state[i],
+            "observation.skeleton": skeleton[i],
+            "observation.extrinsics": extrinsics[i],
+            "action": action[i],
         }
+        for i in range(len(state))
+    ]
+    return {"task": task, "frames": frames}
 
 
 
@@ -180,62 +200,109 @@ def skeleton_names():
     # The 204 per-dimension names for observation.skeleton (joint xyz, in transform order).
     return [f"{t.split('/')[-1]}_{a}" for t in SKELETON_TRANSFORMS for a in "xyz"]
 
-@daft.cls()
-class LeRobotDatasetWriter:
-    def __init__(self, lr_dataset: LeRobotDataset):
-        self.ds = lr_dataset
-        self.episodes = 0
+def read_egodex(hdf5_glob, with_video: bool = False):
+    """Read raw EgoDex HDF5 directly into the per-frame DataFrame the rest of the pipeline
+    expects — no LeRobot, no Hugging Face. One row per frame.
 
-    def write(self, data):
-        self.episodes += 1
-        for frame in range(len(data["state"])):
-            self.ds.add_frame(
-                {
-                    "observation.state": data["state"][frame],
-                    "observation.skeleton": data["skeleton"][frame],
-                    "observation.extrinsics": data["extrinsics"][frame],
-                    "action": data["action"][frame],
-                    "task": data["task"],
-                }
-            )
-        self.ds.save_episode() 
-        
-        return self.episodes
+    Point Daft at a directory/glob of HDF5 files (one row = one episode), assign a stable
+    episode_index over the file-sorted order, decode each episode's frames with the native
+    Hdf5File UDF, then explode into per-frame rows. The output columns match what
+    daft.datasets.lerobot.read() produces, so add_state_features/add_skeleton_features/
+    embed_frames/query run against it unchanged.
 
-def write_lerobot(dataset_dir, repo_id: str, output_dir):
-    """Write EgoDex HDF5 episodes to an on-disk LeRobot v3 dataset (tabular only, no video).
-
-    Daft reads a batch of files in parallel as an episode-level DataFrame (one row =
-    one HDF5 file, transforms held as whole arrays); each episode's frames are then
-    sliced in order and fed to the serial LeRobotDataset writer. The batch size bounds
-    driver memory.
+    Columns: episode_index, frame_index, task, observation.state/skeleton/extrinsics,
+    action, timestamp, index (+ observation.image when with_video=True).
     """
-    out = pathlib.Path(output_dir)
-    if out.exists():
-        shutil.rmtree(out)
-
-    lr_dataset = LeRobotDataset.create(
-        repo_id=repo_id,
-        fps=int(FPS),
-        features={
-            "observation.state": {"dtype": "float32", "shape": (48,), "names": state_names()},
-            "observation.skeleton": {"dtype": "float32", "shape": (SKELETON_DIM,), "names": skeleton_names()},
-            "observation.extrinsics": {"dtype": "float32", "shape": (16,), "names": [f"extrinsic_{i}" for i in range(16)]},
-            "action": {"dtype": "float32", "shape": (48,), "names": [f"action_{i}" for i in range(48)]},
-        },
-        root=str(out),
-        robot_type="hand",
-        use_videos=True,
+    per_file = Window().order_by(col("file").file_path())
+    episodes = (
+        daft.from_files(hdf5_glob)  # pass a glob/dir of .hdf5 files; one row per file
+        .sort(col("file").file_path())
+        # episode_index must be contiguous 0-based in file-sorted order to match the
+        # LeRobot dataset; row_number()-1 gives that (monotonically_increasing_id would not).
+        .with_column("episode_index", row_number().over(per_file) - 1)
+        # carry the HDF5 path so the video decoder can find each episode's sibling .mp4
+        .with_column("_src", col("file").file_path())
+        .into_batches(8)
+        .with_column("_ep", process_egodex_episode(col("file")))
+        .with_column("task", col("_ep")["task"])
+        .with_column("frames", col("_ep")["frames"])
     )
 
-    writer = LeRobotDatasetWriter(lr_dataset)
-    (
-        daft.from_files(dataset_dir)
-        .sort(col("file").file_path())
-        .where(daft.functions.guess_mime_type(col("file")).eq("application/x-hdf5"))
-        .with_column("data", process_egodex_episode(col("file")))
-        .with_column("episode_index", writer.write(col("data")))
-    ).collect()
+    frames = (
+        episodes.explode("frames")
+        .select("episode_index", "task", "_src", col("frames").unnest())
+        .with_column("timestamp", (col("frame_index") / FPS).cast(DataType.float32()))
+    )
 
-    lr_dataset.finalize()
-    return str(out), writer.episodes
+    if with_video:
+        # observation.image is a lazy UDF column; embed_frames' frame_index % SUBSAMPLE
+        # filter pushes below it, so only the kept (~1 fps) frames are ever decoded.
+        frames = frames.with_column("observation.image", _decode_sibling_mp4(col("_src"), col("timestamp")))
+    return frames.exclude("_src")
+
+
+@daft.func(return_dtype=DataType.image("RGB"))
+def _decode_sibling_mp4(hdf5_path: str, timestamp: float):
+    """Decode the frame nearest `timestamp` (s) from the .mp4 sitting beside the .hdf5.
+
+    Each EgoDex episode `<n>.hdf5` has a `<n>.mp4` next to it. Seek to the preceding
+    keyframe, then walk forward to the frame closest in time (mirrors LeRobot's decode).
+    """
+    import av
+
+    # Daft's file_path() carries a URI scheme (e.g. "file://.data/.../0.hdf5"); av/ffmpeg
+    # would try to open that literal string and fail, so strip a leading "file://".
+    if hdf5_path.startswith("file://"):
+        hdf5_path = hdf5_path[len("file://"):]
+    mp4_path = hdf5_path[:-len(".hdf5")] + ".mp4"
+    target = float(timestamp)
+    with av.open(mp4_path) as container:
+        stream = container.streams.video[0]
+        container.seek(int(target / stream.time_base), backward=True, stream=stream)
+        best = None
+        for frame in container.decode(stream):
+            if frame.pts is None:
+                continue
+            t = float(frame.pts * stream.time_base)
+            if best is None or abs(t - target) < abs(best[0] - target):
+                best = (t, frame.to_ndarray(format="rgb24"))
+            if t >= target:
+                break
+    if best is None:
+        raise ValueError(f"no frame decoded from {mp4_path} at t={target:.3f}s")
+    return best[1]
+
+
+# potential new 
+
+
+# @daft.func(return_dtype=DataType.image("RGB"))
+# def _decode_sibling_mp4(video_file: daft.VideoFile, timestamp: float):
+#     """Decode the frame nearest `timestamp` (s) from the .mp4 sitting beside the .hdf5.
+
+#     Each EgoDex episode `<n>.hdf5` has a `<n>.mp4` next to it. Seek to the preceding
+#     keyframe, then walk forward to the frame closest in time (mirrors LeRobot's decode).
+#     """
+#     import av
+
+#     # Daft's file_path() carries a URI scheme (e.g. "file://.data/.../0.hdf5"); av/ffmpeg
+#     # would try to open that literal string and fail, so strip a leading "file://".
+#     if hdf5_path.startswith("file://"):
+#         hdf5_path = hdf5_path[len("file://"):]
+#     mp4_path = hdf5_path[:-len(".hdf5")] + ".mp4"
+#     target = float(timestamp)
+#     with video_file.open() as vf:
+#         stream = container.streams.video[0]
+#         container.seek(int(target / stream.time_base), backward=True, stream=stream)
+#         best = None
+#         for frame in container.decode(stream):
+#             if frame.pts is None:
+#                 continue
+#             t = float(frame.pts * stream.time_base)
+#             if best is None or abs(t - target) < abs(best[0] - target):
+#                 best = (t, frame.to_ndarray(format="rgb24"))
+#             if t >= target:
+#                 break
+#     if best is None:
+#         raise ValueError(f"no frame decoded from {mp4_path} at t={target:.3f}s")
+#     return best[1]

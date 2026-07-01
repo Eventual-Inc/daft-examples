@@ -38,6 +38,8 @@ DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 MODEL_ID = "google/siglip2-base-patch16-224"
 EMB_DIM = 768
 
+SUBSAMPLE = 30  # keep 1 of every 30 frames (~1 fps); semantic content barely changes frame-to-frame
+
 
 # --- SigLIP embedding ------------------------------------------------------
 def _normalized_embedding(model_output) -> torch.Tensor:
@@ -74,6 +76,12 @@ class SiglipEmbedder:
 
     @daft.method.batch(return_dtype=DataType.embedding(DataType.float32(), EMB_DIM), batch_size=16)
     def embed_image(self, images: Series):
+        # Upstream filters/subsampling can hand this batched UDF an empty morsel; the HF
+        # image processor does images[0].device and errors on []. Return nothing for it.
+        if len(images) == 0:
+            return []
+        # images is an already-materialized batch of <=batch_size rows (not the whole
+        # column), so to_pylist() here just hands the HF processor the arrays it needs.
         inputs = self.processor(images=images.to_pylist(), return_tensors="pt").to(DEVICE)
         
         with torch.no_grad():
