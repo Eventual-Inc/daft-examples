@@ -277,6 +277,9 @@ class EgoDexPipeline:
             col("video_frames")["frame_time"].alias("timestamp"),
             col("video_frames")["data"].alias("image"),
         )
+        # episodes without a sibling video explode to a null image row; the SigLIP
+        # processor cannot take None, so drop them before the embedder sees a batch
+        rows = rows.where(col("image").not_null())
         rows = rows.with_column("clip_emb", embed_image_normalized(col("image")))
         return rows if keep_images else rows.exclude("image")
 
