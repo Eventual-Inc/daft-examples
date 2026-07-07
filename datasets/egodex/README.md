@@ -10,10 +10,14 @@ and searches for physical scenarios by pose, text, or both.
    MP4s. Optional task and episode filters are applied before metadata or tensor
    reads, which keeps notebook iteration cheap.
 2. `trajectory()` reads the HDF5 transform datasets needed for pose features.
-3. `calculate_features()` keeps one row per episode and stores each pose signal
-   as an episode-length track.
-4. `query()` evaluates state/action scenarios over those tracks and returns
-   ranked hits with contiguous frame segments.
+3. `frame_features()` explodes the trajectory tensors into one row per frame of
+   instantaneous hand geometry; `temporal_features()` then adds every action
+   rate (grasping, lifting, twisting, ...) as a Daft window expression over
+   `Window().partition_by("task", "episode_id").order_by("frame_index")` — see
+   `temporal.py`. `calculate_features()` runs both stages at once.
+4. `query()` groups the per-frame rows back into per-episode tracks, evaluates
+   state/action scenarios over them, and returns ranked hits with contiguous
+   frame segments.
 5. `camera_frames()` and `embed_frames()` provide the optional semantic branch
    for text-only and combined pose-plus-text search.
 6. `overlay()` renders a matched frame by projecting the raw HDF5 skeleton onto
