@@ -64,7 +64,7 @@ SCRIPTS: list[Script] = [
 
     # ── examples/io ─────────────────────────────────────────────────
     Script("examples/io/read_pdfs.py"),
-    Script("examples/io/read_video_files.py",  timeout=300),
+    Script("examples/io/read_video_files.py",  timeout=300, skip="downloads and decodes remote videos; too slow for CI smoke tests"),
 
     # ── examples/prompt ─────────────────────────────────────────────
     Script("examples/prompt/prompt.py",                     env=["OPENAI_API_KEY"]),
