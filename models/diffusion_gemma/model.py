@@ -210,7 +210,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", action="append", dest="prompts", default=[DEFAULT_PROMPT])
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--model-revision", default="")
-    parser.add_argument("--image-path", default="", help="Optional local or remote image path for multimodal prompting.")
+    parser.add_argument(
+        "--image-path", default="", help="Optional local or remote image path for multimodal prompting."
+    )
     parser.add_argument("--canvas-length", type=int, default=DEFAULT_CANVAS_LENGTH)
     parser.add_argument("--entropy-bound", type=float, default=DEFAULT_ENTROPY_BOUND)
     parser.add_argument("--max-model-len", type=int, default=DEFAULT_MAX_MODEL_LEN)
