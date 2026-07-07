@@ -28,6 +28,7 @@ test = [
 ]
 lint = [
     "ruff>=0.9.0",
+    "nbstripout>=0.7.1",
 ]
 lakehouse = [
     "daft[iceberg,sql]>=0.7.17",
