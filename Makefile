@@ -1,4 +1,8 @@
-.PHONY: setup setup-egodex test test-quickstart test-examples test-no-creds lint format precommit install-hooks
+.PHONY: setup setup-egodex test test-quickstart test-examples test-no-creds lint format precommit install-hooks strip-notebooks
+
+# Example notebooks are committed source-only (no baked-in run outputs). Scoped
+# to datasets/ so conference/demo notebooks under notebooks/ keep their outputs.
+DATASET_NOTEBOOKS := $(shell find datasets -name '*.ipynb' -not -path '*/.ipynb_checkpoints/*')
 
 setup: install-hooks
 	uv sync --extra test --extra lint
@@ -22,8 +26,12 @@ format:
 	uv run --extra lint ruff format .
 	uv run --extra lint ruff check --fix .
 
+strip-notebooks:
+	uv run --extra lint nbstripout $(DATASET_NOTEBOOKS)
+
 precommit: lint
 	uv run --extra lint ruff format --check .
+	uv run --extra lint nbstripout --verify $(DATASET_NOTEBOOKS)
 	@echo "All checks passed."
 
 # ── Tests ──────────────────────────────────────────────────────────────
