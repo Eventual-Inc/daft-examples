@@ -1,10 +1,11 @@
-"""Scenario queries over episode-level EgoDex pose features.
+"""Scenario queries over per-frame EgoDex pose features.
 
-The pose branch stores one row per episode, with each continuous feature as an
-episode-length track. Query-time scenarios turn those tracks into per-frame masks
-inside a Daft UDF, then stitch matching frames into contiguous segments. Text
-queries rank sampled video-frame embeddings, and combined queries keep only
-sampled frames whose pose mask also matches.
+The feature table stores one row per frame (task, episode_id, frame_index plus
+the per-hand ``TRACKS`` columns). Query-time, the frames group back into
+per-episode tracks (``groupby.agg(list_agg)``), scenarios turn those tracks
+into per-frame masks inside a Daft UDF, and matching frames stitch into
+contiguous segments. Text queries rank sampled video-frame embeddings, and
+combined queries keep only sampled frames whose pose mask also matches.
 
     from egodex import EgoDexPipeline, calibrate, pose_search, query
 
@@ -60,7 +61,8 @@ WRIST_STILL_PERCENTILE = 30
 ARTICULATION_PERCENTILE = 75
 
 # The per-hand feature tracks the match UDF consumes, in signature order.
-_TRACKS = (
+# This is the per-frame feature contract `EgoDexPipeline.temporal_features` emits.
+TRACKS = (
     "closure",
     "flex_nonthumb",
     "thumb_min_tip",
@@ -142,43 +144,53 @@ SCENARIOS: dict[str, Callable[..., np.ndarray]] = {
 
 # --- calibration ---------------------------------------------------------------
 
-_CALIBRATION_TRACKS = (
-    "arm_ext_rate",
-    "wrist_speed",
-    "articulation",
-    "flex_nonthumb",
-    "thumb_min_tip",
-    "thumb_min_knuckle",
-    "closure",
-)
-
 
 def calibrate(features: DataFrame) -> dict[str, float]:
-    """Compute the global scenario thresholds once over an episode-level feature table.
+    """Compute the global scenario thresholds once, as Daft percentile aggregations.
 
-    Pools each track over every episode and both hands, then takes np.percentile
-    (linear interpolation — identical to the old frame-level Daft percentile aggs).
-    Compute once when the features are loaded and pass the dict to :func:`query`.
+    Pools each per-frame track across both hands (a concat of the L- and
+    R-suffixed columns), then takes ``percentile`` aggregations over the pooled
+    rows — the cut points stay in the engine instead of round-tripping through
+    NumPy. Compute once when the features are loaded and pass the dict to
+    :func:`query`.
     """
-    columns = [f"{name}_{tag}" for name in _CALIBRATION_TRACKS for tag in ("L", "R")]
-    data = features.select(*columns).to_pydict()
+    scalars = (
+        "arm_ext_rate",
+        "wrist_speed",
+        "articulation",
+        "thumb_min_tip",
+        "thumb_min_knuckle",
+        "closure",
+    )
+    pooled = daft.concat(
+        [
+            features.select(
+                *[col(f"{name}_{tag}").alias(name) for name in scalars],
+                col(f"flex_nonthumb_{tag}").alias("flex_nonthumb"),
+            )
+            for tag in ("L", "R")
+        ]
+    )
+    cuts = pooled.agg(
+        col("arm_ext_rate").percentile(REACH_RATE_PERCENTILE / 100).alias("reach"),
+        col("wrist_speed").percentile(WRIST_STILL_PERCENTILE / 100).alias("still"),
+        col("articulation").percentile(ARTICULATION_PERCENTILE / 100).alias("articulation"),
+        col("thumb_min_tip").percentile(25 / 100).alias("thumb_on_tip"),
+        col("thumb_min_knuckle").percentile(15 / 100).alias("thumb_on_knuckle"),
+        col("closure").percentile(2 / 100).alias("closure_lo"),
+        col("closure").percentile(98 / 100).alias("closure_hi"),
+    ).to_pydict()
+    flexion = (
+        pooled.select("flex_nonthumb")
+        .explode("flex_nonthumb")
+        .agg(col("flex_nonthumb").percentile(70 / 100).alias("curled_flexion"))
+        .to_pydict()
+    )
 
-    def pooled(name: str, percentile: float, explode: bool = False) -> float:
-        arrays = [np.asarray(a) for tag in ("L", "R") for a in data[f"{name}_{tag}"]]
-        values = np.concatenate([a.ravel() if explode else a for a in arrays])
-        return float(np.percentile(values, percentile))
-
-    return {
-        "reach": pooled("arm_ext_rate", REACH_RATE_PERCENTILE),
-        "still": pooled("wrist_speed", WRIST_STILL_PERCENTILE),
-        "articulation": pooled("articulation", ARTICULATION_PERCENTILE),
-        "curled_flexion": pooled("flex_nonthumb", 70, explode=True),
-        "thumb_on_tip": pooled("thumb_min_tip", 25),
-        "thumb_on_knuckle": pooled("thumb_min_knuckle", 15),
-        "closure_lo": pooled("closure", 2),
-        "closure_hi": pooled("closure", 98),
-        "curl_gap": math.radians(20),
-    }
+    thresholds = {name: float(values[0]) for name, values in cuts.items()}
+    thresholds["curled_flexion"] = float(flexion["curled_flexion"][0])
+    thresholds["curl_gap"] = math.radians(20)
+    return thresholds
 
 
 # --- segment stitching ----------------------------------------------------------
@@ -229,12 +241,13 @@ _MATCH_DTYPE = DataType.struct(
 
 
 def _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments):
-    column_order = [f"{name}_{tag}" for tag in ("L", "R") for name in _TRACKS]
+    column_order = ["frame_index"] + [f"{name}_{tag}" for tag in ("L", "R") for name in TRACKS]
 
     # daft.func maps columns to parameters by signature, so the UDF needs one
-    # named parameter per feature track (20 total), in column_order.
+    # named parameter per feature track (frame_index + 20 total), in column_order.
     @daft.func(return_dtype=_MATCH_DTYPE, use_process=False, unnest=True)
     def match_episode(
+        frame_index,
         closure_L,
         flex_nonthumb_L,
         thumb_min_tip_L,
@@ -257,7 +270,12 @@ def _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments):
         roll_R,
     ) -> dict[str, object]:
         params = locals()
-        tracks_by_tag = {tag: {name: np.asarray(params[f"{name}_{tag}"]) for name in _TRACKS} for tag in ("L", "R")}
+        # list_agg does not guarantee frame order within an episode; re-sort every
+        # track by frame_index so mask position i is frame i.
+        order = np.argsort(np.asarray(frame_index))
+        tracks_by_tag = {
+            tag: {name: np.asarray(params[f"{name}_{tag}"])[order] for name in TRACKS} for tag in ("L", "R")
+        }
         mask = _episode_mask(pose, hand, thresholds, open_lo, open_hi, tracks_by_tag)
         matching = np.flatnonzero(mask)
         segments = _top_segments(matching.tolist(), max_segments)
@@ -279,9 +297,17 @@ def _match_episodes(
     open_hi: float,
     max_segments: int,
 ) -> DataFrame:
-    """Return episode rows with match_count, segments, and match_mask for a pose scenario."""
-    match_udf, track_columns = _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments)
-    return features.select("task", "episode_id", match_udf(*track_columns)).where(col("match_count") > 0)
+    """Group per-frame rows into per-episode tracks and run the pose-match UDF.
+
+    Returns episode rows with match_count, segments, and match_mask.
+    """
+    track_columns = [f"{name}_{tag}" for tag in ("L", "R") for name in TRACKS]
+    episodes = features.groupby("task", "episode_id").agg(
+        col("frame_index").list_agg().alias("frame_index"),
+        *[col(name).list_agg().alias(name) for name in track_columns],
+    )
+    match_udf, match_columns = _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments)
+    return episodes.select("task", "episode_id", match_udf(*match_columns)).where(col("match_count") > 0)
 
 
 def pose_search(
@@ -392,7 +418,7 @@ def query(
 ):
     """Rank episodes by a pose scenario and/or a semantic text query.
 
-    features:  episode-level DataFrame from calculate_features (or its parquet).
+    features:  per-frame DataFrame from calculate_features (or its parquet).
     pose:      scenario name (a SCENARIOS key, incl. "openness"), or a callable
                ``(tracks, thresholds) -> (N,) bool mask``, or None.
     text/clip: semantic query string + the frame-level embedding table from
@@ -425,9 +451,7 @@ def query(
     if pose is not None:
         if thresholds is None:
             thresholds = calibrate(features)
-        matched = _match_episodes(
-            features, pose, hand, thresholds, open_lo, open_hi, max_segments
-        ).to_pydict()
+        matched = _match_episodes(features, pose, hand, thresholds, open_lo, open_hi, max_segments).to_pydict()
         matches = {
             (task, int(episode)): {
                 "match_count": int(count),
@@ -458,9 +482,7 @@ def query(
         )
 
     scored: dict[tuple, dict] = {}
-    for task, episode, frame, sim in zip(
-        clip_data["task"], clip_data["episode_id"], clip_data["frame_index"], sims
-    ):
+    for task, episode, frame, sim in zip(clip_data["task"], clip_data["episode_id"], clip_data["frame_index"], sims):
         key = (task, int(episode))
         frame = int(frame)
         if pose is not None:
@@ -501,6 +523,7 @@ __all__ = [
     "MAX_SEGS",
     "SCENARIOS",
     "SEG_GAP_MERGE",
+    "TRACKS",
     "TWIST_ROLL_RATE",
     "calibrate",
     "pose_search",

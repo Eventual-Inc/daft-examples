@@ -198,10 +198,17 @@ class EgoDexPipeline:
             ),
         )
 
-    def calculate_features(self, trajectories: DataFrame, *, fps: float | None = None) -> DataFrame:
-        """Add queryable pose-feature tracks to a trajectory DataFrame."""
+    def frame_features(self, trajectories: DataFrame, *, fps: float | None = None) -> DataFrame:
+        """Explode trajectory tensors into one row of spatial pose geometry per frame.
+
+        A single episode-level UDF turns the whole-episode transform tensors into a
+        ``frames`` list of per-frame structs (see ``features.SpatialFeatureComputer``),
+        which then explodes and unnests into per-frame rows keyed by
+        ``(task, episode_id, frame_index)``. No temporal math happens here — the
+        action rates are window expressions added by :meth:`temporal_features`.
+        """
         column_names = set(trajectories.schema().column_names())
-        required_columns = ("task", "episode_id", "metadata", "video")
+        required_columns = ("task", "episode_id")
         missing_columns = [name for name in required_columns if name not in column_names]
         missing_fields = [field for field in FEATURE_TRAJECTORY_FIELDS if field not in column_names]
         if missing_columns or missing_fields:
@@ -212,34 +219,48 @@ class EgoDexPipeline:
                 problems.append(f"missing trajectory fields: {missing_fields}")
             raise ValueError("Expected a trajectory DataFrame from `trajectory(...)`; " + "; ".join(problems))
 
-        from .features import (
-            FPS,
-            POSE_FEATURES_DTYPE,
-            EpisodeFeatureComputer,
-            TemporalFeatureComputer,
+        from .features import FPS, FRAME_FEATURES_DTYPE, SpatialFeatureComputer
+
+        @daft.func(return_dtype=FRAME_FEATURES_DTYPE, use_process=False)
+        def spatial_frame_features(transforms: dict[str, object]) -> list[dict[str, object]]:
+            return SpatialFeatureComputer().compute(transforms)
+
+        transform_struct = to_struct(**{field: col(field) for field in FEATURE_TRAJECTORY_FIELDS})
+        frame_rate = FPS if fps is None else fps
+        return (
+            trajectories.select("task", "episode_id", spatial_frame_features(transform_struct).alias("frames"))
+            .explode("frames")
+            .select("task", "episode_id", col("frames").unnest())
+            .with_column("timestamp", col("frame_index").cast(DataType.float64()) / frame_rate)
         )
 
-        @dataclass(frozen=True)
-        class FeatureCalculation:
-            fps: float
+    def temporal_features(self, frames: DataFrame, *, fps: float | None = None) -> DataFrame:
+        """Add in-DAG action rates to per-frame rows and select the query schema.
 
-            def apply(self, trajectory_rows: DataFrame) -> DataFrame:
-                @daft.func(return_dtype=POSE_FEATURES_DTYPE, use_process=False, unnest=True)
-                def calculate_episode_features(
-                    transforms: dict[str, object],
-                ) -> dict[str, object]:
-                    return EpisodeFeatureComputer(temporal=TemporalFeatureComputer(fps=self.fps)).compute(transforms)
+        Every rate is a window expression over
+        ``Window().partition_by("task", "episode_id").order_by("frame_index")`` —
+        see :mod:`temporal`. Returns the per-frame columns the scenario queries
+        consume (``query.TRACKS`` per hand) plus the row keys.
+        """
+        from .features import FPS, HANDS
+        from .query import TRACKS
+        from .temporal import add_temporal_features
 
-                transform_struct = to_struct(**{field: col(field) for field in FEATURE_TRAJECTORY_FIELDS})
-                return trajectory_rows.select(
-                    "task",
-                    "episode_id",
-                    "metadata",
-                    calculate_episode_features(transform_struct),
-                    "video",
-                )
+        column_names = set(frames.schema().column_names())
+        required_columns = ("task", "episode_id", "frame_index", "curl_L")
+        if any(name not in column_names for name in required_columns):
+            raise ValueError("Expected a per-frame DataFrame from `frame_features(...)`.")
 
-        return FeatureCalculation(fps=FPS if fps is None else fps).apply(trajectories)
+        rows = add_temporal_features(frames, fps=FPS if fps is None else fps)
+        keep = ["task", "episode_id", "frame_index"]
+        if "timestamp" in column_names:
+            keep.append("timestamp")
+        keep += [f"{name}_{tag}" for tag, _ in HANDS for name in TRACKS]
+        return rows.select(*keep)
+
+    def calculate_features(self, trajectories: DataFrame, *, fps: float | None = None) -> DataFrame:
+        """Per-frame queryable pose features: spatial geometry + windowed action rates."""
+        return self.temporal_features(self.frame_features(trajectories, fps=fps), fps=fps)
 
     def embed_frames(self, frames: DataFrame, *, keep_images: bool = False) -> DataFrame:
         """Embed decoded frame rows into the SigLIP image/text space."""
