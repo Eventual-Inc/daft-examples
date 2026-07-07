@@ -105,10 +105,13 @@ class TemporalFeatureComputer:
 
     def centered_mean(self, values: np.ndarray) -> np.ndarray:
         """Centered rolling mean with shrinking edge windows."""
-        kernel = np.ones(2 * self.roll_smooth_half_width + 1)
-        sums = np.convolve(values, kernel, mode="same")
-        counts = np.convolve(np.ones_like(values), kernel, mode="same")
-        return sums / counts
+        values = np.asarray(values, dtype=np.float64)
+        smoothed = np.empty(len(values), dtype=np.float64)
+        for index in range(len(values)):
+            start = max(0, index - self.roll_smooth_half_width)
+            stop = min(len(values), index + self.roll_smooth_half_width + 1)
+            smoothed[index] = values[start:stop].mean()
+        return smoothed
 
     def forearm_roll_rates(
         self, rot6d: np.ndarray, forearm_axis: np.ndarray

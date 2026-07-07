@@ -62,7 +62,12 @@ def _episode_transforms(num_frames: int) -> dict[str, np.ndarray]:
     return transforms
 
 
-def _write_tiny_egodex(root: Path, task: str = "toy_task", episode_id: int = 0) -> None:
+def _write_tiny_egodex(
+    root: Path,
+    task: str = "toy_task",
+    episode_id: int = 0,
+    num_frames: int = 8,
+) -> None:
     task_dir = root / task
     task_dir.mkdir(parents=True)
     with h5py.File(task_dir / f"{episode_id}.hdf5", "w") as h5:
@@ -76,7 +81,7 @@ def _write_tiny_egodex(root: Path, task: str = "toy_task", episode_id: int = 0) 
                 dtype=np.float32,
             ),
         )
-        for path, values in _episode_transforms(num_frames=8).items():
+        for path, values in _episode_transforms(num_frames=num_frames).items():
             h5.create_dataset(path, data=values)
 
 
@@ -136,3 +141,22 @@ def test_egodex_viz_resolves_episode_and_validates_frame_index(
             assert "outside episode bounds" in str(exc)
         else:
             raise AssertionError("expected frame bounds validation")
+
+
+def test_short_episode_roll_tracks_stay_episode_length(tmp_path: Path) -> None:
+    _write_tiny_egodex(tmp_path, task="short_task", episode_id=0, num_frames=3)
+
+    pipeline = EgoDexPipeline(str(tmp_path))
+    features = pipeline.calculate_features(
+        pipeline.trajectory(pipeline.raw(tasks="short_task", episode_ids=0))
+    )
+    data = features.select("num_frames", "roll_L", "roll_R").to_pydict()
+
+    assert data["num_frames"] == [3]
+    assert data["roll_L"][0].shape == (3,)
+    assert data["roll_R"][0].shape == (3,)
+
+    hits = query(features, pose="twisting", k=1, fps=FPS)
+    for hit in hits:
+        for start, end in hit["segments"]:
+            assert 0 <= start <= end < 3
