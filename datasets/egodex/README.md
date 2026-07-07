@@ -21,11 +21,21 @@ and searches for physical scenarios by pose, text, or both.
 
 ## Notebook
 
-Open `egodex_demo.ipynb` for the blog-oriented walkthrough. It defaults to one
-episode for fast startup. Set `DATASET_MODE = "full"` and enable the embedding
-flags when you want to build the full feature and embedding parquets.
+From the repository root, install the editable package and notebook kernel once:
+
+```bash
+uv sync --extra egodex --extra notebook
+```
+
+Select the repo `.venv` as the Jupyter kernel, then open `egodex_demo.ipynb`.
+The notebook cwd should be the repository root so `datasets/egodex/.data`
+resolves correctly.
+
+It defaults to `EPISODE_LIMIT = 10` so a first run stays bounded. Set
+`EPISODE_LIMIT = None` when you want every episode under `DATA_ROOT`.
 
 ## Dependencies
 
-The package expects Daft `>=0.7.17`. The embedding and video paths need the Daft
-`transformers` and `video` extras plus the model dependencies used by SigLIP.
+Install with `uv sync --extra egodex`. That pulls in Daft `>=0.7.17` with the
+`transformers`, `video`, and `hdf5` extras plus SigLIP's PyTorch/Transformers
+stack.

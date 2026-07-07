@@ -9,11 +9,11 @@
     frames = pipeline.camera_frames(episodes, sample_interval_seconds=1.0)
     embeddings = pipeline.embed_frames(frames)
 
-Run ``uv run python -m egodex.egodex`` for the end-to-end script.
+Run ``uv run python -m egodex.pipeline`` for the end-to-end script.
 """
 
 from .features import FPS
-from .query import SCENARIOS, calibrate, query, segments_of
+from .query import SCENARIOS, calibrate, pose_search, pose_search_many, query, segments_of
 from .schemas import (
     FEATURE_TRAJECTORY_FIELDS,
     JOINTS,
@@ -23,10 +23,9 @@ from .schemas import (
 from .viz import overlay
 
 _LAZY = {
-    "EgoDexPipeline": "egodex",
+    "EgoDexPipeline": "pipeline",
     "encode_text": "embeddings",
     "embed_image_normalized": "embeddings",
-    "normalize_embedding": "embeddings",
 }
 
 
@@ -51,8 +50,9 @@ __all__ = [
     "calibrate",
     "encode_text",
     "embed_image_normalized",
-    "normalize_embedding",
     "overlay",
+    "pose_search",
+    "pose_search_many",
     "query",
     "segments_of",
 ]

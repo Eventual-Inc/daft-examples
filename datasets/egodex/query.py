@@ -6,12 +6,13 @@ inside a Daft UDF, then stitch matching frames into contiguous segments. Text
 queries rank sampled video-frame embeddings, and combined queries keep only
 sampled frames whose pose mask also matches.
 
-    from egodex import EgoDexPipeline, calibrate, query
+    from egodex import EgoDexPipeline, calibrate, pose_search, query
 
     pipeline = EgoDexPipeline(".data")
     features = pipeline.calculate_features(pipeline.trajectory(pipeline.raw()))
     thresholds = calibrate(features)
-    hits = query(features, pose="writing_grip", k=5, thresholds=thresholds)
+    hits = pose_search(features, pose="writing_grip", k=5, thresholds=thresholds)
+    hits.show()
 
 For semantic text queries, pass the frame-level embedding table from
 :func:`embeddings.embed_frames` as ``clip=`` (with ``text=``). Scenario
@@ -29,7 +30,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 import daft
-from daft import DataType, col
+from daft import DataType, col, lit
 
 from .features import FPS
 
@@ -269,6 +270,108 @@ def _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments):
     return match_episode, [col(name) for name in column_order]
 
 
+def _match_episodes(
+    features: DataFrame,
+    pose,
+    hand: str,
+    thresholds: dict[str, float],
+    open_lo: float,
+    open_hi: float,
+    max_segments: int,
+) -> DataFrame:
+    """Return episode rows with match_count, segments, and match_mask for a pose scenario."""
+    match_udf, track_columns = _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments)
+    return features.select("task", "episode_id", match_udf(*track_columns)).where(col("match_count") > 0)
+
+
+def pose_search(
+    features: DataFrame,
+    pose,
+    *,
+    k: int = 5,
+    hand: str = "either",
+    open_lo: float = 0.0,
+    open_hi: float = 1.0,
+    thresholds: dict[str, float] | None = None,
+    max_segments: int = MAX_SEGS,
+) -> DataFrame:
+    """Rank episodes by a pose scenario and return a Daft DataFrame.
+
+    Columns: ``task``, ``episode_id``, ``score`` (matching frame count), ``segments``.
+    """
+    if thresholds is None:
+        thresholds = calibrate(features)
+    return (
+        _match_episodes(features, pose, hand, thresholds, open_lo, open_hi, max_segments)
+        .sort(col("match_count"), desc=True)
+        .limit(int(k))
+        .select(
+            "task",
+            "episode_id",
+            col("match_count").alias("score"),
+            "segments",
+        )
+    )
+
+
+def pose_search_many(
+    features: DataFrame,
+    queries: list[tuple[str, dict[str, object]]],
+    *,
+    k: int = 5,
+    hand: str = "either",
+    thresholds: dict[str, float] | None = None,
+    max_segments: int = MAX_SEGS,
+) -> DataFrame:
+    """Run several labeled pose queries and return one concatenated result table."""
+    if thresholds is None:
+        thresholds = calibrate(features)
+
+    labeled = []
+    for label, params in queries:
+        params = dict(params)
+        pose = params.pop("pose")
+        open_lo = float(params.pop("open_lo", 0.0))
+        open_hi = float(params.pop("open_hi", 1.0))
+        if params:
+            unknown = ", ".join(sorted(params))
+            raise ValueError(f"Unknown pose query params for {label!r}: {unknown}")
+        labeled.append(
+            pose_search(
+                features,
+                pose,
+                k=k,
+                hand=hand,
+                thresholds=thresholds,
+                max_segments=max_segments,
+                open_lo=open_lo,
+                open_hi=open_hi,
+            ).with_column("query", lit(label))
+        )
+    if not labeled:
+        raise ValueError("Pass at least one pose query.")
+    return daft.concat(labeled)
+
+
+def _pose_hits_from_search(results: DataFrame) -> list[dict[str, object]]:
+    data = results.to_pydict()
+    return [
+        {
+            "task": task,
+            "episode_id": int(episode),
+            "score": float(score),
+            "n_frames": int(score),
+            "segments": [tuple(segment) for segment in segments],
+        }
+        for task, episode, score, segments in zip(
+            data["task"],
+            data["episode_id"],
+            data["score"],
+            data["segments"],
+        )
+    ]
+
+
 # --- the one query API ------------------------------------------------------------
 
 
@@ -322,10 +425,9 @@ def query(
     if pose is not None:
         if thresholds is None:
             thresholds = calibrate(features)
-        match_udf, track_columns = _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments)
-        matched = (
-            features.select("task", "episode_id", match_udf(*track_columns)).where(col("match_count") > 0).to_pydict()
-        )
+        matched = _match_episodes(
+            features, pose, hand, thresholds, open_lo, open_hi, max_segments
+        ).to_pydict()
         matches = {
             (task, int(episode)): {
                 "match_count": int(count),
@@ -341,39 +443,44 @@ def query(
             )
         }
 
-    scored: dict[tuple, dict] = {}
     if pose is not None and not has_text:
-        for key, m in matches.items():
-            scored[key] = {
-                "score": float(m["match_count"]),
-                "n_frames": m["match_count"],
-                "segments": m["segments"],
-            }
-    else:
-        # one similarity per sampled frame, keyed by (task, episode, frame)
-        for task, episode, frame, sim in zip(
-            clip_data["task"], clip_data["episode_id"], clip_data["frame_index"], sims
-        ):
-            key = (task, int(episode))
-            frame = int(frame)
-            if pose is not None:
-                m = matches.get(key)
-                if m is None or frame >= len(m["mask"]) or not m["mask"][frame]:
-                    continue  # only sampled frames where the pose mask fires count
-            entry = scored.setdefault(key, {"sims": [], "frames": []})
-            entry["sims"].append(float(sim))
-            entry["frames"].append(frame)
-        window = int(semantic_window * fps)
-        for entry in scored.values():
-            best = int(np.argmax(entry["sims"]))
-            entry["score"] = entry["sims"][best]
-            entry["n_frames"] = len(entry["frames"])
-            if pose is not None:
-                entry["segments"] = _top_segments(entry["frames"], max_segments)
-            else:
-                best_frame = entry["frames"][best]
-                entry["segments"] = [(max(0, best_frame - window), best_frame + window)]
-            del entry["sims"], entry["frames"]
+        return _pose_hits_from_search(
+            pose_search(
+                features,
+                pose,
+                k=k,
+                hand=hand,
+                open_lo=open_lo,
+                open_hi=open_hi,
+                thresholds=thresholds,
+                max_segments=max_segments,
+            )
+        )
+
+    scored: dict[tuple, dict] = {}
+    for task, episode, frame, sim in zip(
+        clip_data["task"], clip_data["episode_id"], clip_data["frame_index"], sims
+    ):
+        key = (task, int(episode))
+        frame = int(frame)
+        if pose is not None:
+            m = matches.get(key)
+            if m is None or frame >= len(m["mask"]) or not m["mask"][frame]:
+                continue
+        entry = scored.setdefault(key, {"sims": [], "frames": []})
+        entry["sims"].append(float(sim))
+        entry["frames"].append(frame)
+    window = int(semantic_window * fps)
+    for entry in scored.values():
+        best = int(np.argmax(entry["sims"]))
+        entry["score"] = entry["sims"][best]
+        entry["n_frames"] = len(entry["frames"])
+        if pose is not None:
+            entry["segments"] = _top_segments(entry["frames"], max_segments)
+        else:
+            best_frame = entry["frames"][best]
+            entry["segments"] = [(max(0, best_frame - window), best_frame + window)]
+        del entry["sims"], entry["frames"]
 
     ranked = sorted(scored.items(), key=lambda item: item[1]["score"], reverse=True)[: int(k)]
     return [
@@ -396,6 +503,8 @@ __all__ = [
     "SEG_GAP_MERGE",
     "TWIST_ROLL_RATE",
     "calibrate",
+    "pose_search",
+    "pose_search_many",
     "query",
     "segments_of",
 ]

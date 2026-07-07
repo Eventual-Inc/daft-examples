@@ -51,6 +51,18 @@ transcription = [
     "soundfile",
     "jiwer",
 ]
+egodex = [
+    "daft[transformers,video,hdf5]>=0.7.17",
+    "h5py>=3.0.0",
+    "numpy",
+    "pillow",
+    "torch",
+    "transformers>=5.0",
+]
+notebook = [
+    "ipykernel",
+    "jupyter",
+]
 
 [tool.ruff]
 target-version = "py312"

@@ -53,10 +53,10 @@ def _attr_value(value: object) -> object:
         return value.decode("utf-8", errors="replace")
     if hasattr(value, "ndim"):
         if value.ndim == 0:
-            return _attr_value(value.item())
-        return [_attr_value(item) for item in value.tolist()]
+            return _attr_value(value.item())  # ty:ignore[unresolved-attribute]
+        return [_attr_value(item) for item in value.tolist()]  # ty:ignore[unresolved-attribute]
     if hasattr(value, "item"):
-        return _attr_value(value.item())
+        return _attr_value(value.item())  # ty:ignore[call-non-callable]
     return value
 
 
@@ -301,7 +301,7 @@ class EgoDexPipeline:
             self.uri,
             str(top["task"]),
             int(top["episode_id"]),
-            top["segments"][0][0],
+            top["segments"][0][0],  # ty:ignore[not-subscriptable]
         )
         image.save(self.overlay_path)
         print(f"\nSaved skeleton overlay of {top['task']}/{top['episode_id']} to {self.overlay_path}")
@@ -326,7 +326,7 @@ def main(args: argparse.Namespace) -> None:
         for hit in hits:
             print(
                 f"  {hit['task']}/{hit['episode_id']}: score {hit['score']:.3f}, "
-                f"{hit['n_frames']} frames, segments {hit['segments'][:3]}"
+                f"{hit['n_frames']} frames, segments {hit['segments'][:3]}"  # ty:ignore[not-subscriptable]
             )
 
     pipeline.visualize_hit(pose_hits)
