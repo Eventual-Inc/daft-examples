@@ -5,6 +5,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+import daft
 from egodex import EgoDexPipeline, calibrate, query
 from egodex.features import FPS
 from egodex.schemas import FEATURE_TRAJECTORY_FIELDS
@@ -13,15 +14,10 @@ from egodex.viz import _read_frame_geometry, _resolve_episode
 
 def _episode_transforms(num_frames: int) -> dict[str, np.ndarray]:
     time = np.arange(num_frames, dtype=np.float32)
-    transforms = {
-        name: np.tile(np.eye(4, dtype=np.float32), (num_frames, 1, 1))
-        for name in FEATURE_TRAJECTORY_FIELDS
-    }
+    transforms = {name: np.tile(np.eye(4, dtype=np.float32), (num_frames, 1, 1)) for name in FEATURE_TRAJECTORY_FIELDS}
 
     def set_xyz(path: str, xyz: tuple[float, float, float]) -> None:
-        values = np.asarray(xyz, dtype=np.float32)[None, :] + np.zeros(
-            (num_frames, 3), dtype=np.float32
-        )
+        values = np.asarray(xyz, dtype=np.float32)[None, :] + np.zeros((num_frames, 3), dtype=np.float32)
         values[:, 1] += 0.002 * time
         transforms[path][:, :3, 3] = values
 
@@ -97,9 +93,7 @@ def test_egodex_pipeline_reads_features_and_queries(tmp_path: Path) -> None:
 
     trajectories = pipeline.trajectory(episodes)
     features = pipeline.calculate_features(trajectories)
-    data = features.select(
-        "task", "episode_id", "num_frames", "closure_L", "flex_nonthumb_R"
-    ).to_pydict()
+    data = features.select("task", "episode_id", "num_frames", "closure_L", "flex_nonthumb_R").to_pydict()
 
     assert data["task"] == ["toy_task"]
     assert data["episode_id"] == [0]
@@ -147,9 +141,7 @@ def test_short_episode_roll_tracks_stay_episode_length(tmp_path: Path) -> None:
     _write_tiny_egodex(tmp_path, task="short_task", episode_id=0, num_frames=3)
 
     pipeline = EgoDexPipeline(str(tmp_path))
-    features = pipeline.calculate_features(
-        pipeline.trajectory(pipeline.raw(tasks="short_task", episode_ids=0))
-    )
+    features = pipeline.calculate_features(pipeline.trajectory(pipeline.raw(tasks="short_task", episode_ids=0)))
     data = features.select("num_frames", "roll_L", "roll_R").to_pydict()
 
     assert data["num_frames"] == [3]
@@ -160,3 +152,65 @@ def test_short_episode_roll_tracks_stay_episode_length(tmp_path: Path) -> None:
     for hit in hits:
         for start, end in hit["segments"]:
             assert 0 <= start <= end < 3
+
+
+def test_text_and_combined_queries_use_precomputed_embeddings(tmp_path: Path) -> None:
+    _write_tiny_egodex(tmp_path, task="toy_task", episode_id=0)
+
+    pipeline = EgoDexPipeline(str(tmp_path))
+    features = pipeline.calculate_features(pipeline.trajectory(pipeline.raw(tasks="toy_task", episode_ids=0)))
+    thresholds = calibrate(features)
+    clip = daft.from_pydict(
+        {
+            "task": ["toy_task", "toy_task"],
+            "episode_id": [0, 0],
+            "frame_index": [0, 4],
+            "clip_emb": [
+                np.asarray([1.0, 0.0], dtype=np.float32),
+                np.asarray([0.0, 1.0], dtype=np.float32),
+            ],
+        }
+    )
+
+    def encode(text: str) -> np.ndarray:
+        assert text == "target"
+        return np.asarray([0.0, 1.0], dtype=np.float32)
+
+    text_hits = query(
+        features,
+        text="target",
+        clip=clip,
+        encode=encode,
+        k=1,
+        fps=FPS,
+        semantic_window=0.1,
+    )
+    assert text_hits == [
+        {
+            "task": "toy_task",
+            "episode_id": 0,
+            "score": 1.0,
+            "n_frames": 2,
+            "segments": [(1, 7)],
+        }
+    ]
+
+    combined_hits = query(
+        features,
+        pose="openness",
+        text="target",
+        clip=clip,
+        encode=encode,
+        k=1,
+        thresholds=thresholds,
+        fps=FPS,
+    )
+    assert combined_hits == [
+        {
+            "task": "toy_task",
+            "episode_id": 0,
+            "score": 1.0,
+            "n_frames": 2,
+            "segments": [(0, 4)],
+        }
+    ]

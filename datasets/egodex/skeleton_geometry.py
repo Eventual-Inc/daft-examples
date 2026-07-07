@@ -78,9 +78,7 @@ def finger_flexion(skeleton, side, finger):
     Flexion = the angle between consecutive bone vectors (0 = straight, larger =
     more curled). Non-thumb fingers yield MCP / PIP / DIP (3); the thumb yields 2.
     """
-    positions = [
-        joint_position(skeleton, name) for name in finger_joint_names(side, finger)
-    ]
+    positions = [joint_position(skeleton, name) for name in finger_joint_names(side, finger)]
     bones = [positions[i + 1] - positions[i] for i in range(len(positions) - 1)]
     joint_angles = [angle_between(bones[i], bones[i + 1]) for i in range(len(bones) - 1)]
     return np.stack(joint_angles, axis=1)
@@ -94,10 +92,7 @@ def palm_normal(skeleton, side):
     PALM_SIGN so it points consistently (palm-facing) across both hands.
     """
     wrist = joint_position(skeleton, side + "Hand")
-    knuckles = [
-        joint_position(skeleton, f"{side}{f}FingerKnuckle")
-        for f in ("Index", "Middle", "Ring", "Little")
-    ]
+    knuckles = [joint_position(skeleton, f"{side}{f}FingerKnuckle") for f in ("Index", "Middle", "Ring", "Little")]
     points = np.stack([wrist] + knuckles, axis=1)
     centered = points - points.mean(1, keepdims=True)
     covariance = np.einsum("nki,nkj->nij", centered, centered)
@@ -135,10 +130,7 @@ def arm_extension(skeleton, side):
 
 def forearm_axis(skeleton, side):
     """(N, 3) unit vector along the forearm (Forearm -> Hand) — the roll axis for twisting."""
-    return _unit(
-        joint_position(skeleton, side + "Hand")
-        - joint_position(skeleton, side + "Forearm")
-    )
+    return _unit(joint_position(skeleton, side + "Hand") - joint_position(skeleton, side + "Forearm"))
 
 
 def hand_local_joints(skeleton, side):
@@ -156,12 +148,8 @@ def hand_local_joints(skeleton, side):
     x_axis = _unit(across_palm - (across_palm * z_axis).sum(1, keepdims=True) * z_axis)
     y_axis = np.cross(z_axis, x_axis)
     frame = np.stack([x_axis, y_axis, z_axis], axis=1)  # (N, 3, 3), rows = axes
-    joint_names = [
-        name for finger in FINGERS for name in finger_joint_names(side, finger)
-    ]
-    positions = np.stack(
-        [joint_position(skeleton, name) for name in joint_names], axis=1
-    )  # (N, K, 3)
+    joint_names = [name for finger in FINGERS for name in finger_joint_names(side, finger)]
+    positions = np.stack([joint_position(skeleton, name) for name in joint_names], axis=1)  # (N, K, 3)
     return np.einsum("nij,nkj->nki", frame, positions - wrist[:, None, :])
 
 
@@ -181,32 +169,20 @@ def compute_state_features(skeleton: np.ndarray) -> dict:
     skeleton = np.asarray(skeleton, dtype=np.float64)
     features = {}
     for side, tag in (("left", "L"), ("right", "R")):
-        per_finger_flexion = np.stack(
-            [finger_flexion(skeleton, side, f).sum(1) for f in FINGERS], axis=1
-        )  # (N, 5)
+        per_finger_flexion = np.stack([finger_flexion(skeleton, side, f).sum(1) for f in FINGERS], axis=1)  # (N, 5)
         features[f"flex_nonthumb_{tag}"] = per_finger_flexion[:, 1:]  # index..little
         features[f"closure_{tag}"] = per_finger_flexion[:, 1:].mean(1)
 
         scale = hand_scale(skeleton, side)
         thumb_tip = joint_position(skeleton, f"{side}ThumbTip")
-        fingertips = {
-            f: joint_position(skeleton, f"{side}{f}FingerTip") for f in FINGERS[1:]
-        }
-        knuckles = {
-            f: joint_position(skeleton, f"{side}{f}FingerKnuckle") for f in FINGERS[1:]
-        }
+        fingertips = {f: joint_position(skeleton, f"{side}{f}FingerTip") for f in FINGERS[1:]}
+        knuckles = {f: joint_position(skeleton, f"{side}{f}FingerKnuckle") for f in FINGERS[1:]}
         features[f"thumb_tip_dist_{tag}"] = np.stack(
-            [
-                np.linalg.norm(thumb_tip - fingertips[f], axis=1) / (scale + 1e-9)
-                for f in FINGERS[1:]
-            ],
+            [np.linalg.norm(thumb_tip - fingertips[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]],
             axis=1,
         )
         features[f"thumb_knuckle_dist_{tag}"] = np.stack(
-            [
-                np.linalg.norm(thumb_tip - knuckles[f], axis=1) / (scale + 1e-9)
-                for f in FINGERS[1:]
-            ],
+            [np.linalg.norm(thumb_tip - knuckles[f], axis=1) / (scale + 1e-9) for f in FINGERS[1:]],
             axis=1,
         )
 

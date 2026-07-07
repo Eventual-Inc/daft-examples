@@ -55,19 +55,15 @@ class EgoDexFrameBuilder:
 
     def build_state(self, transforms) -> np.ndarray:
         """Hand state (N, 48): left hand block then right hand block."""
-        left = self.hand_block(
-            transforms[WRIST["left"]], [transforms[name] for name in TIPS["left"]]
-        )
-        right = self.hand_block(
-            transforms[WRIST["right"]], [transforms[name] for name in TIPS["right"]]
-        )
+        left = self.hand_block(transforms[WRIST["left"]], [transforms[name] for name in TIPS["left"]])
+        right = self.hand_block(transforms[WRIST["right"]], [transforms[name] for name in TIPS["right"]])
         return np.concatenate([left, right], axis=1).astype(np.float32)
 
     def build_skeleton(self, transforms) -> np.ndarray:
         """Skeleton state (N, 204): joint xyz translations in skeleton order."""
-        return np.concatenate(
-            [transforms[name][:, :3, 3] for name in self.skeleton_transforms], axis=1
-        ).astype(np.float32)
+        return np.concatenate([transforms[name][:, :3, 3] for name in self.skeleton_transforms], axis=1).astype(
+            np.float32
+        )
 
     def build_extrinsics(self, transforms) -> np.ndarray:
         """Camera pose (N, 16): the camera 4x4, row-major, per frame."""
@@ -113,17 +109,13 @@ class TemporalFeatureComputer:
             smoothed[index] = values[start:stop].mean()
         return smoothed
 
-    def forearm_roll_rates(
-        self, rot6d: np.ndarray, forearm_axis: np.ndarray
-    ) -> np.ndarray:
+    def forearm_roll_rates(self, rot6d: np.ndarray, forearm_axis: np.ndarray) -> np.ndarray:
         """Wrist roll rate (rad/s) about the forearm axis, per frame."""
         n = len(rot6d)
         rates = np.zeros(n, dtype=np.float64)
         if n < 2:
             return rates
-        rotations = state_geometry.rotation_from_rot6d(
-            np.asarray(rot6d, dtype=np.float64)
-        )
+        rotations = state_geometry.rotation_from_rot6d(np.asarray(rot6d, dtype=np.float64))
         relative = np.einsum("nij,nkj->nik", rotations[1:], rotations[:-1])
         angles = np.arccos(np.clip((np.trace(relative, axis1=1, axis2=2) - 1) / 2, -1, 1))
         axes = np.stack(
@@ -206,21 +198,15 @@ class EpisodeFeatureComputer:
             "thumb_min_knuckle": thumb_knuckle[:, :2].min(axis=1),
             "curl_rate": self.temporal.forward_rate(state_features[f"curl_{tag}"]),
             "wrist_vert_vel": self.temporal.forward_rate(wrist[:, 1]),
-            "arm_ext_rate": self.temporal.forward_rate(
-                skeleton_features[f"arm_extension_{tag}"]
-            ),
+            "arm_ext_rate": self.temporal.forward_rate(skeleton_features[f"arm_extension_{tag}"]),
             "wrist_speed": self.temporal.forward_speed(wrist),
             "articulation": self.temporal.forward_speed(local_joints),
             "roll": self.temporal.centered_mean(
-                self.temporal.forearm_roll_rates(
-                    rot6d, skeleton_features[f"forearm_axis_{tag}"]
-                )
+                self.temporal.forearm_roll_rates(rot6d, skeleton_features[f"forearm_axis_{tag}"])
             ),
             "flex_nonthumb": skeleton_features[f"flex_nonthumb_{tag}"],
         }
-        return {
-            f"{name}_{tag}": values.astype(np.float32) for name, values in tracks.items()
-        }
+        return {f"{name}_{tag}": values.astype(np.float32) for name, values in tracks.items()}
 
     def compute(self, transforms: dict[str, np.ndarray]) -> dict[str, object]:
         state = self.frame_builder.build_state(transforms).astype(np.float64)

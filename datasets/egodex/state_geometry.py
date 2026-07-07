@@ -31,9 +31,7 @@ def rot6d_slice(side):
 def _split_hand(state, base):
     wrist = state[:, base : base + 3]
     rot6d = state[:, base + ROT6D_OFFSET : base + ROT6D_OFFSET + ROT6D_LEN]
-    fingertips = state[:, base + FINGERTIP_OFFSET : base + HAND_BLOCK_DIM].reshape(
-        -1, 5, 3
-    )
+    fingertips = state[:, base + FINGERTIP_OFFSET : base + HAND_BLOCK_DIM].reshape(-1, 5, 3)
     return wrist, rot6d, fingertips
 
 
@@ -41,33 +39,19 @@ def palm_normal_from_rot6d(rot6d):
     """rot6d = the first two columns of the rotation matrix; the palm normal is their cross product."""
     first_column = rot6d[:, 0:3]
     second_column = rot6d[:, 3:6]
-    first_column = first_column / (
-        np.linalg.norm(first_column, axis=1, keepdims=True) + 1e-9
-    )
-    second_column = (
-        second_column
-        - (first_column * second_column).sum(1, keepdims=True) * first_column
-    )
-    second_column = second_column / (
-        np.linalg.norm(second_column, axis=1, keepdims=True) + 1e-9
-    )
+    first_column = first_column / (np.linalg.norm(first_column, axis=1, keepdims=True) + 1e-9)
+    second_column = second_column - (first_column * second_column).sum(1, keepdims=True) * first_column
+    second_column = second_column / (np.linalg.norm(second_column, axis=1, keepdims=True) + 1e-9)
     return np.cross(first_column, second_column)
 
 
 def rotation_from_rot6d(rot6d):
     """rot6d (N, 6) -> (N, 3, 3) rotation matrices (columns = hand x, y axes + palm normal)."""
     first_column = rot6d[:, 0:3]
-    first_column = first_column / (
-        np.linalg.norm(first_column, axis=1, keepdims=True) + 1e-9
-    )
+    first_column = first_column / (np.linalg.norm(first_column, axis=1, keepdims=True) + 1e-9)
     second_column = rot6d[:, 3:6]
-    second_column = (
-        second_column
-        - (first_column * second_column).sum(1, keepdims=True) * first_column
-    )
-    second_column = second_column / (
-        np.linalg.norm(second_column, axis=1, keepdims=True) + 1e-9
-    )
+    second_column = second_column - (first_column * second_column).sum(1, keepdims=True) * first_column
+    second_column = second_column / (np.linalg.norm(second_column, axis=1, keepdims=True) + 1e-9)
     palm_normal = np.cross(first_column, second_column)
     return np.stack([first_column, second_column, palm_normal], axis=2)
 
@@ -83,12 +67,8 @@ def compute_raw_features(state: np.ndarray) -> dict:
         palm_normal = palm_normal_from_rot6d(rot6d)
         features[f"palmnormal_{tag}"] = palm_normal
         features[f"palm_up_{tag}"] = palm_normal[:, 1]  # +y component
-        features[f"pinch_{tag}"] = np.linalg.norm(
-            fingertips[:, 0] - fingertips[:, 1], axis=1
-        )  # thumb-index
+        features[f"pinch_{tag}"] = np.linalg.norm(fingertips[:, 0] - fingertips[:, 1], axis=1)  # thumb-index
         tip_pairs = fingertips[:, :, None, :] - fingertips[:, None, :, :]
-        features[f"aperture_{tag}"] = np.linalg.norm(tip_pairs, axis=3).max(
-            (1, 2)
-        )  # max tip-tip spread
+        features[f"aperture_{tag}"] = np.linalg.norm(tip_pairs, axis=3).max((1, 2))  # max tip-tip spread
         features[f"wrist_{tag}"] = wrist
     return features

@@ -90,9 +90,7 @@ def writing_grip(t, thr):
 
 def hammer_grip(t, thr):
     """Power: all four fingers curled and the thumb wrapped across a proximal knuckle."""
-    return (t["flex_nonthumb"] > thr["curled_flexion"]).all(axis=1) & (
-        t["thumb_min_knuckle"] < thr["thumb_on_knuckle"]
-    )
+    return (t["flex_nonthumb"] > thr["curled_flexion"]).all(axis=1) & (t["thumb_min_knuckle"] < thr["thumb_on_knuckle"])
 
 
 def twisting(t, thr):
@@ -203,9 +201,7 @@ def segments_of(frames, gap_merge: int = SEG_GAP_MERGE, min_frames: int = SEG_MI
 def _top_segments(frames, max_segments: int = MAX_SEGS):
     """The longest <= max_segments contiguous runs in `frames`, ordered by start time."""
     runs = segments_of(frames)
-    return sorted(
-        sorted(runs, key=lambda run: run[1] - run[0], reverse=True)[:max_segments]
-    )
+    return sorted(sorted(runs, key=lambda run: run[1] - run[0], reverse=True)[:max_segments])
 
 
 # --- the per-episode match UDF ---------------------------------------------------
@@ -217,9 +213,7 @@ def _episode_mask(pose, hand, thresholds, open_lo, open_hi, tracks_by_tag) -> np
     tags = {"left": ("L",), "right": ("R",)}.get(hand, ("L", "R"))
     mask = None
     for tag in tags:
-        hand_mask = np.asarray(
-            scenario(tracks_by_tag[tag], thresholds, *extra), dtype=bool
-        )
+        hand_mask = np.asarray(scenario(tracks_by_tag[tag], thresholds, *extra), dtype=bool)
         mask = hand_mask if mask is None else (mask | hand_mask)
     return mask
 
@@ -262,10 +256,7 @@ def _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments):
         roll_R,
     ) -> dict[str, object]:
         params = locals()
-        tracks_by_tag = {
-            tag: {name: np.asarray(params[f"{name}_{tag}"]) for name in _TRACKS}
-            for tag in ("L", "R")
-        }
+        tracks_by_tag = {tag: {name: np.asarray(params[f"{name}_{tag}"]) for name in _TRACKS} for tag in ("L", "R")}
         mask = _episode_mask(pose, hand, thresholds, open_lo, open_hi, tracks_by_tag)
         matching = np.flatnonzero(mask)
         segments = _top_segments(matching.tolist(), max_segments)
@@ -318,30 +309,22 @@ def query(
     if pose is None and not has_text:
         raise ValueError("Pass a pose scenario, a text query, or both.")
     if has_text and clip is None:
-        raise ValueError(
-            "Text queries need clip= (the embed_frames DataFrame or its parquet)."
-        )
+        raise ValueError("Text queries need clip= (the embed_frames DataFrame or its parquet).")
 
     sims = None
     if has_text:
         if encode is None:
             from .embeddings import encode_text as encode
-        clip_data = clip.select(
-            "task", "episode_id", "frame_index", "clip_emb"
-        ).to_pydict()
+        clip_data = clip.select("task", "episode_id", "frame_index", "clip_emb").to_pydict()
         sims = np.asarray(clip_data["clip_emb"], dtype=np.float32) @ encode(text)
 
     matches = None
     if pose is not None:
         if thresholds is None:
             thresholds = calibrate(features)
-        match_udf, track_columns = _build_match_udf(
-            pose, hand, thresholds, open_lo, open_hi, max_segments
-        )
+        match_udf, track_columns = _build_match_udf(pose, hand, thresholds, open_lo, open_hi, max_segments)
         matched = (
-            features.select("task", "episode_id", match_udf(*track_columns))
-            .where(col("match_count") > 0)
-            .to_pydict()
+            features.select("task", "episode_id", match_udf(*track_columns)).where(col("match_count") > 0).to_pydict()
         )
         matches = {
             (task, int(episode)): {
@@ -392,9 +375,7 @@ def query(
                 entry["segments"] = [(max(0, best_frame - window), best_frame + window)]
             del entry["sims"], entry["frames"]
 
-    ranked = sorted(scored.items(), key=lambda item: item[1]["score"], reverse=True)[
-        : int(k)
-    ]
+    ranked = sorted(scored.items(), key=lambda item: item[1]["score"], reverse=True)[: int(k)]
     return [
         {
             "task": task,

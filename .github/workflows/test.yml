@@ -54,7 +54,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Run tests (no credentials required)
-        run: uv run -m pytest tests/test_examples.py -m "not credentials" -q -n auto
+        run: uv run -m pytest tests/test_examples.py tests/test_egodex.py -m "not credentials" -q -n auto
 
   test-with-creds:
     name: Smoke tests (with credentials)
@@ -82,4 +82,4 @@ jobs:
         run: uv sync --extra test
 
       - name: Run all tests
-        run: uv run -m pytest tests/test_examples.py -q -n auto
+        run: uv run -m pytest tests/test_examples.py tests/test_egodex.py -q -n auto

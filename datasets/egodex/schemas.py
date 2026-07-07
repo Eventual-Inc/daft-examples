@@ -89,9 +89,7 @@ TRAJECTORY_FIELDS: tuple[str, ...] = (
     *(f"transforms/{joint}" for joint in TRANSFORM_JOINTS),
 )
 
-TRAJECTORY_DTYPES: dict[str, daft.DataType] = {
-    field: _TENSOR for field in TRAJECTORY_FIELDS
-}
+TRAJECTORY_DTYPES: dict[str, daft.DataType] = {field: _TENSOR for field in TRAJECTORY_FIELDS}
 
 METADATA_FIELD_DTYPES: dict[str, daft.DataType] = {
     "task": daft.DataType.string(),
@@ -119,10 +117,7 @@ LIST_METADATA_FIELDS: frozenset[str] = frozenset(("llm_verbs", "llm_objects"))
 WRIST = {"left": "transforms/leftHand", "right": "transforms/rightHand"}
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"]
 TIPS = {
-    side: [
-        f"transforms/{side}{finger}{'' if finger == 'Thumb' else 'Finger'}Tip"
-        for finger in FINGERS
-    ]
+    side: [f"transforms/{side}{finger}{'' if finger == 'Thumb' else 'Finger'}Tip" for finger in FINGERS]
     for side in ("left", "right")
 }
 CAMERA = "transforms/camera"

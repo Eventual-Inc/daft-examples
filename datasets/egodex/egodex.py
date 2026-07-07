@@ -107,24 +107,15 @@ class EgoDexPipeline:
                     values[name] = []
             return values
 
-        episode_paths = (
-            daft.from_glob_path(hdf5_glob, io_config=self.io_config)
-            .select(
-                "path",
-                col("path").split("/")[-2].alias("task"),
-                col("path")
-                .split("/")[-1]
-                .split(".")[0]
-                .cast(DataType.int64())
-                .alias("episode_id"),
-            )
+        episode_paths = daft.from_glob_path(hdf5_glob, io_config=self.io_config).select(
+            "path",
+            col("path").split("/")[-2].alias("task"),
+            col("path").split("/")[-1].split(".")[0].cast(DataType.int64()).alias("episode_id"),
         )
         if task_values:
             episode_paths = episode_paths.where(col("task").is_in(task_values))
         if episode_values:
-            episode_paths = episode_paths.where(
-                col("episode_id").is_in([int(value) for value in episode_values])
-            )
+            episode_paths = episode_paths.where(col("episode_id").is_in([int(value) for value in episode_values]))
 
         episodes = (
             episode_paths.select(
@@ -163,9 +154,7 @@ class EgoDexPipeline:
             raise ValueError(f"Unknown trajectory field(s): {unknown}")
 
         @daft.func(
-            return_dtype=DataType.struct(
-                {field: TRAJECTORY_DTYPES[field] for field in fields}
-            ),
+            return_dtype=DataType.struct({field: TRAJECTORY_DTYPES[field] for field in fields}),
             use_process=False,
             unnest=True,
         )
@@ -194,9 +183,7 @@ class EgoDexPipeline:
     ) -> DataFrame:
         """Decode EgoDex egocentric videos into a per-episode ``video_frames`` column."""
         if "video" not in episodes.schema().column_names():
-            raise ValueError(
-                "Expected an episode DataFrame with an EgoDex `video` column."
-            )
+            raise ValueError("Expected an episode DataFrame with an EgoDex `video` column.")
 
         return episodes.with_column(
             "video_frames",
@@ -211,26 +198,19 @@ class EgoDexPipeline:
             ),
         )
 
-    def calculate_features(
-        self, trajectories: DataFrame, *, fps: float | None = None
-    ) -> DataFrame:
+    def calculate_features(self, trajectories: DataFrame, *, fps: float | None = None) -> DataFrame:
         """Add queryable pose-feature tracks to a trajectory DataFrame."""
         column_names = set(trajectories.schema().column_names())
         required_columns = ("task", "episode_id", "metadata", "video")
         missing_columns = [name for name in required_columns if name not in column_names]
-        missing_fields = [
-            field for field in FEATURE_TRAJECTORY_FIELDS if field not in column_names
-        ]
+        missing_fields = [field for field in FEATURE_TRAJECTORY_FIELDS if field not in column_names]
         if missing_columns or missing_fields:
             problems = []
             if missing_columns:
                 problems.append(f"missing columns: {missing_columns}")
             if missing_fields:
                 problems.append(f"missing trajectory fields: {missing_fields}")
-            raise ValueError(
-                "Expected a trajectory DataFrame from `trajectory(...)`; "
-                + "; ".join(problems)
-            )
+            raise ValueError("Expected a trajectory DataFrame from `trajectory(...)`; " + "; ".join(problems))
 
         from .features import (
             FPS,
@@ -244,19 +224,13 @@ class EgoDexPipeline:
             fps: float
 
             def apply(self, trajectory_rows: DataFrame) -> DataFrame:
-                @daft.func(
-                    return_dtype=POSE_FEATURES_DTYPE, use_process=False, unnest=True
-                )
+                @daft.func(return_dtype=POSE_FEATURES_DTYPE, use_process=False, unnest=True)
                 def calculate_episode_features(
                     transforms: dict[str, object],
                 ) -> dict[str, object]:
-                    return EpisodeFeatureComputer(
-                        temporal=TemporalFeatureComputer(fps=self.fps)
-                    ).compute(transforms)
+                    return EpisodeFeatureComputer(temporal=TemporalFeatureComputer(fps=self.fps)).compute(transforms)
 
-                transform_struct = to_struct(
-                    **{field: col(field) for field in FEATURE_TRAJECTORY_FIELDS}
-                )
+                transform_struct = to_struct(**{field: col(field) for field in FEATURE_TRAJECTORY_FIELDS})
                 return trajectory_rows.select(
                     "task",
                     "episode_id",
@@ -272,9 +246,7 @@ class EgoDexPipeline:
         from .embeddings import embed_image_normalized
 
         if "video_frames" not in frames.schema().column_names():
-            raise ValueError(
-                "Expected a frame DataFrame from `camera_frames(...)` with `video_frames`."
-            )
+            raise ValueError("Expected a frame DataFrame from `camera_frames(...)` with `video_frames`.")
 
         rows = frames.select("task", "episode_id", "video_frames").explode("video_frames")
         rows = rows.select(
@@ -292,9 +264,7 @@ class EgoDexPipeline:
         episodes = self.raw()
         trajectories = self.trajectory(episodes)
         features = self.calculate_features(trajectories)
-        frames = self.camera_frames(
-            episodes, sample_interval_seconds=self.sample_interval_seconds
-        )
+        frames = self.camera_frames(episodes, sample_interval_seconds=self.sample_interval_seconds)
         embeddings = self.embed_frames(frames)
 
         features.write_parquet(self.features_dir)
@@ -334,10 +304,7 @@ class EgoDexPipeline:
             top["segments"][0][0],
         )
         image.save(self.overlay_path)
-        print(
-            f"\nSaved skeleton overlay of {top['task']}/{top['episode_id']} "
-            f"to {self.overlay_path}"
-        )
+        print(f"\nSaved skeleton overlay of {top['task']}/{top['episode_id']} to {self.overlay_path}")
 
 
 def main(args: argparse.Namespace) -> None:
@@ -378,9 +345,7 @@ if __name__ == "__main__":
     import argparse
     import os
 
-    parser = argparse.ArgumentParser(
-        description="Build queryable hand-pose features from a local EgoDex download."
-    )
+    parser = argparse.ArgumentParser(description="Build queryable hand-pose features from a local EgoDex download.")
     parser.add_argument(
         "--data",
         default=os.environ.get("EGODEX_DATA", ".data"),

@@ -93,9 +93,7 @@ def encode_text(text: str) -> np.ndarray:
 
     model, processor, device = _text_tower()
     with torch.no_grad():
-        inputs = processor(text=[text], return_tensors="pt", padding="max_length").to(
-            device
-        )
+        inputs = processor(text=[text], return_tensors="pt", padding="max_length").to(device)
         return _normalized_model_output(model.get_text_features(**inputs))[0]
 
 

@@ -35,13 +35,11 @@ def _read_frame_geometry(h5, frame_index: int) -> tuple[np.ndarray, np.ndarray, 
     transforms = [h5[name] for name in SKELETON_TRANSFORMS]
     num_frames = transforms[0].shape[0]
     if frame_index >= num_frames:
-        raise IndexError(
-            f"frame_index {frame_index} is outside episode bounds [0, {num_frames - 1}]"
-        )
+        raise IndexError(f"frame_index {frame_index} is outside episode bounds [0, {num_frames - 1}]")
 
-    joints = np.concatenate(
-        [np.asarray(dataset[frame_index, :3, 3]) for dataset in transforms]
-    ).reshape(len(SKELETON_TRANSFORMS), 3)
+    joints = np.concatenate([np.asarray(dataset[frame_index, :3, 3]) for dataset in transforms]).reshape(
+        len(SKELETON_TRANSFORMS), 3
+    )
     camera_pose = np.asarray(h5[CAMERA][frame_index], dtype=np.float64)
     intrinsic = np.asarray(h5["camera/intrinsic"][()], dtype=np.float64)
     return joints.astype(np.float64), camera_pose, intrinsic
@@ -74,9 +72,7 @@ def _extract_video_frame(mp4_path: Path, frame_index: int):
         return Image.open(png).convert("RGB")
 
 
-def overlay(
-    root: str | Path, task: str, episode_id: int, frame_index: int, radius: int = 5
-):
+def overlay(root: str | Path, task: str, episode_id: int, frame_index: int, radius: int = 5):
     """Return a PIL image of one EgoDex frame with its 68-joint skeleton drawn on it.
 
     Reads the frame's skeleton and camera extrinsics from the episode HDF5,
