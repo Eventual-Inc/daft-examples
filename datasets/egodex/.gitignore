@@ -1,7 +1,8 @@
-# local-only: data, outputs, envs (never commit — EgoDex is CC-BY-NC-ND)
-.data
-egodex_lerobot_full
-out
-.venv
-__pycache__/
-*.parquet
+.data/
+.features/
+.embeddings/
+features/
+embeddings/
+overlay.png
+ui_clips/
+ui_frames/

@@ -5,7 +5,7 @@ description = "Daft Examples"
 readme = "README.md"
 requires-python = ">=3.12, <3.13"
 dependencies = [
-    "daft>=0.7.10",
+    "daft>=0.7.17",
     "daft-h3",
     "python-dotenv",
 ]
@@ -15,10 +15,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["models", "pipelines"]
+packages = ["models", "pipelines", "datasets/egodex"]
 
 [project.optional-dependencies]
 test = [
+    "h5py>=3.0.0",
     "pytest>=8.0.0",
     "pytest-timeout>=2.2.0",
     "pytest-xdist>=3.5.0",
@@ -29,7 +30,7 @@ lint = [
     "ruff>=0.9.0",
 ]
 lakehouse = [
-    "daft[iceberg,sql]>=0.7.10",
+    "daft[iceberg,sql]>=0.7.17",
     "pyiceberg[sql-sqlite,gcsfs,bigquery,s3fs,glue]",
     "matplotlib",
     "sqlalchemy-bigquery",
@@ -53,7 +54,7 @@ transcription = [
 
 [tool.ruff]
 target-version = "py312"
-line-length = 120
+line-length = 90
 
 [tool.ruff.lint]
 select = [
@@ -96,4 +97,9 @@ ignore = [
 "pipelines/transcribe_diarize/modal_app.py" = ["E402"] # PEP 723 script keeps repo-root sys.path anchor
 
 [tool.ruff.lint.isort]
-known-first-party = ["daft", "models", "pipelines"]
+known-first-party = ["daft", "egodex", "models", "pipelines"]
+
+[tool.ty.rules]
+# Daft stubs type col("x") == value as bool, but filter/where take Expression at runtime.
+# Same Daft filter pattern as the Ruff E712 ignore above.
+invalid-argument-type = "ignore"
