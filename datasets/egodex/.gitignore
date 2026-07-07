@@ -1,0 +1,8 @@
+.data/
+.features/
+.embeddings/
+features/
+embeddings/
+overlay.png
+ui_clips/
+ui_frames/

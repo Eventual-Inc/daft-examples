@@ -74,9 +74,7 @@ class FasterWhisperASR:
                 segments.append(
                     {"id": len(segments), "start": float(seg.start), "end": float(seg.end), "text": text, "speaker": ""}
                 )
-            return segments_to_result(
-                segments, duration=float(duration or info.duration), language=info.language or ""
-            )
+            return segments_to_result(segments, duration=float(duration or info.duration), language=info.language or "")
         except Exception as exc:  # noqa: BLE001 — isolate per-file failures
             print(f"faster_whisper: transcription failed for one file ({type(exc).__name__}: {exc})")
             return empty_result(float(duration or 0.0))

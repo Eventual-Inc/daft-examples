@@ -742,7 +742,9 @@ def hand_contact_pole_line(lines: list[dict], skeleton: dict, width: int, height
     return line, score
 
 
-def append_or_replace_pole_line(scene_lines: list[dict], candidate: dict, width: int, height: int, confidence: float) -> None:
+def append_or_replace_pole_line(
+    scene_lines: list[dict], candidate: dict, width: int, height: int, confidence: float
+) -> None:
     payload = line_payload("pole", candidate, width, height, confidence)
     payload["source"] = "opencv_hough_hand_contact"
     payload["contact_distance_px"] = candidate.get("contact_distance_px")
@@ -854,15 +856,19 @@ def detect_scene_2d(frame: VideoFrame, skeleton: dict | None = None, contact_awa
     pole_line, pole_score = select_scene_line(
         lines,
         lambda line: 18.0 <= line["angle"] <= 78.0 and line["length"] > width * 0.16,
-        lambda line: (line["length"] / frame_diag)
-        + 0.85 * (1.0 - min(point_segment_distance(athlete_center, line) / frame_diag, 1.0)),
+        lambda line: (
+            (line["length"] / frame_diag)
+            + 0.85 * (1.0 - min(point_segment_distance(athlete_center, line) / frame_diag, 1.0))
+        ),
     )
     bar_line, bar_score = select_scene_line(
         lines,
         lambda line: line["angle"] <= 10.0 and line["length"] > width * 0.08 and line["mid_y"] < height * 0.68,
-        lambda line: (line["length"] / width)
-        + 0.45 * (1.0 - min(abs(line["mid_x"] - athlete_center[0]) / max(width / 2, 1), 1.0))
-        + 0.25 * (1.0 - line["mid_y"] / height),
+        lambda line: (
+            (line["length"] / width)
+            + 0.45 * (1.0 - min(abs(line["mid_x"] - athlete_center[0]) / max(width / 2, 1), 1.0))
+            + 0.25 * (1.0 - line["mid_y"] / height)
+        ),
     )
     runway_candidates = [
         line
@@ -980,7 +986,9 @@ def pca_centerline(points, kind: str) -> tuple[list[list[float]], float]:
 
     start = mean + start_projection * direction
     end = mean + end_projection * direction
-    return [[float(start[0]), float(start[1])], [float(end[0]), float(end[1])]], float(end_projection - start_projection)
+    return [[float(start[0]), float(start[1])], [float(end[0]), float(end[1])]], float(
+        end_projection - start_projection
+    )
 
 
 def line_angle_from_points(points: list[list[float]]) -> float:
@@ -1218,11 +1226,7 @@ def scene_contact_from_skeleton(scene_2d: dict, skeleton: dict) -> dict:
 
     left = hand_summary(LEFT_HAND_KEYPOINTS)
     right = hand_summary(RIGHT_HAND_KEYPOINTS)
-    confidences = [
-        hand.get("holding_confidence", 0.0)
-        for hand in [left, right]
-        if hand.get("num_points", 0)
-    ]
+    confidences = [hand.get("holding_confidence", 0.0) for hand in [left, right] if hand.get("num_points", 0)]
     return {
         "format": "pole_contact_v1",
         "has_pole": True,

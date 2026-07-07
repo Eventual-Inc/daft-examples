@@ -227,12 +227,14 @@ Every script declares its own dependencies. No extras to install.
 ## Development
 
 ```bash
-make format        # auto-format with ruff
+make format        # ruff format + import sort (use this, not `uv format` alone)
 make lint          # lint check
 make precommit     # lint + format check (runs on git commit)
 make test          # run all tests
 make test-no-creds # run tests that don't need API keys
 ```
+
+`uv format` only runs Ruff's formatter and does not sort imports. Use `make format` for both.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new examples.
 

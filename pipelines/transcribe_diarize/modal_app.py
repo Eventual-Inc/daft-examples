@@ -217,9 +217,7 @@ def diarize_folder(filenames: list[str], diarizer_model: str = "") -> dict:
     from models.sortformer.model import DEFAULT_MODEL, SortformerDiarizer, attach_speakers
 
     audio_volume.reload()
-    df = daft.from_pydict(
-        {"filename": filenames, "path": [f"{FLAC_DIR}/{name}" for name in filenames]}
-    )
+    df = daft.from_pydict({"filename": filenames, "path": [f"{FLAC_DIR}/{name}" for name in filenames]})
     df = df.with_column("audio", audio_file(col("path")))
     # diarize() guards on a non-empty transcript; these files already have one.
     df = df.with_column("transcript", daft.lit("x"))
@@ -317,9 +315,10 @@ def dump_transcripts(
         if not (target.exists() and target.stat().st_size > 0):
             try:
                 subprocess.run(
-                    ["ffmpeg", "-y", "-nostdin", "-i", str(p), "-ac", "1", "-ar", "16000",
-                     "-c:a", "flac", str(target)],
-                    check=True, capture_output=True, timeout=3600,
+                    ["ffmpeg", "-y", "-nostdin", "-i", str(p), "-ac", "1", "-ar", "16000", "-c:a", "flac", str(target)],
+                    check=True,
+                    capture_output=True,
+                    timeout=3600,
                 )
             except Exception as exc:  # noqa: BLE001 — skip undecodable/corrupt files
                 print(f"  transcode FAILED: {p.name} ({type(exc).__name__})")

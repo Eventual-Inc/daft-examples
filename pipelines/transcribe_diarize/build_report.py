@@ -32,8 +32,16 @@ from openai import OpenAI
 JUDGE_MODEL = "openai/gpt-oss-120b"
 TRANSCRIPT_CHAR_LIMIT = 6000
 SPEAKER_PALETTE = [
-    "#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed",
-    "#db2777", "#0891b2", "#65a30d", "#ea580c", "#4f46e5",
+    "#2563eb",
+    "#dc2626",
+    "#059669",
+    "#d97706",
+    "#7c3aed",
+    "#db2777",
+    "#0891b2",
+    "#65a30d",
+    "#ea580c",
+    "#4f46e5",
 ]
 QUALITY_COLORS = {5: "#059669", 4: "#65a30d", 3: "#d97706", 2: "#ea580c", 1: "#dc2626", 0: "#6b7280"}
 
@@ -95,8 +103,8 @@ def judge_one(client: OpenAI, row: dict) -> dict:
         f"Duration: {fmt_duration(info.get('duration'))}\n"
         f"Transcript segments: {len(segments)} | distinct diarized speakers: {len(speakers)}\n\n"
         f"{JUDGE_SCHEMA_HINT}\n\n"
-        f"Transcript{' (truncated)' if truncated else ''}:\n\"\"\"\n"
-        f"{transcript[:TRANSCRIPT_CHAR_LIMIT]}\n\"\"\""
+        f'Transcript{" (truncated)" if truncated else ""}:\n"""\n'
+        f'{transcript[:TRANSCRIPT_CHAR_LIMIT]}\n"""'
     )
     try:
         resp = client.chat.completions.create(
@@ -108,9 +116,13 @@ def judge_one(client: OpenAI, row: dict) -> dict:
         verdict = json.loads(resp.choices[0].message.content)
     except Exception as exc:  # noqa: BLE001 — record judge failure inline
         verdict = {
-            "content_type": "unknown", "language": "unknown", "quality_score": 0,
-            "quality_label": "judge-error", "diarization_plausible": None,
-            "summary": f"LLM judge failed: {type(exc).__name__}: {exc}", "issues": [],
+            "content_type": "unknown",
+            "language": "unknown",
+            "quality_score": 0,
+            "quality_label": "judge-error",
+            "diarization_plausible": None,
+            "summary": f"LLM judge failed: {type(exc).__name__}: {exc}",
+            "issues": [],
         }
     verdict["_speakers"] = speakers
     return verdict
@@ -141,10 +153,7 @@ def speaker_color(speaker: str, mapping: dict) -> str:
 
 def quality_badge(score: int, label: str) -> str:
     color = QUALITY_COLORS.get(int(score or 0), "#6b7280")
-    return (
-        f'<span class="badge" style="background:{color}">'
-        f"{esc(label)} · {esc(score)}/5</span>"
-    )
+    return f'<span class="badge" style="background:{color}">{esc(label)} · {esc(score)}/5</span>'
 
 
 def render_segments(segments: list[dict]) -> str:
@@ -213,17 +222,18 @@ def render_report(payload: dict, verdicts: list[dict], rows: list[dict]) -> str:
             "<tr>"
             f'<td><a href="#{anchor}">{esc(display(row.get("filename")))}</a></td>'
             f'<td class="num">{esc(fmt_duration(info.get("duration")))}</td>'
-            f'<td>{esc(v.get("language"))}</td>'
-            f'<td>{esc(v.get("content_type"))}</td>'
-            f'<td>{esc(len(v.get("_speakers", [])))}</td>'
-            f'<td>{quality_badge(v.get("quality_score", 0), v.get("quality_label", "?"))}</td>'
+            f"<td>{esc(v.get('language'))}</td>"
+            f"<td>{esc(v.get('content_type'))}</td>"
+            f"<td>{esc(len(v.get('_speakers', [])))}</td>"
+            f"<td>{quality_badge(v.get('quality_score', 0), v.get('quality_label', '?'))}</td>"
             f'<td class="summary">{esc(v.get("summary"))}</td>'
             "</tr>"
         )
         issues = v.get("issues") or []
         issues_html = (
             "<ul class='issues'>" + "".join(f"<li>{esc(x)}</li>" for x in issues) + "</ul>"
-            if issues else '<span class="muted">none flagged</span>'
+            if issues
+            else '<span class="muted">none flagged</span>'
         )
         diar = v.get("diarization_plausible")
         diar_txt = {True: "plausible", False: "questionable", None: "n/a"}.get(diar, esc(diar))
@@ -232,11 +242,11 @@ def render_report(payload: dict, verdicts: list[dict], rows: list[dict]) -> str:
             f'<div class="detail-head"><h3>{esc(display(row.get("filename")))}</h3>'
             f"{quality_badge(v.get('quality_score', 0), v.get('quality_label', '?'))}</div>"
             '<div class="meta">'
-            f'<span>{esc(fmt_duration(info.get("duration")))}</span>'
-            f'<span>lang: {esc(v.get("language"))}</span>'
-            f'<span>type: {esc(v.get("content_type"))}</span>'
-            f'<span>speakers: {esc(len(v.get("_speakers", [])))}</span>'
-            f'<span>diarization: {diar_txt}</span>'
+            f"<span>{esc(fmt_duration(info.get('duration')))}</span>"
+            f"<span>lang: {esc(v.get('language'))}</span>"
+            f"<span>type: {esc(v.get('content_type'))}</span>"
+            f"<span>speakers: {esc(len(v.get('_speakers', [])))}</span>"
+            f"<span>diarization: {diar_txt}</span>"
             "</div>"
             f'<div class="verdict"><strong>Judge:</strong> {esc(v.get("summary"))}'
             f'<div class="issues-wrap"><strong>Issues:</strong> {issues_html}</div></div>'
@@ -299,17 +309,17 @@ ul.issues {{ margin: 4px 0 0; padding-left: 18px; }} ul.issues li {{ color: #b91
 </style></head>
 <body>
 <header><h1>Transcript Quality Report</h1>
-<div class="sub">{esc(payload.get('asr_model'))} + {esc(payload.get('diarizer'))} diarization · LLM judge: {esc(JUDGE_MODEL)} · {generated}</div>
+<div class="sub">{esc(payload.get("asr_model"))} + {esc(payload.get("diarizer"))} diarization · LLM judge: {esc(JUDGE_MODEL)} · {generated}</div>
 </header>
 <div class="wrap">
   <div class="cards">{cards_html}</div>
   <div>{type_html}</div>
   <h2>Summary (lowest quality first)</h2>
   <table><thead><tr><th>File</th><th>Duration</th><th>Language</th><th>Type</th><th>Spk</th><th>Quality</th><th>Judge summary</th></tr></thead>
-  <tbody>{''.join(table_rows)}</tbody></table>
+  <tbody>{"".join(table_rows)}</tbody></table>
   {no_tx_html}
   <h2>Transcripts</h2>
-  {''.join(detail_cards)}
+  {"".join(detail_cards)}
 </div></body></html>"""
 
 

@@ -1,7 +1,11 @@
-.PHONY: setup test test-quickstart test-examples test-no-creds lint format precommit install-hooks
+.PHONY: setup setup-egodex test test-quickstart test-examples test-no-creds lint format precommit install-hooks
 
 setup: install-hooks
 	uv sync --extra test --extra lint
+	@test -f .env || cp .env.example .env
+
+setup-egodex: install-hooks
+	uv sync --extra egodex --extra notebook
 	@test -f .env || cp .env.example .env
 
 install-hooks:
@@ -12,14 +16,14 @@ install-hooks:
 # ── Lint & Format ──────────────────────────────────────────────────────
 
 lint:
-	uv run ruff check .
+	uv run --extra lint ruff check .
 
 format:
-	uv run ruff format .
-	uv run ruff check --fix .
+	uv run --extra lint ruff format .
+	uv run --extra lint ruff check --fix .
 
 precommit: lint
-	uv run ruff format --check .
+	uv run --extra lint ruff format --check .
 	@echo "All checks passed."
 
 # ── Tests ──────────────────────────────────────────────────────────────
