@@ -47,6 +47,21 @@ EMB_DIM = 768  # SigLIP2-base shared image/text embedding dim (must match the mo
 # --- SigLIP image embedder (stateful UDF) --------------------------------------
 
 
+def _to_model_inputs(inputs) -> dict:
+    """Move processor tensors to DEVICE, casting float tensors to the model dtype.
+
+    On CUDA the weights are fp16 (DTYPE) but the processor emits float32
+    pixel_values, so they must be cast to match or the forward pass raises a
+    dtype mismatch. Only floating tensors are cast — integer inputs like
+    input_ids / attention_mask must stay integral. On CPU/MPS (DTYPE float32)
+    this is a no-op cast.
+    """
+    return {
+        key: value.to(DEVICE, DTYPE) if torch.is_floating_point(value) else value.to(DEVICE)
+        for key, value in inputs.items()
+    }
+
+
 def _normalized_embedding(model_output) -> torch.Tensor:
     """Pull the embedding tensor out of a transformers output and L2-normalize it.
 
@@ -68,7 +83,7 @@ class SiglipEmbedder:
     def embed_image(self, images: Series):
         # images.to_pylist() yields uint8 H×W×C numpy arrays; the SigLIP processor takes them
         # directly (verified identical to the PIL path), so no per-frame Image.fromarray needed.
-        inputs = self.processor(images=images.to_pylist(), return_tensors="pt").to(DEVICE)
+        inputs = _to_model_inputs(self.processor(images=images.to_pylist(), return_tensors="pt"))
         with torch.no_grad():
             model_output = self.model.get_image_features(**inputs)
             embeddings = _normalized_embedding(model_output)
@@ -94,7 +109,7 @@ def encode_text(text: str) -> np.ndarray:
     """Return a unit-norm SigLIP-2 embedding for `text` (same space as the image embeddings)."""
     model, processor = _text_model()
     with torch.no_grad():
-        inputs = processor(text=[text], return_tensors="pt", padding="max_length").to(DEVICE)
+        inputs = _to_model_inputs(processor(text=[text], return_tensors="pt", padding="max_length"))
         embedding = _normalized_embedding(model.get_text_features(**inputs))
     return embedding.cpu().numpy().astype(np.float32)[0]
 
