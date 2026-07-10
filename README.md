@@ -128,6 +128,10 @@ Small, focused scripts. One concept each.
 | [cc_chunk_embed.py](examples/commoncrawl/cc_chunk_embed.py) | Chunk and embed web pages |
 | [cc_wet_paragraph_dedupe.py](examples/commoncrawl/cc_wet_paragraph_dedupe.py) | Paragraph-level deduplication at scale |
 
+### Hugging Face
+
+- [Daft x Hugging Face examples](examples/hf/README.md) - release-pinned Hub, Storage Bucket, Common Crawl, LeRobot, DROID, and local Transformers patterns.
+
 ---
 
 ## Pipelines
