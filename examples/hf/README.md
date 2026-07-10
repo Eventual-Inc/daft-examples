@@ -1,11 +1,11 @@
 # Daft x Hugging Face Examples
 
-Runnable Daft `0.7.19` patterns for the Daft x Hugging Face social series. Each
+Runnable Daft `0.7.19` patterns for Daft x Hugging Face integrations. Each
 script has a [PEP 723](https://peps.python.org/pep-0723/) header, so run it with
 `uv run examples/hf/<script>.py` from the repository root. Public inputs do not
 require a Hugging Face token.
 
-## Planned Social 1: Hub-native reads, `hf://`, and Storage Buckets
+## 1. Hub-native reads, `hf://`, and Storage Buckets
 
 - Scripts: [`read_huggingface.py`](read_huggingface.py), [`read_hf_parquet.py`](read_hf_parquet.py), and [`read_hf_bucket_files.py`](read_hf_bucket_files.py)
 - Daft guide: [Hugging Face datasets](https://docs.daft.ai/en/stable/connectors/huggingface/)
@@ -13,7 +13,7 @@ require a Hugging Face token.
 - Hugging Face references: [Storage Buckets](https://huggingface.co/docs/hub/storage-buckets) and [bucket access patterns](https://huggingface.co/docs/hub/en/storage-buckets-access)
 - Grounded inputs: [`huggingface/documentation-images`](https://huggingface.co/datasets/huggingface/documentation-images), the Xet-backed [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) Parquet shard, and the public [`commoncrawl`](https://huggingface.co/buckets/commoncrawl/commoncrawl/tree/main) bucket.
 
-## Planned Social 2: Common Crawl from a Hugging Face Storage Bucket
+## 2. Common Crawl from a Hugging Face Storage Bucket
 
 - Script: [`common_crawl_bucket.py`](common_crawl_bucket.py)
 - Daft guide: [Common Crawl](https://docs.daft.ai/en/stable/datasets/common-crawl/)
@@ -25,7 +25,7 @@ The script deliberately sets `source="hf"`; `CC-MAIN-2026-25` is available in
 the public bucket. It limits the crawl to one WET file, but that file can still
 be large, so it is intentionally not part of the default smoke suite.
 
-## Planned Social 3: LeRobot v3 and DROID
+## 3. LeRobot v3 and DROID
 
 - Scripts: [`lerobot_v3.py`](lerobot_v3.py) and [`droid.py`](droid.py)
 - Daft guides: [LeRobot v3](https://docs.daft.ai/en/stable/datasets/lerobot/) and [DROID](https://docs.daft.ai/en/stable/datasets/droid/)
@@ -36,7 +36,7 @@ be large, so it is intentionally not part of the default smoke suite.
 lazy DROID plan by default; set `RUN_DROID=1` to materialize raw DROID episode
 metadata from the public GCS release.
 
-## Planned Social 4: Local Transformers inference and embeddings
+## 4. Local Transformers inference and embeddings
 
 - Scripts: [`transformers_prompt.py`](transformers_prompt.py), [`transformers_embed_text.py`](transformers_embed_text.py), and [`transformers_embed_image.py`](transformers_embed_image.py)
 - Daft guides: [prompt](https://docs.daft.ai/en/stable/ai-functions/prompt/) and [embeddings](https://docs.daft.ai/en/stable/ai-functions/embed/)
@@ -45,8 +45,3 @@ metadata from the public GCS release.
 
 These run local models through `provider="transformers"`; no hosted inference
 key is needed. The first invocation downloads the selected model weights.
-
-## Release Pin
-
-Every script pins Daft to `0.7.19`. This keeps snippets aligned with the
-release train rather than silently testing against a newer API.
