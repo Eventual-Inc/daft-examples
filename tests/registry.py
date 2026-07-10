@@ -31,7 +31,7 @@ SCRIPTS: list[Script] = [
     Script("quickstart/02_semantic_search.py",      env=["OPENAI_API_KEY", "TURBOPUFFER_API_KEY"], tier="quickstart", timeout=300),
     Script("quickstart/03_data_enrichment.py",      env=["OPENAI_API_KEY"], tier="quickstart"),
     Script("quickstart/04_audio_file.py",           tier="quickstart"),
-    Script("quickstart/05_video_file.py",           tier="quickstart"),
+    Script("quickstart/05_video_file.py",           tier="quickstart", skip="daft[video]/PyAV exits 139 in Linux CI"),
 
     # ── examples/classify ───────────────────────────────────────────
     Script("examples/classify/classify_image.py",  skip="daft 0.7.8 bug: TransformersImageClassifierPipeline missing 'framework' attribute"),
@@ -39,14 +39,14 @@ SCRIPTS: list[Script] = [
 
     # ── examples/commoncrawl ────────────────────────────────────────
     Script("examples/commoncrawl/cc_chunk_embed.py",           timeout=300),
-    Script("examples/commoncrawl/cc_show.py"),
+    Script("examples/commoncrawl/cc_show.py", timeout=300),
     Script("examples/commoncrawl/cc_wet_paragraph_dedupe.py",  timeout=300, skip="daft 0.7.8 bug: FixedSizeList field name mismatch in minhash().chunk()"),
 
 
     # ── examples/embed ──────────────────────────────────────────────
     Script("examples/embed/cosine_similarity.py",       env=["OPENAI_API_KEY"]),
 
-    Script("examples/embed/embed_images.py"),
+    Script("examples/embed/embed_images.py", timeout=300),
     Script("examples/embed/embed_text.py",              env=["OPENAI_API_KEY"]),
     Script("examples/embed/embed_text_providers.py",    env=["OPENAI_API_KEY"], skip="requires LM Studio running locally"),
     Script("examples/embed/embed_video_frames.py",  skip="requires YouTube download via yt-dlp"),
@@ -59,7 +59,7 @@ SCRIPTS: list[Script] = [
     Script("examples/files/daft_file_markdown.py"),
     Script("examples/files/daft_file_knowledge_base.py"),
     Script("examples/files/daft_file_pdf.py"),
-    Script("examples/files/daft_videofile.py"),
+    Script("examples/files/daft_videofile.py", timeout=300),
     Script("examples/files/daft_videofile_stream.py", skip="daft 0.7.8 bug: video_keyframes stream finalization can fail"),
 
     # ── examples/io ─────────────────────────────────────────────────
@@ -88,7 +88,7 @@ SCRIPTS: list[Script] = [
     Script("examples/session/session_sql.py"),
 
     # ── examples/sql ────────────────────────────────────────────────
-    Script("examples/sql/stocks.py"),
+    Script("examples/sql/stocks.py", timeout=300),
 
     # ── examples/udfs ───────────────────────────────────────────────
     Script("examples/udfs/daft_cls_async_client.py",    env=["OPENAI_API_KEY"]),
@@ -133,18 +133,18 @@ SCRIPTS: list[Script] = [
     Script("pipelines/voice_ai_analytics/voice_ai_tutorial.py",          tier="pipeline", skip="requires faster-whisper model download"),
 
     # ── datasets ────────────────────────────────────────────────────
-    Script("datasets/common_crawl/basic_warc.py",           tier="dataset"),
+    Script("datasets/common_crawl/basic_warc.py",           tier="dataset", timeout=300),
     Script("datasets/common_crawl/basic_wat.py",            tier="dataset"),
     Script("datasets/common_crawl/basic_wet.py",            tier="dataset"),
     Script("datasets/common_crawl/chunk_embed.py",          env=["OPENAI_API_KEY"], tier="dataset"),
-    Script("datasets/common_crawl/content_analysis.py",     tier="dataset"),
+    Script("datasets/common_crawl/content_analysis.py",     tier="dataset", timeout=300),
     Script("datasets/common_crawl/text_deduplication.py",   tier="dataset", skip="daft 0.7.8 bug: FixedSizeList field name mismatch in minhash().chunk()"),
 
     Script("datasets/laion/basic_metadata.py",      tier="dataset"),
     Script("datasets/laion/clip_training.py",       env=["OPENAI_API_KEY"], tier="dataset"),
     Script("datasets/laion/image_text_pairs.py",    tier="dataset"),
 
-    Script("datasets/open_images/basic_images.py",      tier="dataset"),
+    Script("datasets/open_images/basic_images.py",      tier="dataset", timeout=300),
     Script("datasets/open_images/image_processing.py",  tier="dataset"),
     Script("datasets/open_images/vision_models.py",     env=["OPENAI_API_KEY"], tier="dataset", timeout=300),
 

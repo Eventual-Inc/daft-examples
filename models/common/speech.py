@@ -11,6 +11,16 @@ from typing import Any
 
 from daft import DataType
 
+# One ASR word timestamp. `text` is the normalized word/token text emitted by
+# the backend, with timestamps in the original source timeline.
+WordStruct = DataType.struct(
+    {
+        "text": DataType.string(),
+        "start": DataType.float64(),
+        "end": DataType.float64(),
+    }
+)
+
 # One transcript line. `speaker` is filled in after diarization (empty until then).
 SegmentStruct = DataType.struct(
     {
@@ -19,6 +29,7 @@ SegmentStruct = DataType.struct(
         "end": DataType.float64(),
         "text": DataType.string(),
         "speaker": DataType.string(),
+        "words": DataType.list(WordStruct),
     }
 )
 

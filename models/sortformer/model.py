@@ -2,8 +2,7 @@
 
 Backend: PyTorch via NeMo. Sortformer is end-to-end — it emits speaker turns
 directly from audio, and its per-frame activity matrix subsumes VAD, so it
-replaces both Silero VAD and pyannote in one model. Limits: 4 speakers max;
-pick the variant by license (see ``DEFAULT_MODEL`` note).
+replaces both Silero VAD and pyannote in one model. Limits: 4 speakers max.
 
 This module never imports ``modal``; see ``modal_app.py`` for deployment.
 """
@@ -24,10 +23,6 @@ import daft
 from daft import DataType, col
 from models.common.audio import SAMPLE_RATE, read_waveform_16k_mono
 from models.common.speech import SpeakerSegmentStruct
-
-# Streaming-v2 is CC-BY-4.0 (commercial OK). Offline `diar_sortformer_4spk-v1`
-# is CC-BY-NC — use only for non-commercial/research.
-DEFAULT_MODEL = "nvidia/diar_streaming_sortformer_4spk-v2"
 
 SpeakerSegmentsResult = DataType.list(SpeakerSegmentStruct)
 
@@ -50,7 +45,7 @@ def _parse_turns(raw: Any) -> list[dict]:
 
 @daft.cls(gpus=1.0, max_concurrency=1)
 class SortformerDiarizer:
-    def __init__(self, *, model: str = DEFAULT_MODEL):
+    def __init__(self, *, model: str = "nvidia/diar_streaming_sortformer_4spk-v2"):
         from nemo.collections.asr.models import SortformerEncLabelModel
 
         self.model_name = model
@@ -69,7 +64,7 @@ class SortformerDiarizer:
             with tempfile.TemporaryDirectory() as tmp:
                 wav_path = str(Path(tmp) / "clip.wav")
                 sf.write(wav_path, waveform, SAMPLE_RATE)
-                raw = self.diarizer.diarize(audio=[wav_path], batch_size=1)
+                raw = self.diarizer.diarize(audio=[wav_path])
             return _parse_turns(raw)
         except Exception as exc:  # noqa: BLE001 — isolate per-file failures
             print(f"sortformer: diarization failed for one file ({type(exc).__name__}: {exc})")

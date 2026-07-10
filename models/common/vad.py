@@ -90,7 +90,27 @@ class MarbleNetVAD:
 
         self.torch = torch
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = nemo_asr.models.EncDecFrameClassificationModel.from_pretrained(model_id).eval().to(self.device)
+        self.model = (
+            nemo_asr.models.EncDecFrameClassificationModel.from_pretrained(model_id, strict=False)
+            .eval()
+            .to(self.device)
+        )
+        self.configure(
+            threshold=threshold,
+            min_speech_duration_ms=min_speech_duration_ms,
+            min_silence_duration_ms=min_silence_duration_ms,
+            speech_pad_ms=speech_pad_ms,
+        )
+
+    def configure(
+        self,
+        *,
+        threshold: float,
+        min_speech_duration_ms: int,
+        min_silence_duration_ms: int,
+        speech_pad_ms: int,
+    ) -> None:
+        """Retune threshold/windowing without reloading the NeMo weights."""
         self.threshold = threshold
         self.min_speech_frames = max(1, min_speech_duration_ms // self.FRAME_MS)
         self.min_silence_frames = max(1, min_silence_duration_ms // self.FRAME_MS)
