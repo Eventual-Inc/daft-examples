@@ -19,7 +19,7 @@ requests = daft.from_pydict(
             provider="transformers",
             model="HuggingFaceTB/SmolLM2-135M-Instruct",
             max_new_tokens=80,
-            temperature=0.0,
+            do_sample=False,
         ),
     ).show()
 )
