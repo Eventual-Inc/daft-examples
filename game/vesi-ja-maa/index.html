@@ -635,6 +635,66 @@ select {
 .an-cf .row .t { font-family: var(--serif); font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
 
 /* ============================================================
+   MODEL — the governing equations, evaluated at the live tick.
+   ============================================================ */
+.eqs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.eq {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.eq .nm {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--vesi);
+}
+.eq .sym, .eq .eval {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.65;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
+}
+.eq .sym { color: var(--ink-2); }
+.eq .eval { color: var(--ink); }
+.eq .eval b { color: var(--vesi); font-weight: 700; }
+.eq .eval b.neg { color: var(--hehku); }
+.eq .gloss {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.eq var { font-style: italic; color: var(--ink); }
+
+.seasons { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; }
+.seasons th, .seasons td {
+  text-align: right;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-variant-numeric: tabular-nums;
+}
+.seasons th { color: var(--ink-3); font-weight: 600; letter-spacing: .06em; }
+.seasons th:first-child, .seasons td:first-child { text-align: left; }
+.seasons tr.now td { color: var(--vesi); font-weight: 700; }
+.seasons tr.now td:first-child::before { content: "▸ "; }
+
+/* ============================================================
    LEDGER
    ============================================================ */
 .ledger {
@@ -790,6 +850,19 @@ select {
 }
 .sheet .verdict.bad { color: var(--hehku); }
 .sheet p { font-family: var(--serif); font-size: 14.5px; color: var(--ink-2); line-height: 1.55; }
+.diag {
+  margin: 16px 0 4px;
+  padding: 13px 15px;
+  background: var(--panel-2);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--hehku);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.diag p { font-size: 13.5px; color: var(--ink); margin: 0; }
+
 .tally {
   margin: 18px 0;
   border-top: 1px solid var(--rule);
@@ -941,6 +1014,14 @@ select {
     </div>
 
   </div>
+
+  <section style="padding-top:28px">
+    <div class="sec-head">
+      <h2>The model</h2>
+      <span class="hint" id="hModel"></span>
+    </div>
+    <div id="model"></div>
+  </section>
 
   <section class="brief">
     <h3>How the quarter resolves</h3>
@@ -1121,6 +1202,10 @@ function newWorld() {
        tick, kept in history, carried through forks. */
     analyst: null,
     analystLog: [],
+    /* Offers that expired while a site actually qualified for them —
+       the ending needs to name what was left on the table. */
+    missed: 0,
+    missedNames: [],
     over: null,
     prevReadings: { cash: 2400000, aquifer: 78, standing: 62, heatGwh: 0 }
   };
@@ -1236,6 +1321,13 @@ function assess(w) {
   const cashQ = null;
   const overLicence = w.parcels.filter(p => drawOf(p) > p.permit).length;
 
+  /* Capital that cannot earn: an oven with no tenant delivers no heat
+     and never will until the site is let. */
+  const idleOvens = w.parcels.filter(p => p.oven && !p.tenant);
+  const fitting = w.offers
+    .filter(o => w.parcels.some(p => !eligible(p, o.k)))
+    .sort((a, b) => TENANTS[b.k].rent - TENANTS[a.k].rent);
+
   /* The binding constraint is whichever runs out first. */
   const runways = [
     { k: "aquifer",  q: aqQ,   noun: "the aquifer" },
@@ -1244,10 +1336,17 @@ function assess(w) {
   ].filter(r => r.q !== null).sort((a, b) => a.q - b.q);
   const binding = runways[0] || null;
 
-  const risk = !binding ? "low"
+  let risk = !binding ? "low"
     : binding.q <= 4 ? "acute"
     : binding.q <= 9 ? "watch"
     : "low";
+
+  /* Earning nothing is the most urgent state there is, and idle capital
+     is the next. Neither shows up as a runway, so neither would ever be
+     flagged by the hydrology alone. */
+  const stalled = let_.length === 0;
+  if (stalled && w.tick > 0) risk = "acute";
+  else if (stalled || idleOvens.length) risk = risk === "low" ? "watch" : risk;
 
   /* Confidence: how clearly one constraint leads the next. */
   const gap = runways.length > 1 ? runways[1].q - runways[0].q : 99;
@@ -1272,10 +1371,14 @@ function assess(w) {
 
   /* Prose. Written from the evidence above, never independently of it. */
   let verdict;
-  if (!binding) {
-    verdict = let_.length === 0
-      ? `Nothing let and nothing draining. The position is safe and going nowhere.`
-      : `${let_.length} site${let_.length === 1 ? "" : "s"} let at ${draw} l/s. Nothing binds inside the horizon.`;
+  /* Earning nothing outranks every hydrological reading: rent is the
+     only income, and the aquifer and the council merely multiply it. */
+  if (let_.length === 0) {
+    verdict = fitting.length
+      ? `Nothing is let. Rent is the only income here — the aquifer and the council multiply it, they do not replace it. ${TENANTS[fitting[0].k].name} qualifies for a site right now.`
+      : `Nothing is let and no tenant qualifies. Until a site is let, this position earns nothing at all.`;
+  } else if (!binding) {
+    verdict = `${let_.length} site${let_.length === 1 ? "" : "s"} let at ${draw} l/s, ${eur(rents)} a quarter. Nothing binds inside the window.`;
   } else if (binding.k === "aquifer") {
     verdict = `At ${draw} l/s, ${binding.noun} reaches the emergency line in ${binding.q} quarter${binding.q === 1 ? "" : "s"}`
       + (overLicence ? `, and ${overLicence} site${overLicence === 1 ? " is" : "s are"} already over licence.` : ".");
@@ -1287,7 +1390,17 @@ function assess(w) {
 
   /* The one lever the evidence actually points at. */
   let lever = null;
-  if (binding && binding.k === "aquifer") {
+  if (idleOvens.length) {
+    const o = idleOvens[0];
+    lever = `The oven at ${o.name} is idle — it delivers nothing until ${o.name} is let. `
+          + (fitting.some(f => !eligible(o, f.k))
+              ? `${TENANTS[fitting.find(f => !eligible(o, f.k)).k].name} would take it now.`
+              : `No current tenant qualifies for that site.`);
+  } else if (let_.length === 0) {
+    lever = fitting.length
+      ? `Sign ${TENANTS[fitting[0].k].name} — ${eur(TENANTS[fitting[0].k].rent)} a quarter, ${w.offers.find(o => o.k === fitting[0].k).left} quarter(s) to decide.`
+      : `Nothing qualifies. Grid, licence or fibre is short on every site — raise one.`;
+  } else if (binding && binding.k === "aquifer") {
     const openLet = let_.filter(p => !p.closedLoop).sort((a, b) => drawOf(b) - drawOf(a))[0];
     if (openLet) lever = `Closed loop at ${openLet.name} takes ${drawOf(openLet) - Math.round(TENANTS[openLet.tenant].thirst * 0.22)} l/s off the draw.`;
     else lever = `Every let site is already closed loop. The remaining draw is structural.`;
@@ -1302,8 +1415,9 @@ function assess(w) {
 
   return {
     tick: w.tick, risk, confidence, verdict, lever,
-    binding: binding ? binding.k : null,
-    runway: binding ? binding.q : null,
+    binding: stalled ? "no revenue" : (binding ? binding.k : null),
+    runway: stalled ? null : (binding ? binding.q : null),
+    stalled, idle: idleOvens.length,
     draw, rents, standing: w.standing, aquifer: w.aquifer,
     offerNotes
   };
@@ -1401,7 +1515,18 @@ const PROCESSORS = [
       const out = [];
       for (const o of w.offers) {
         o.left--;
-        if (o.left <= 0) out.push({ msg: `${TENANTS[o.k].name} walks. Siting moved to Sweden.`, tone: "bad" });
+        if (o.left <= 0) {
+          const couldHave = w.parcels.some(p => !eligible(p, o.k));
+          if (couldHave) {
+            w.missed++;
+            if (w.missedNames.length < 6) w.missedNames.push(TENANTS[o.k].name);
+          }
+          out.push({
+            msg: `${TENANTS[o.k].name} walks. Siting moved to Sweden.`
+               + (couldHave ? ` A site qualified — that was ${eur(TENANTS[o.k].rent * TENANTS[o.k].term)} over the term.` : ""),
+            tone: "bad"
+          });
+        }
       }
       w.offers = w.offers.filter(o => o.left > 0);
       seedOffers(w.tick + 1);
@@ -1621,12 +1746,23 @@ function render() {
   renderAnalyst();
   renderOffers();
   renderLedger();
+  renderModel();
 
   document.getElementById("btnTick").disabled = !!W.over;
   document.getElementById("btnSweep").disabled = !!W.over;
-  document.getElementById("dockNote").textContent = W.over
-    ? "The register is closed."
-    : `${forksLeft} fork${forksLeft === 1 ? "" : "s"} remaining · ${W.parcels.filter(p => p.tenant).length} of ${W.parcels.length} sites let`;
+  const note = document.getElementById("dockNote");
+  const a = W.analyst;
+  if (W.over) {
+    note.textContent = "The register is closed.";
+    note.style.color = "";
+  } else if (a && a.stalled && !W.signedThisTick) {
+    /* Never let the player advance past an empty book without knowing it. */
+    note.textContent = a.lever || "Nothing is let — rent is the only income.";
+    note.style.color = "var(--hehku)";
+  } else {
+    note.textContent = `${forksLeft} fork${forksLeft === 1 ? "" : "s"} remaining · ${W.parcels.filter(p => p.tenant).length} of ${W.parcels.length} sites let`;
+    note.style.color = "";
+  }
 }
 
 function renderRail() {
@@ -1697,18 +1833,24 @@ function renderParcels() {
         <div class="r"><span class="label">Draw</span><span class="v ${over ? "over" : ""}">${draw}/${p.permit} l/s</span></div>
         <div class="r"><span class="label">Grid</span><span class="v">${p.gridMw} MW${p.gridQueue ? " ↑" + p.gridQueue : ""}</span></div>
         <div class="r"><span class="label">Cooling</span><span class="v ${p.closedLoop ? "on" : ""}">${p.closedLoop ? "closed" : "open"}</span></div>
-        <div class="r"><span class="label">Heat</span><span class="v ${p.oven ? "on" : ""}">${p.oven ? p.heatPot.toFixed(1) + " GWh" : "—"}</span></div>
+        <div class="r"><span class="label">Heat</span><span class="v ${p.oven ? (p.tenant ? "on" : "over") : ""}">${p.oven ? (p.tenant ? p.heatPot.toFixed(1) + " GWh" : "idle") : "—"}</span></div>
       </div>
       <div class="card-body">
         <p class="tenancy">${t
           ? `<b>${esc(t.name)}</b> in occupation — ${eur(rentOf(p))} a quarter, ${p.termLeft} left.`
           : `Vacant. ${p.permitQueue ? "Abstraction application pending (" + p.permitQueue + ")." : "Licensed to " + p.permit + " l/s."}`}</p>
+        ${p.oven && !p.tenant ? `<p class="an-lever" style="border-left-color:var(--hehku)">The oven here delivers nothing until the site is let.</p>` : ""}
         <div class="ops"></div>
       </div>`;
 
     const ops = card.querySelector(".ops");
     ops.appendChild(mkOp("Closed loop", retrofitCost(p), p.closedLoop || W.cash < retrofitCost(p), () => opRetrofit(p.id)));
-    ops.appendChild(mkOp("Build oven", COST.oven, p.oven || W.cash < COST.oven, () => opOven(p.id), true));
+    /* An oven on a vacant site is a legitimate play — Aurora and Kaira
+       will not sign without one — but it earns nothing until the site is
+       let, so the button says so rather than letting the spend look safe. */
+    ops.appendChild(mkOp(
+      p.tenant ? "Build oven" : "Build oven (idle until let)",
+      COST.oven, p.oven || W.cash < COST.oven, () => opOven(p.id), true));
     ops.appendChild(mkOp("+40 MW", COST.grid, p.gridQueue > 0 || W.cash < COST.grid, () => opGrid(p.id)));
     ops.appendChild(mkOp("+35 l/s licence", permitCost(W), p.permitQueue > 0 || W.cash < permitCost(W), () => opPermit(p.id)));
     host.appendChild(card);
@@ -1785,7 +1927,9 @@ function renderAnalyst() {
         <span class="risk ${r.risk}">${r.risk === "low" ? "holding" : r.risk}</span>
         <span class="conf">${esc(r.confidence)}</span>
       </div>
-      <span class="runway">${r.binding ? esc(r.binding) + " · " + r.runway + "Q" : "no binding constraint"}</span>
+      <span class="runway">${r.binding
+        ? esc(r.binding) + (r.runway !== null && r.runway !== undefined ? " · " + r.runway + "Q" : "")
+        : "no binding constraint"}</span>
     </div>
     <div class="an-body">
       <p class="an-verdict">${esc(r.verdict)}</p>
@@ -1822,7 +1966,7 @@ function renderAnalyst() {
       if (!reading) return;
       rows.push(`<div class="row ${bi === live ? "live" : ""}">
         <span class="b">${esc(b.label)}</span>
-        <span class="t">${esc(reading.binding ? reading.binding + " in " + reading.runway + "Q — " : "")}${esc(reading.verdict)}</span>
+        <span class="t">${esc(reading.binding && reading.runway != null ? reading.binding + " in " + reading.runway + "Q — " : "")}${esc(reading.verdict)}</span>
       </div>`);
     });
     if (rows.length > 1) {
@@ -1907,6 +2051,94 @@ function renderOffers() {
   }
 }
 
+/* The world is a handful of coupled difference equations. Showing them
+   symbolically is half the job; substituting the live tick's values is
+   what makes the current state readable rather than merely stated. */
+function renderModel() {
+  const q = Math.min(W.tick, HORIZON - 1);
+  const sq = season(q);
+  const draw = totalDraw(W);
+  const gain = RECHARGE_BASE * sq.recharge;
+  const loss = draw * DRAW_FACTOR * sq.cooling;
+  const net = gain - loss;
+  const heatG = W.parcels.reduce((a, p) => a + (p.oven && p.tenant ? p.heatPot * sq.heat : 0), 0);
+  const rents = W.parcels.reduce((a, p) => a + rentOf(p), 0);
+  const S = score(W);
+  const n = v => (Math.round(v * 100) / 100).toString();
+  const sg = v => `<b class="${v < 0 ? "neg" : ""}">${v > 0 ? "+" : ""}${n(v)}</b>`;
+
+  document.getElementById("hModel").textContent = "evaluated at " + quarterLabel(q) + " · " + sq.name;
+
+  const eqs = [
+    {
+      nm: "Hydrology",
+      sym: `Δa  =  R·σ<sub>r</sub>(q)  −  Σ<sub>i</sub> d<sub>i</sub>·f·σ<sub>c</sub>(q)`,
+      evl: `Δa  =  ${RECHARGE_BASE}·${sq.recharge}  −  ${draw}·${DRAW_FACTOR}·${sq.cooling}\n    =  ${n(gain)} − ${n(loss)}  =  ${sg(net)}`,
+      gloss: `Recharge is seasonal and fixed; the draw term is the only half you control. Aquifer now ${Math.round(W.aquifer)}, emergency line 15.`
+    },
+    {
+      nm: "Site draw",
+      sym: `d<sub>i</sub>  =  θ<sub>i</sub> · (0.22 if closed loop else 1)`,
+      evl: W.parcels.filter(p => p.tenant).length
+        ? W.parcels.filter(p => p.tenant).map(p =>
+            `${p.name.slice(0, 12).padEnd(13)} ${String(TENANTS[p.tenant].thirst).padStart(3)}·${p.closedLoop ? "0.22" : "1.00"} = ${String(drawOf(p)).padStart(3)} l/s`).join("\n")
+        : `no site let  →  d = 0`,
+      gloss: `Closed loop cuts draw to roughly a fifth and rent by 15%. It is the only lever that changes the sign of Δa.`
+    },
+    {
+      nm: "Heat recovery",
+      sym: `H  =  Σ<sub>i</sub> h<sub>i</sub>·σ<sub>h</sub>(q)·[oven<sub>i</sub> ∧ let<sub>i</sub>]`,
+      evl: `H  =  ${n(heatG)} GWh   →   ${eur(Math.round(heatG * 1000 * W.heatPrice))}  at  ${W.heatPrice} €/MWh\nΔstanding  =  min(3, 0.22·H)  =  ${sg(Math.min(3, heatG * 0.22))}`,
+      gloss: `The conjunction is the whole point: an oven on a vacant site contributes nothing. Midwinter pays 1.85×, high summer 0.30×.`
+    },
+    {
+      nm: "Income",
+      sym: `r<sub>i</sub>  =  ρ<sub>i</sub>·(1 − 0.15·c<sub>i</sub>)`,
+      evl: `Σ r  =  ${eur(rents)} per quarter\ntreasury  =  ${eur(W.cash)}`,
+      gloss: `Rent is the only income. Everything else in the score multiplies this number, so it cannot substitute for it.`
+    },
+    {
+      nm: "Runway",
+      sym: `n*  =  min{ n ≤ ${LOOKAHEAD} : a<sub>n</sub> ≤ 15 }`,
+      evl: (() => {
+        const rw = aquiferRunway(W);
+        return `at d = ${draw} l/s held constant\nn*  =  ${rw === null ? "none within " + LOOKAHEAD + " quarters" : rw + " quarters"}`;
+      })(),
+      gloss: `The analyst's projection, run over these same constants — which is why its forecast cannot drift from the world it forecasts.`
+    },
+    {
+      nm: "Final position",
+      sym: `V  =  (C/3000)·(a/70)·(s/60)  +  8·H<sub>tot</sub>`,
+      evl: `V  =  ${S.earn} × ${n(S.mAq)} × ${n(S.mSt)} + ${S.heat}  =  <b>${S.total}</b>`,
+      gloss: `Aquifer and standing multiply rather than add, so a fortune taken out of a ruined district scores below a smaller one the district would renew.`
+    }
+  ];
+
+  const host = document.getElementById("model");
+  host.innerHTML = `<div class="eqs">` + eqs.map(e => `
+    <div class="eq">
+      <span class="nm">${e.nm}</span>
+      <div class="sym">${e.sym}</div>
+      <div class="eval">${e.evl.split("\n").map(l => l).join("<br>")}</div>
+      <p class="gloss">${esc(e.gloss)}</p>
+    </div>`).join("") + `</div>`;
+
+  /* The seasonal coefficients, with the live quarter marked. */
+  const tbl = document.createElement("div");
+  tbl.className = "eq";
+  tbl.style.marginTop = "12px";
+  tbl.innerHTML = `<span class="nm">Seasonal coefficients σ(q)</span>
+    <div style="overflow-x:auto">
+    <table class="seasons">
+      <tr><th>quarter</th><th>σ<sub>r</sub> recharge</th><th>σ<sub>c</sub> cooling</th><th>σ<sub>h</sub> heat</th></tr>
+      ${SEASONS.map((x, i) => `<tr class="${i === q % 4 ? "now" : ""}">
+        <td>${x.q} · ${esc(x.name)}</td><td>${x.recharge.toFixed(2)}</td><td>${x.cooling.toFixed(2)}</td><td>${x.heat.toFixed(2)}</td>
+      </tr>`).join("")}
+    </table></div>
+    <p class="gloss">Summer draws hardest exactly when recharge is near its lowest; the meltwater quarter is the one that repairs the year.</p>`;
+  host.appendChild(tbl);
+}
+
 function renderLedger() {
   const host = document.getElementById("ledger");
   host.innerHTML = "";
@@ -1976,6 +2208,29 @@ const ENDINGS = {
   horizon:   ["Twenty-four quarters", "", "Six years of meltwater, freeze-up and grid queues. The register closes on the position below."]
 };
 
+/* What actually decided this run, in plain terms. A score with no
+   explanation tells the player nothing they can use next time. */
+function diagnose(w) {
+  const let_ = w.parcels.filter(p => p.tenant).length;
+  const everLet = w.log.filter(l => / takes /.test(l.msg)).length;
+  const idle = w.parcels.filter(p => p.oven && !p.tenant);
+  const out = [];
+
+  if (everLet === 0) {
+    out.push(`You never let a site. Rent is the only income in this game — the aquifer and the council are multipliers on it, so with nothing let there was nothing for them to multiply.`);
+    if (idle.length) out.push(`${eur(COST.oven * idle.length)} went into ${idle.length === 1 ? "an oven that" : "ovens that"} never had a tenant to recover heat from. An oven only earns on a let site.`);
+    if (w.missed) out.push(`${w.missed} tenant${w.missed === 1 ? "" : "s"} walked while one of your sites qualified for them${w.missedNames.length ? " — " + w.missedNames.slice(0, 3).join(", ") : ""}. Signing is one per quarter, so an offer left standing is usually an offer lost.`);
+    out.push(`Next run: sign the first tenant that fits on quarter one, then worry about water.`);
+  } else {
+    if (w.aquifer < 35) out.push(`The aquifer finished at ${Math.round(w.aquifer)}. Closed-loop cooling cuts a site's draw to roughly a fifth for a 15% rent haircut — taken early, it is the cheapest water you will ever buy.`);
+    if (w.standing < 40) out.push(`Council standing finished at ${Math.round(w.standing)}. Heat into the district network is the only thing that reliably rebuilds it.`);
+    if (w.heatGwh === 0 && let_ > 0) out.push(`You delivered no heat. An oven on a let site pays best in midwinter and is the fastest route back into the council's favour.`);
+    if (w.missed >= 3) out.push(`${w.missed} tenants walked while a site qualified for them. Vacancy is the quiet cost here.`);
+    if (!out.length) out.push(`A balanced run: the ground, the council and the books all finished in credit.`);
+  }
+  return out;
+}
+
 function endGame() {
   const [title, tone, blurb] = ENDINGS[W.over] || ENDINGS.horizon;
   /* Money is worth only what the ground and the council let you keep, so
@@ -2000,6 +2255,10 @@ function endGame() {
     <h2 id="sheetTitle">${esc(title)}</h2>
     <div class="verdict ${tone}">${esc(quarterLabel(Math.min(W.tick, HORIZON - 1)))} · world ${esc(branches[live].label)}</div>
     <p>${esc(blurb)}</p>
+    <div class="diag">
+      <span class="label">What decided it</span>
+      ${diagnose(W).map(d => `<p>${esc(d)}</p>`).join("")}
+    </div>
     <div class="tally">
       <div class="tr"><span>Treasury</span><span class="v">${eur(W.cash)}${W.over === "horizon" ? " → " + S.earn : ""}</span></div>
       <div class="tr"><span>Aquifer left in the ground</span><span class="v">${Math.round(W.aquifer)}${W.over === "horizon" ? " → ×" + S.mAq.toFixed(2) : ""}</span></div>

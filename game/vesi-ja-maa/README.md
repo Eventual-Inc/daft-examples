@@ -34,6 +34,15 @@ It is deliberately deterministic. That means it replays identically down a fork,
 so when two branches disagree, the disagreement is attributable to your decisions
 and nothing else. The panel shows the same tick read in every branch side by side.
 
+## The model panel
+
+The world is a handful of coupled difference equations, so the game shows them
+rather than hiding them: hydrology, site draw, heat recovery, income, runway and
+the final position, each stated symbolically **and evaluated at the live tick**
+with the current numbers substituted in, plus the seasonal coefficient table with
+the current quarter marked. You can read why the aquifer moved, not just that it
+did.
+
 ## Model
 
 Exogenous events and tenant arrivals are on a fixed schedule, and there is no
@@ -57,11 +66,25 @@ score = (cash/3000) · (aquifer/70) · (standing/60) + 8·heatGWh
 
 Municipalities are real. Parcels, tenants and hydrology are invented.
 
+## Telling the player what went wrong
+
+A score with no explanation teaches nothing, so the ending diagnoses rather than
+tallies: it names capital that never earned, counts tenants who walked while one
+of your sites qualified for them, and says what to do differently.
+
+The same reasoning runs live. Earning nothing is not a hydrological state and so
+would never surface as a runway — the analyst therefore treats an empty book as
+`acute` in its own right, names the specific tenant that fits, and the action dock
+repeats it. An oven on a vacant site reads `idle` on the parcel, warns in its own
+button label before the money is spent, and is called out by the analyst.
+
 ## Status
 
-Balance-tested headlessly across several strategies. The scoring separates
-careless play from careful play as intended. The loss conditions (aquifer
-collapse, consent withdrawn) are reachable in principle but no scripted strategy
-has yet driven the aquifer below ~33, so the thirsty line is not yet as punishing
-as intended. Recurring site upkeep is not implemented, which is why insolvency is
-currently unreachable.
+Balance-tested headlessly across several strategies, driving the real UI controls
+rather than mutating state, and including a replay of the do-nothing failure.
+Scoring separates careless from careful play as intended.
+
+Known gap: the loss conditions are reachable in principle, but no scripted
+strategy has driven the aquifer below ~33, so the thirsty line is not yet as
+punishing as intended. Recurring site upkeep is not implemented, which is why
+insolvency is currently unreachable.
