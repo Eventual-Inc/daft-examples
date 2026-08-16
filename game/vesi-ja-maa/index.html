@@ -1,0 +1,2046 @@
+<title>Vesi &amp; Maa</title>
+
+<style>
+/* ============================================================
+   TOKENS — light is the bare :root; dark redefines tokens only.
+   ============================================================ */
+:root {
+  --ground:      #E8EDEC;
+  --panel:       #F6F8F7;
+  --panel-2:     #FDFEFD;
+  --sunk:        #DEE5E3;
+  --ink:         #16211F;
+  --ink-2:       #566763;
+  --ink-3:       #86948F;
+  --rule:        #C3CECB;
+  --rule-soft:   #D8E0DE;
+
+  --vesi:        #0F6F7A;   /* water, permits, the primary accent   */
+  --vesi-soft:   #D3E5E6;
+  --on-accent:   #FDFEFD;   /* text sitting on --vesi               */
+  --hehku:       #B44E24;   /* heat + danger. Nothing else.         */
+  --hehku-soft:  #F2DED4;
+
+  --ok:          #2C6E49;
+  --warn:        #97701A;
+  --crit:        #9C3226;
+
+  --shadow:      0 1px 0 rgba(22,33,31,.05), 0 8px 22px -14px rgba(22,33,31,.35);
+
+  --grot: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --r: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:    #0B1211;
+    --panel:     #121C1B;
+    --panel-2:   #172322;
+    --sunk:      #0A100F;
+    --ink:       #DEE7E4;
+    --ink-2:     #90A29D;
+    --ink-3:     #6A7B76;
+    --rule:      #2A3937;
+    --rule-soft: #1E2B29;
+
+    --vesi:      #4FBAC4;
+    --vesi-soft: #123437;
+    --on-accent: #06100F;
+    --hehku:     #E28154;
+    --hehku-soft:#332016;
+
+    --ok:        #63BC8B;
+    --warn:      #D6AB4A;
+    --crit:      #E2705F;
+
+    --shadow:    0 1px 0 rgba(0,0,0,.4), 0 10px 26px -16px rgba(0,0,0,.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:    #0B1211;
+  --panel:     #121C1B;
+  --panel-2:   #172322;
+  --sunk:      #0A100F;
+  --ink:       #DEE7E4;
+  --ink-2:     #90A29D;
+  --ink-3:     #6A7B76;
+  --rule:      #2A3937;
+  --rule-soft: #1E2B29;
+
+  --vesi:      #4FBAC4;
+  --vesi-soft: #123437;
+  --on-accent: #06100F;
+  --hehku:     #E28154;
+  --hehku-soft:#332016;
+
+  --ok:        #63BC8B;
+  --warn:      #D6AB4A;
+  --crit:      #E2705F;
+
+  --shadow:    0 1px 0 rgba(0,0,0,.4), 0 10px 26px -16px rgba(0,0,0,.9);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--grot);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Faint survey grid, drawn from tokens so it holds in both themes. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-soft) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: .5;
+  -webkit-mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 20%, transparent 78%);
+  mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 20%, transparent 78%);
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 20px 140px;
+}
+
+button { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--vesi);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   TYPE ROLES
+   ============================================================ */
+.label {
+  font-family: var(--grot);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.prose { font-family: var(--serif); }
+
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+/* ============================================================
+   MASTHEAD
+   ============================================================ */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 28px;
+  padding: 34px 0 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.mark {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.mark h1 {
+  font-size: clamp(26px, 4.4vw, 38px);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+}
+.mark h1 .amp { color: var(--vesi); font-weight: 400; padding: 0 1px; }
+.mark .sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.docket {
+  display: flex;
+  gap: 26px;
+  align-items: flex-end;
+}
+.docket .cell { display: flex; flex-direction: column; gap: 3px; }
+.docket .cell .v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 600;
+}
+.docket .cell .v.branch { color: var(--vesi); }
+
+/* ============================================================
+   INSTRUMENT BAR
+   ============================================================ */
+.instruments {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+  margin: 0 -20px;
+  padding: 12px 20px;
+}
+.gauges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 22px;
+}
+.gauge { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.gauge .top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gauge .rdg {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+}
+.gauge .delta {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.gauge .delta.up { color: var(--ok); }
+.gauge .delta.dn { color: var(--hehku); }
+.meter {
+  height: 5px;
+  background: var(--sunk);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  height: 100%;
+  background: var(--vesi);
+  border-radius: 99px;
+  transition: width .45s cubic-bezier(.22,.8,.3,1);
+}
+.meter i.ok   { background: var(--ok); }
+.meter i.warn { background: var(--warn); }
+.meter i.crit { background: var(--crit); }
+
+/* ---- the history rail: the one bold spend ---- */
+.rail {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px dashed var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-x: auto;
+}
+.rail-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 20px;
+}
+.rail-row .tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  width: 76px;
+  flex: 0 0 76px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rail-row.live .tag { color: var(--vesi); font-weight: 700; }
+.notches { display: flex; align-items: center; gap: 2px; position: relative; }
+.notch {
+  width: 12px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  position: relative;
+}
+.notch::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: 3px;
+  height: 11px;
+  border-radius: 99px;
+  background: var(--rule);
+  transition: height .2s, background .2s;
+}
+.notch.done::after { background: var(--vesi); opacity: .55; }
+.notch.now::after  { background: var(--vesi); height: 15px; opacity: 1; }
+.rail-row.ghost .notch.done::after { background: var(--ink-3); opacity: .32; }
+.notch.forkable { cursor: pointer; }
+.notch.forkable:hover::after,
+.notch.forkable:focus-visible::after { height: 15px; background: var(--hehku); opacity: 1; }
+.rail-row .elbow {
+  flex: 0 0 auto;
+  align-self: stretch;
+  border-left: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  width: 9px;
+  margin-bottom: 8px;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 26px;
+  padding-top: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .deck { grid-template-columns: minmax(0, 1fr); }
+  .gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--rule);
+}
+.sec-head h2 {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.sec-head .hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card.let { border-left: 3px solid var(--vesi); }
+.card.dry { border-left: 3px solid var(--hehku); }
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px 11px;
+}
+.card-head .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.card-head h3 {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.015em;
+}
+.card-head .kunta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  letter-spacing: .02em;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.idle { color: var(--ink-3); }
+.pill.let  { color: var(--vesi); background: var(--vesi-soft); }
+.pill.hot  { color: var(--hehku); background: var(--hehku-soft); }
+
+/* readout strip */
+.readout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--panel-2);
+}
+.readout .r {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--rule-soft);
+  min-width: 0;
+}
+.readout .r:last-child { border-right: 0; }
+.readout .r .v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.readout .r .v.over { color: var(--hehku); }
+.readout .r .v.on   { color: var(--vesi); }
+
+.card-body { padding: 11px 15px 13px; display: flex; flex-direction: column; gap: 10px; }
+.tenancy {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.tenancy b { color: var(--ink); font-weight: 600; font-family: var(--grot); }
+
+.ops { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.op {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 9px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  cursor: pointer;
+  font-size: 12.5px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.op .cost {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.op:hover:not(:disabled) { border-color: var(--vesi); color: var(--vesi); }
+.op:hover:not(:disabled) .cost { color: var(--vesi); }
+.op.heat:hover:not(:disabled) { border-color: var(--hehku); color: var(--hehku); }
+.op.heat:hover:not(:disabled) .cost { color: var(--hehku); }
+.op:disabled { opacity: .34; cursor: not-allowed; }
+
+/* offers */
+.offer .terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-bottom: 2px;
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--sunk);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.chip.need { color: var(--vesi); background: var(--vesi-soft); }
+.chip.heat { color: var(--hehku); background: var(--hehku-soft); }
+.sign-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+select {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 7px;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  max-width: 100%;
+}
+.op.primary {
+  border-color: var(--vesi);
+  background: var(--vesi);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.op.primary:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--panel-2); }
+.patience {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  margin-left: auto;
+}
+.patience.urgent { color: var(--hehku); }
+
+/* ============================================================
+   ANALYST — an instrument, so mono-forward; the judgement itself
+   is set in the register's serif.
+   ============================================================ */
+.analyst {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.analyst.watch { border-left-color: var(--warn); }
+.analyst.acute { border-left-color: var(--hehku); }
+.analyst.low   { border-left-color: var(--ok); }
+
+.an-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 15px 8px;
+}
+.an-head .cf {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.an-head .risk {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.an-head .risk.low   { color: var(--ok); }
+.an-head .risk.watch { color: var(--warn); }
+.an-head .risk.acute { color: var(--hehku); }
+.an-head .conf {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--ink-3);
+}
+.an-head .runway {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.an-body { padding: 0 15px 12px; display: flex; flex-direction: column; gap: 7px; }
+.an-verdict {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.an-lever {
+  font-family: var(--grot);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  padding-left: 10px;
+  border-left: 2px solid var(--vesi);
+}
+
+/* per-tick reading history — the fold made scrubbable */
+.an-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 9px 15px 11px;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--panel-2);
+  overflow-x: auto;
+}
+.an-strip .bar {
+  flex: 0 0 auto;
+  width: 13px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 26px;
+}
+.an-strip .bar i {
+  display: block;
+  width: 100%;
+  border-radius: 1px;
+  background: var(--ok);
+  transition: opacity .15s;
+  opacity: .55;
+}
+.an-strip .bar i.watch { background: var(--warn); }
+.an-strip .bar i.acute { background: var(--hehku); }
+.an-strip .bar:hover i,
+.an-strip .bar[aria-current="true"] i { opacity: 1; }
+.an-strip .bar[aria-current="true"] i { outline: 1px solid var(--ink-2); outline-offset: 1px; }
+
+.an-cf {
+  padding: 9px 15px 11px;
+  border-top: 1px dashed var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.an-cf .row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 9px;
+  align-items: baseline;
+}
+.an-cf .row .b {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.an-cf .row.live .b { color: var(--vesi); font-weight: 700; }
+.an-cf .row .t { font-family: var(--serif); font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+
+/* ============================================================
+   LEDGER
+   ============================================================ */
+.ledger {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  max-height: 460px;
+  overflow-y: auto;
+}
+.tick-block { border-bottom: 1px solid var(--rule-soft); }
+.tick-block:last-child { border-bottom: 0; }
+.tick-block > .th {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px 13px 5px;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+.tick-block > .th .q {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vesi);
+  letter-spacing: .04em;
+}
+.tick-block > .th .season {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.line {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 13px;
+  align-items: baseline;
+}
+.line .proc {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: .02em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.line .msg { font-family: var(--serif); font-size: 13px; line-height: 1.4; }
+.line.good .msg { color: var(--ok); }
+.line.bad  .msg { color: var(--hehku); }
+.line.event {
+  padding: 6px 13px;
+  grid-template-columns: 108px minmax(0, 1fr);
+}
+.line.event .msg {
+  font-family: var(--grot);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding-left: 9px;
+  border-left: 2px solid var(--hehku);
+}
+
+/* ============================================================
+   ACTION DOCK
+   ============================================================ */
+.dock {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--ground) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--rule);
+}
+.dock-in {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 11px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dock .note {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink-2);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.big {
+  padding: 9px 20px;
+  border: 1px solid var(--vesi);
+  background: var(--vesi);
+  color: var(--on-accent);
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: .01em;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.big:hover { background: var(--ink); border-color: var(--ink); color: var(--panel-2); }
+.big.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--rule);
+  font-weight: 500;
+}
+.big.ghost:hover { border-color: var(--vesi); color: var(--vesi); background: transparent; }
+.big:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--sunk) 78%, transparent);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+.scrim[hidden] { display: none; }
+.sheet {
+  width: min(560px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.5);
+  padding: 26px;
+}
+.sheet h2 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  margin-bottom: 4px;
+}
+.sheet .verdict {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--vesi);
+  margin-bottom: 14px;
+}
+.sheet .verdict.bad { color: var(--hehku); }
+.sheet p { font-family: var(--serif); font-size: 14.5px; color: var(--ink-2); line-height: 1.55; }
+.tally {
+  margin: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+.tally .tr {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13.5px;
+}
+.tally .tr .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.tally .tr.total { border-bottom: 0; padding-top: 11px; font-weight: 650; }
+.tally .tr.total .v { font-size: 19px; color: var(--vesi); }
+.sheet-acts { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ============================================================
+   BRIEFING
+   ============================================================ */
+.brief h3 {
+  font-size: 12px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 18px 0 7px;
+}
+.brief ul { margin: 0; padding-left: 19px; }
+.brief li {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin-bottom: 6px;
+}
+.brief li b { color: var(--ink); font-family: var(--grot); font-weight: 600; font-size: 13px; }
+
+.colophon {
+  margin-top: 34px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.colophon b { color: var(--ink-2); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mark">
+      <h1>Vesi <span class="amp">&amp;</span> Maa</h1>
+      <span class="sub">land &amp; water brokerage · Suomi</span>
+    </div>
+    <div class="docket">
+      <div class="cell">
+        <span class="label">Quarter</span>
+        <span class="v" id="dQuarter">2026 Q1</span>
+      </div>
+      <div class="cell">
+        <span class="label">Tick</span>
+        <span class="v" id="dTick">0 / 24</span>
+      </div>
+      <div class="cell">
+        <span class="label">World</span>
+        <span class="v branch" id="dBranch">prime</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="instruments" aria-label="Instruments">
+    <div class="gauges">
+      <div class="gauge">
+        <div class="top">
+          <span class="label">Treasury</span>
+          <span class="delta" id="gCashD"></span>
+        </div>
+        <span class="rdg" id="gCash">€2.40M</span>
+        <div class="meter"><i id="gCashBar" style="width:40%"></i></div>
+      </div>
+      <div class="gauge">
+        <div class="top">
+          <span class="label">Aquifer</span>
+          <span class="delta" id="gAqD"></span>
+        </div>
+        <span class="rdg" id="gAq">78</span>
+        <div class="meter"><i id="gAqBar" style="width:78%"></i></div>
+      </div>
+      <div class="gauge">
+        <div class="top">
+          <span class="label">Council standing</span>
+          <span class="delta" id="gStD"></span>
+        </div>
+        <span class="rdg" id="gSt">62</span>
+        <div class="meter"><i id="gStBar" style="width:62%"></i></div>
+      </div>
+      <div class="gauge">
+        <div class="top">
+          <span class="label">Heat delivered</span>
+          <span class="delta" id="gHtD"></span>
+        </div>
+        <span class="rdg" id="gHt">0 GWh</span>
+        <div class="meter"><i id="gHtBar" style="width:0%"></i></div>
+      </div>
+    </div>
+    <div class="rail" id="rail" aria-label="Tick history. Select a past tick to fork a counterfactual world."></div>
+  </section>
+
+  <div class="deck">
+
+    <div class="col">
+      <div class="sec-head">
+        <h2>Cadastre</h2>
+        <span class="hint" id="hCadastre"></span>
+      </div>
+      <div class="col" id="parcels"></div>
+
+      <div class="sec-head" style="margin-top:12px">
+        <h2>Land for sale</h2>
+        <span class="hint">freehold · closes same quarter</span>
+      </div>
+      <div class="col" id="market"></div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head">
+        <h2>Analyst</h2>
+        <span class="hint" id="hAnalyst"></span>
+      </div>
+      <div id="analyst"></div>
+
+      <div class="sec-head" style="margin-top:12px">
+        <h2>Offers on the table</h2>
+        <span class="hint" id="hOffers"></span>
+      </div>
+      <div class="col" id="offers"></div>
+
+      <div class="sec-head" style="margin-top:12px">
+        <h2>Register</h2>
+        <span class="hint">processors, in priority order</span>
+      </div>
+      <div class="ledger" id="ledger"></div>
+    </div>
+
+  </div>
+
+  <section class="brief">
+    <h3>How the quarter resolves</h3>
+    <ul>
+      <li><b>Recharge</b> — meltwater in spring, almost nothing in midwinter. Summer draw runs hot while the aquifer is at its lowest.</li>
+      <li><b>Permits</b> — an abstraction licence takes two quarters. File it while the aquifer is under 42 and the regional office refuses, and the council remembers.</li>
+      <li><b>Closed loop</b> — cuts a site's draw to roughly a fifth. Tenants pay 15% less for it. Take the haircut early or pay for it in aquifer.</li>
+      <li><b>The oven</b> — a heat exchanger sells waste heat into the district network. Worthless without a tenant, lucrative in January, and the single fastest way back into the council's good books.</li>
+      <li><b>The analyst</b> — a processor like any other, running at priority 75 on the same state the council and the aquifer see. It projects forward with the world's own arithmetic, names the binding constraint, and writes the verdict back into the tick. Scrub its strip to read what it said at the time, not what it would say now.</li>
+      <li><b>Forking</b> — every tick is kept. Scrub back on the rail and fork: the same weather, the same buyers, your decisions rewritten. The analyst is deterministic, so when two branches disagree, the disagreement is yours. Three forks.</li>
+    </ul>
+  </section>
+
+  <p class="colophon">
+    Modelled as an <b>Archetype</b> world — components on entities, processors in priority order,
+    every tick persisted as immutable history, forks as first-class counterfactuals.
+    The analyst is a component, not an overlay: its judgement is world state and forks with everything else.<br>
+    Municipalities are real; parcels, tenants and hydrology are invented.
+  </p>
+
+</div>
+
+<div class="dock">
+  <div class="dock-in">
+    <span class="note" id="dockNote">Three parcels, one aquifer, twenty-four quarters.</span>
+    <button class="big ghost" id="btnSweep">Sweep ×4</button>
+    <button class="big" id="btnTick">Run quarter →</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Deterministic hashing. Exogenous events are fixed per tick, so
+   a fork replays the same world and only your decisions differ.
+   ============================================================ */
+function hash32(a, b, c) {
+  let h = 2166136261 >>> 0;
+  for (const n of [a | 0, b | 0, c | 0]) {
+    h = Math.imul(h ^ (n >>> 0), 16777619) >>> 0;
+    h = (h ^ (h >>> 13)) >>> 0;
+  }
+  return (h ^ (h >>> 16)) >>> 0;
+}
+const rnd = (t, salt) => hash32(0x5E17, t, salt) / 4294967296;
+
+/* ============================================================
+   Calendar
+   ============================================================ */
+const HORIZON = 24;
+const SEASONS = [
+  { q: "Q1", name: "midwinter",  recharge: 0.50, heat: 1.85, cooling: 0.85 },
+  { q: "Q2", name: "melt",       recharge: 2.10, heat: 0.85, cooling: 0.95 },
+  { q: "Q3", name: "high summer",recharge: 0.60, heat: 0.30, cooling: 1.30 },
+  { q: "Q4", name: "freeze-up",  recharge: 1.10, heat: 1.30, cooling: 0.95 }
+];
+const season = t => SEASONS[t % 4];
+const quarterLabel = t => (2026 + Math.floor(t / 4)) + " " + SEASONS[t % 4].q;
+
+/* ============================================================
+   Catalogue — parcels are entities; the fields below are their
+   components (site / water / grid / link / heat / tenancy).
+   ============================================================ */
+const CATALOGUE = [
+  { id: "hamina",  name: "Ruukinranta",  kunta: "Hamina",       ha: 42,  permit: 180, gridMw: 85, link: 3, sat: true,  heatPot: 4.2, price: 0 },
+  { id: "kajaani", name: "Petäisenniska",kunta: "Kajaani",      ha: 96,  permit: 130, gridMw: 95, link: 2, sat: true,  heatPot: 2.4, price: 0 },
+  { id: "mantsala",name: "Kapuli",       kunta: "Mäntsälä",     ha: 28,  permit: 60,  gridMw: 35, link: 3, sat: false, heatPot: 7.8, price: 0 },
+  { id: "kemi",    name: "Ajos",         kunta: "Kemi",         ha: 120, permit: 140, gridMw: 80, link: 1, sat: true,  heatPot: 1.6, price: 1100000 },
+  { id: "lpr",     name: "Mustola",      kunta: "Lappeenranta", ha: 55,  permit: 110, gridMw: 45, link: 2, sat: false, heatPot: 5.1, price: 780000 },
+  { id: "kirkko",  name: "Kolabacken",   kunta: "Kirkkonummi",  ha: 34,  permit: 40,  gridMw: 70, link: 3, sat: false, heatPot: 9.4, price: 1400000 }
+];
+const OWNED_AT_START = ["hamina", "kajaani", "mantsala"];
+
+/* Tenants. `thirst` is litres/second at open loop. */
+const TENANTS = {
+  nordkell: { name: "Nordkell Oy",       mw: 40, thirst: 45,  link: 2, sat: false, heat: false, rent: 310000, term: 12 },
+  vayla:    { name: "Väylä Edge",        mw: 12, thirst: 5,   link: 1, sat: true,  heat: false, rent: 95000,  term: 20 },
+  kaira:    { name: "Kaira Labs",        mw: 18, thirst: 8,   link: 1, sat: false, heat: true,  rent: 150000, term: 16 },
+  sisu:     { name: "Sisu Systems",      mw: 55, thirst: 60,  link: 2, sat: false, heat: false, rent: 400000, term: 8  },
+  halden:   { name: "Halden Compute",    mw: 70, thirst: 90,  link: 3, sat: false, heat: false, rent: 520000, term: 10 },
+  aurora:   { name: "Aurora Inference",  mw: 30, thirst: 14,  link: 3, sat: false, heat: true,  rent: 280000, term: 14 },
+  meridian: { name: "Meridian AI",       mw: 95, thirst: 130, link: 3, sat: false, heat: false, rent: 780000, term: 6  }
+};
+
+/* Fixed arrival schedule — part of the world, not of your choices.
+   Dense enough that sites can stay let, so the draw is sustained and
+   the aquifer is under continuous pressure rather than occasional. */
+const ARRIVALS = [
+  { t: 0,  k: "nordkell", patience: 4 },
+  { t: 0,  k: "vayla",    patience: 6 },
+  { t: 1,  k: "sisu",     patience: 3 },
+  { t: 2,  k: "kaira",    patience: 5 },
+  { t: 3,  k: "halden",   patience: 3 },
+  { t: 5,  k: "aurora",   patience: 5 },
+  { t: 6,  k: "nordkell", patience: 4 },
+  { t: 7,  k: "meridian", patience: 2 },
+  { t: 8,  k: "sisu",     patience: 4 },
+  { t: 9,  k: "halden",   patience: 3 },
+  { t: 10, k: "kaira",    patience: 6 },
+  { t: 11, k: "aurora",   patience: 5 },
+  { t: 12, k: "meridian", patience: 2 },
+  { t: 13, k: "nordkell", patience: 4 },
+  { t: 14, k: "halden",   patience: 3 },
+  { t: 15, k: "vayla",    patience: 5 },
+  { t: 16, k: "sisu",     patience: 4 },
+  { t: 17, k: "aurora",   patience: 5 },
+  { t: 18, k: "meridian", patience: 2 },
+  { t: 19, k: "kaira",    patience: 6 },
+  { t: 20, k: "halden",   patience: 3 },
+  { t: 21, k: "nordkell", patience: 4 },
+  { t: 22, k: "sisu",     patience: 3 }
+];
+
+/* Exogenous events, fixed per tick. */
+const EVENTS = {
+  4:  { text: "Dry spring across Kymenlaakso. Recharge halved this quarter.",           recharge: 0.5 },
+  8:  { text: "Ministry opens an abstraction review. Council patience thins.",           standing: -4 },
+  10: { text: "Heat tariff indexed upward. District networks pay 35% more.",             heatPrice: 1.35 },
+  13: { text: "Fingrid reinforces the eastern corridor. Every site gains 15 MW.",        gridAll: 15 },
+  17: { text: "Drought advisory issued. Abstraction scrutinised at every site.",         recharge: 0.4, standingScale: 2 },
+  21: { text: "Data centre siting act tightens. New permits cost double.",               permitCostScale: 2 }
+};
+
+/* Hydrology. The Recharge processor and the analyst's projection must
+   read these from the same place, or the analyst forecasts a world that
+   does not exist. */
+const RECHARGE_BASE = 2.6;  /* aquifer points per quarter, before season */
+const DRAW_FACTOR   = 0.034;/* aquifer points per l/s per quarter        */
+
+const HEAT_PRICE = 26;      /* € per MWh into the district network */
+const COST = Object.freeze({ oven: 1400000, grid: 780000, permit: 90000 });
+
+/* Permit cost is scaled by an event, so it lives in world state and a
+   fork back past that event restores the old price with everything else. */
+const permitCost = w => Math.round(COST.permit * w.permitCostScale);
+
+/* Converting a running hall costs in proportion to what it draws.
+   Converting an empty site is a flat, cheaper job — planning ahead is
+   the discount, and the whale you already signed is the penalty. */
+const retrofitCost = p =>
+  p.tenant ? 240000 + Math.round(TENANTS[p.tenant].thirst * 4600) : 320000;
+
+/* ============================================================
+   World construction
+   ============================================================ */
+function newParcel(spec) {
+  return {
+    id: spec.id, name: spec.name, kunta: spec.kunta, ha: spec.ha,
+    permit: spec.permit, gridMw: spec.gridMw, link: spec.link, sat: spec.sat,
+    heatPot: spec.heatPot,
+    closedLoop: false, oven: false,
+    gridQueue: 0, permitQueue: 0,
+    tenant: null, rent: 0, termLeft: 0, draw: 0
+  };
+}
+
+function newWorld() {
+  return {
+    tick: 0,
+    cash: 2400000,
+    aquifer: 78,
+    standing: 62,
+    heatGwh: 0,
+    heatPrice: HEAT_PRICE,
+    permitCostScale: 1,
+    signedThisTick: false,
+    parcels: CATALOGUE.filter(p => OWNED_AT_START.includes(p.id)).map(newParcel),
+    offers: [],
+    log: [],
+    /* The analyst is world state, not chrome: one component written each
+       tick, kept in history, carried through forks. */
+    analyst: null,
+    analystLog: [],
+    over: null,
+    prevReadings: { cash: 2400000, aquifer: 78, standing: 62, heatGwh: 0 }
+  };
+}
+
+/* Branch bookkeeping: each branch keeps a snapshot per tick, so a
+   fork is a restore, and the abandoned branch stays on the rail. */
+let branches = [];
+let live = 0;
+let forksLeft = 3;
+let W = null;
+
+function bootstrap() {
+  W = newWorld();
+  live = 0;
+  forksLeft = 3;
+  /* Seed the opening state fully — offers and the first analyst reading —
+     before snapshotting, or a fork back to tick 0 would restore a world
+     that never had them. */
+  seedOffers(0);
+  W.log.push({ tick: -1, proc: "Bootstrap", msg: "Three parcels conveyed. The register opens.", tone: "" });
+  W.analyst = assess(W);
+  W.analystLog.push(W.analyst);
+  W.log.push({ tick: -1, proc: "Analyst", msg: W.analyst.verdict, tone: "" });
+  branches = [{ label: "prime", from: 0, snaps: [snapshot(W)] }];
+}
+
+const snapshot = w => structuredClone({ ...w, log: w.log.slice(-90) });
+
+/* ============================================================
+   Derived quantities
+   ============================================================ */
+const drawOf = p => p.tenant ? Math.round(TENANTS[p.tenant].thirst * (p.closedLoop ? 0.22 : 1)) : 0;
+const rentOf = p => p.tenant ? Math.round(TENANTS[p.tenant].rent * (p.closedLoop ? 0.85 : 1)) : 0;
+const totalDraw = w => w.parcels.reduce((s, p) => s + drawOf(p), 0);
+
+function eligible(p, tk) {
+  const t = TENANTS[tk];
+  if (p.tenant) return "let";
+  if (p.gridMw < t.mw) return "grid";
+  if (p.link < t.link) return "fibre";
+  if (t.sat && !p.sat) return "satellite";
+  if (t.heat && !p.oven) return "no oven";
+  const need = Math.round(t.thirst * (p.closedLoop ? 0.22 : 1));
+  if (need > p.permit) return "permit";
+  return null;
+}
+
+function seedOffers(t) {
+  for (const a of ARRIVALS) {
+    if (a.t !== t) continue;
+    W.offers.push({ uid: a.k + "@" + t, k: a.k, left: a.patience });
+  }
+}
+
+/* ============================================================
+   Assessment — the analyst's reasoning, run over the same seasonal
+   model the Recharge processor uses, so its projections are the
+   world's own arithmetic rather than a second opinion about it.
+   ============================================================ */
+
+/* Quarters until the aquifer breaches the emergency line if nothing
+   changes. The window is fixed, not clipped to the remaining horizon:
+   the analyst reports on the hydrology, not on when the game stops
+   scoring it. Clipping it made the reading read "safe" through any
+   late collapse. null = holds for the full window. */
+const LOOKAHEAD = 12;
+function aquiferRunway(w, draw = totalDraw(w)) {
+  let a = w.aquifer;
+  for (let i = 0; i < LOOKAHEAD; i++) {
+    const s = season(w.tick + i);
+    a = Math.min(100, a + RECHARGE_BASE * s.recharge - draw * DRAW_FACTOR * s.cooling);
+    if (a <= 15) return i + 1;
+  }
+  return null;
+}
+
+/* Quarters until council standing hits the termination line, read off
+   the slope of the last three recorded readings. */
+function standingRunway(w) {
+  const hist = w.analystLog.slice(-3).map(r => r.standing);
+  if (hist.length < 2) return null;
+  const slope = (hist[hist.length - 1] - hist[0]) / (hist.length - 1);
+  if (slope >= -0.4) return null;
+  return Math.max(1, Math.ceil((w.standing - 10) / -slope));
+}
+
+/* Final position. Earnings are the base; the aquifer you left in the
+   ground and the council's regard are multipliers on it, so a fortune
+   taken out of a ruined district is worth less than a smaller one that
+   the district would renew. Trading nothing multiplies nothing. */
+function score(w) {
+  const earn = w.cash / 3000;
+  const mAq = w.aquifer / 70;
+  const mSt = w.standing / 60;
+  const heat = w.heatGwh * 8;
+  return {
+    earn: Math.round(earn),
+    mAq: mAq, mSt: mSt,
+    heat: Math.round(heat),
+    total: Math.max(0, Math.round(earn * mAq * mSt + heat))
+  };
+}
+
+function assess(w) {
+  const draw = totalDraw(w);
+  const let_ = w.parcels.filter(p => p.tenant);
+  const rents = let_.reduce((s, p) => s + rentOf(p), 0);
+  const aqQ = aquiferRunway(w);
+  const stQ = standingRunway(w);
+  /* No recurring outgoings exist yet, so a cash runway would be fiction.
+     Cash binds only as an inability to act, reported separately. */
+  const cashQ = null;
+  const overLicence = w.parcels.filter(p => drawOf(p) > p.permit).length;
+
+  /* The binding constraint is whichever runs out first. */
+  const runways = [
+    { k: "aquifer",  q: aqQ,   noun: "the aquifer" },
+    { k: "standing", q: stQ,   noun: "council standing" },
+    { k: "cash",     q: cashQ, noun: "the treasury" }
+  ].filter(r => r.q !== null).sort((a, b) => a.q - b.q);
+  const binding = runways[0] || null;
+
+  const risk = !binding ? "low"
+    : binding.q <= 4 ? "acute"
+    : binding.q <= 9 ? "watch"
+    : "low";
+
+  /* Confidence: how clearly one constraint leads the next. */
+  const gap = runways.length > 1 ? runways[1].q - runways[0].q : 99;
+  const confidence = !binding ? "settled" : gap >= 6 ? "clear" : gap >= 3 ? "likely" : "contested";
+
+  /* What signing each live offer would do to the binding constraint. */
+  const offerNotes = w.offers.map(o => {
+    const t = TENANTS[o.k];
+    const fits = w.parcels.filter(p => !eligible(p, o.k));
+    if (!fits.length) return { uid: o.uid, name: t.name, verdict: "no qualifying site", tone: "" };
+    const best = fits.reduce((a, b) => (b.closedLoop && !a.closedLoop) ? b : a, fits[0]);
+    const added = Math.round(t.thirst * (best.closedLoop ? 0.22 : 1));
+    const after = aquiferRunway(w, draw + added);
+    const cost = after === null ? null : after;
+    let verdict, tone = "";
+    if (cost === null) verdict = `+${added} l/s at ${best.name}; the aquifer still holds the horizon`;
+    else if (cost <= 4) { verdict = `+${added} l/s at ${best.name} breaks the aquifer in ${cost}`; tone = "bad"; }
+    else if (aqQ !== null && cost < aqQ) { verdict = `+${added} l/s costs ${aqQ - cost} quarter${aqQ - cost === 1 ? "" : "s"} of runway`; tone = "warn"; }
+    else verdict = `+${added} l/s at ${best.name}, runway ${cost}`;
+    return { uid: o.uid, name: t.name, verdict, tone, value: t.rent * t.term };
+  });
+
+  /* Prose. Written from the evidence above, never independently of it. */
+  let verdict;
+  if (!binding) {
+    verdict = let_.length === 0
+      ? `Nothing let and nothing draining. The position is safe and going nowhere.`
+      : `${let_.length} site${let_.length === 1 ? "" : "s"} let at ${draw} l/s. Nothing binds inside the horizon.`;
+  } else if (binding.k === "aquifer") {
+    verdict = `At ${draw} l/s, ${binding.noun} reaches the emergency line in ${binding.q} quarter${binding.q === 1 ? "" : "s"}`
+      + (overLicence ? `, and ${overLicence} site${overLicence === 1 ? " is" : "s are"} already over licence.` : ".");
+  } else if (binding.k === "standing") {
+    verdict = `Standing is falling about ${((w.standing - 10) / binding.q).toFixed(1)} a quarter — the council terminates in ${binding.q}.`;
+  } else {
+    verdict = `No rent coming in. On current outgoings the treasury lasts ${binding.q} quarter${binding.q === 1 ? "" : "s"}.`;
+  }
+
+  /* The one lever the evidence actually points at. */
+  let lever = null;
+  if (binding && binding.k === "aquifer") {
+    const openLet = let_.filter(p => !p.closedLoop).sort((a, b) => drawOf(b) - drawOf(a))[0];
+    if (openLet) lever = `Closed loop at ${openLet.name} takes ${drawOf(openLet) - Math.round(TENANTS[openLet.tenant].thirst * 0.22)} l/s off the draw.`;
+    else lever = `Every let site is already closed loop. The remaining draw is structural.`;
+  } else if (binding && binding.k === "standing") {
+    const ovenable = w.parcels.filter(p => p.tenant && !p.oven).sort((a, b) => b.heatPot - a.heatPot)[0];
+    lever = ovenable
+      ? `An oven at ${ovenable.name} would return about ${Math.min(3, ovenable.heatPot * season(w.tick).heat * 0.22).toFixed(1)} standing a quarter.`
+      : `Standing recovers only through heat, and there is nowhere left to put an oven.`;
+  } else if (binding && binding.k === "cash") {
+    lever = `Sign anything that fits before the quarter turns.`;
+  }
+
+  return {
+    tick: w.tick, risk, confidence, verdict, lever,
+    binding: binding ? binding.k : null,
+    runway: binding ? binding.q : null,
+    draw, rents, standing: w.standing, aquifer: w.aquifer,
+    offerNotes
+  };
+}
+
+/* ============================================================
+   Processors — priority order. Each returns log lines, exactly as
+   an Archetype pipeline would write them into the tick's history.
+   ============================================================ */
+const PROCESSORS = [
+  { p: 10, name: "Recharge", run(w, ev) {
+      const s = season(w.tick);
+      const mult = s.recharge * (ev.recharge ?? 1);
+      const gain = RECHARGE_BASE * mult;
+      const draw = totalDraw(w);
+      const loss = draw * DRAW_FACTOR * s.cooling;
+      w.aquifer = Math.max(0, Math.min(100, w.aquifer + gain - loss));
+      const net = gain - loss;
+      return [{
+        msg: `${s.name}: +${gain.toFixed(1)} recharge against ${draw} l/s drawn (−${loss.toFixed(1)}). Net ${net >= 0 ? "+" : ""}${net.toFixed(1)}.`,
+        tone: net >= 0 ? "good" : (net < -2.5 ? "bad" : "")
+      }];
+    }},
+
+  { p: 20, name: "GridQueue", run(w, ev) {
+      const out = [];
+      if (ev.gridAll) {
+        for (const p of w.parcels) p.gridMw += ev.gridAll;
+        out.push({ msg: `Corridor reinforcement lands: every site +${ev.gridAll} MW.`, tone: "good" });
+      }
+      for (const p of w.parcels) {
+        if (p.gridQueue > 0) {
+          p.gridQueue--;
+          if (p.gridQueue === 0) {
+            p.gridMw += 40;
+            out.push({ msg: `${p.name} energised to ${p.gridMw} MW.`, tone: "good" });
+          }
+        }
+      }
+      return out;
+    }},
+
+  { p: 30, name: "PermitOffice", run(w) {
+      const out = [];
+      for (const p of w.parcels) {
+        if (p.permitQueue > 0) {
+          p.permitQueue--;
+          if (p.permitQueue === 0) {
+            if (w.aquifer < 42) {
+              w.standing = Math.max(0, w.standing - 8);
+              out.push({ msg: `Abstraction licence for ${p.name} refused — aquifer at ${Math.round(w.aquifer)}. Standing −8.`, tone: "bad" });
+            } else {
+              p.permit += 35;
+              out.push({ msg: `${p.name} licensed to ${p.permit} l/s.`, tone: "good" });
+            }
+          }
+        }
+      }
+      return out;
+    }},
+
+  { p: 40, name: "Settlement", run(w) {
+      const out = [];
+      let take = 0;
+      for (const p of w.parcels) {
+        if (!p.tenant) continue;
+        const r = rentOf(p);
+        take += r;
+        p.termLeft--;
+        if (p.termLeft <= 0) {
+          out.push({ msg: `${TENANTS[p.tenant].name} vacates ${p.name}. The hall goes dark.`, tone: "" });
+          p.tenant = null; p.rent = 0; p.termLeft = 0;
+        }
+      }
+      w.cash += take;
+      if (take > 0) out.unshift({ msg: `Rents collected: ${eur(take)}.`, tone: "good" });
+      return out;
+    }},
+
+  { p: 50, name: "HeatRecovery", run(w, ev) {
+      const s = season(w.tick);
+      if (ev.heatPrice) w.heatPrice = Math.round(HEAT_PRICE * ev.heatPrice);
+      let gwh = 0;
+      for (const p of w.parcels) if (p.oven && p.tenant) gwh += p.heatPot * s.heat;
+      if (gwh <= 0) return [];
+      const rev = Math.round(gwh * 1000 * w.heatPrice);
+      w.cash += rev;
+      w.heatGwh += gwh;
+      const bump = Math.min(3, gwh * 0.22);
+      w.standing = Math.min(100, w.standing + bump);
+      return [{ msg: `Ovens deliver ${gwh.toFixed(1)} GWh into the district network — ${eur(rev)}, standing +${bump.toFixed(1)}.`, tone: "good" }];
+    }},
+
+  { p: 60, name: "Demand", run(w) {
+      const out = [];
+      for (const o of w.offers) {
+        o.left--;
+        if (o.left <= 0) out.push({ msg: `${TENANTS[o.k].name} walks. Siting moved to Sweden.`, tone: "bad" });
+      }
+      w.offers = w.offers.filter(o => o.left > 0);
+      seedOffers(w.tick + 1);
+      for (const a of ARRIVALS) {
+        if (a.t === w.tick + 1) out.push({ msg: `${TENANTS[a.k].name} opens a search — ${TENANTS[a.k].mw} MW.`, tone: "" });
+      }
+      return out;
+    }},
+
+  { p: 70, name: "CouncilReview", run(w, ev) {
+      const out = [];
+      const scale = ev.standingScale ?? 1;
+      let over = 0;
+      for (const p of w.parcels) if (drawOf(p) > p.permit) over++;
+      if (over > 0) {
+        const hit = 4 * over * scale;
+        w.standing = Math.max(0, w.standing - hit);
+        out.push({ msg: `${over} site${over > 1 ? "s" : ""} abstracting beyond licence. Standing −${hit.toFixed(0)}.`, tone: "bad" });
+      }
+      const fell = w.prevReadings.aquifer - w.aquifer;
+      if (fell > 3) {
+        const hit = 2.5 * scale;
+        w.standing = Math.max(0, w.standing - hit);
+        out.push({ msg: `Aquifer down ${fell.toFixed(1)} in one quarter. The council notices. Standing −${hit.toFixed(1)}.`, tone: "bad" });
+      }
+      if (ev.standing) {
+        w.standing = Math.max(0, w.standing + ev.standing);
+        out.push({ msg: `Review pressure: standing ${ev.standing}.`, tone: "bad" });
+      }
+      return out;
+    }},
+
+  /* ----------------------------------------------------------
+     Analyst. Reads the same state every other processor reads and
+     writes a judgement back into the world. Deterministic on
+     purpose: it replays identically down a fork, so any divergence
+     you observe between two branches is your decisions, nothing else.
+     ---------------------------------------------------------- */
+  { p: 75, name: "Analyst", run(w) {
+      const read = assess(w);
+      w.analyst = read;
+      w.analystLog.push(read);
+      return [{ msg: read.verdict, tone: read.risk === "acute" ? "bad" : "" }];
+    }},
+
+  { p: 80, name: "Ledger", run(w) {
+      if (w.aquifer <= 15) w.over = "aquifer";
+      else if (w.standing <= 10) w.over = "standing";
+      else if (w.cash < 0) w.over = "insolvent";
+      else if (w.tick >= HORIZON) w.over = "horizon";
+      return [];
+    }}
+].sort((a, b) => a.p - b.p);
+
+/* ============================================================
+   The tick
+   ============================================================ */
+function runTick() {
+  if (W.over) return;
+  W.prevReadings = { cash: W.cash, aquifer: W.aquifer, standing: W.standing, heatGwh: W.heatGwh };
+
+  const ev = EVENTS[W.tick] || {};
+  const lines = [];
+  if (ev.text) lines.push({ tick: W.tick, proc: "Event", msg: ev.text, tone: "event" });
+  if (ev.permitCostScale) W.permitCostScale = ev.permitCostScale;
+
+  for (const proc of PROCESSORS) {
+    for (const l of proc.run(W, ev)) {
+      lines.push({ tick: W.tick, proc: proc.name, msg: l.msg, tone: l.tone });
+    }
+  }
+
+  W.log.push(...lines);
+  W.tick++;
+  W.signedThisTick = false;
+  analystCursor = null;
+  if (W.tick >= HORIZON && !W.over) W.over = "horizon";
+
+  branches[live].snaps.push(snapshot(W));
+  render();
+  if (W.over) endGame();
+}
+
+/* ============================================================
+   Forking — restore a snapshot into a new branch.
+   ============================================================ */
+function forkFrom(t) {
+  if (forksLeft <= 0 || t >= W.tick) return;
+  const snap = branches[live].snaps[t];
+  if (!snap) return;
+  forksLeft--;
+  const label = "fork-" + (branches.length);
+  branches.push({ label, from: t, snaps: branches[live].snaps.slice(0, t + 1).map(s => structuredClone(s)) });
+  live = branches.length - 1;
+  W = structuredClone(snap);
+  W.over = null;
+  analystCursor = null;
+  W.log.push({ tick: t - 1, proc: "Fork", msg: `World forked at tick ${t}. Same weather, same tenants, your call rewritten.`, tone: "event" });
+  closeSheet();
+  render();
+}
+
+/* ============================================================
+   Player operations
+   ============================================================ */
+function spend(n) { if (W.cash < n) return false; W.cash -= n; return true; }
+
+function opRetrofit(id) {
+  const p = W.parcels.find(x => x.id === id);
+  if (!p || p.closedLoop || !spend(retrofitCost(p))) return;
+  p.closedLoop = true;
+  W.log.push({ tick: W.tick, proc: "you", msg: `${p.name} retrofitted to closed loop. Draw falls, rent follows.`, tone: "" });
+  render();
+}
+function opOven(id) {
+  const p = W.parcels.find(x => x.id === id);
+  if (!p || p.oven || !spend(COST.oven)) return;
+  p.oven = true;
+  W.log.push({ tick: W.tick, proc: "you", msg: `Heat exchanger commissioned at ${p.name}. ${p.heatPot.toFixed(1)} GWh capacity.`, tone: "" });
+  render();
+}
+function opGrid(id) {
+  const p = W.parcels.find(x => x.id === id);
+  if (!p || p.gridQueue > 0 || !spend(COST.grid)) return;
+  p.gridQueue = 2;
+  W.log.push({ tick: W.tick, proc: "you", msg: `Connection upgrade ordered for ${p.name}. Two quarters to energise.`, tone: "" });
+  render();
+}
+function opPermit(id) {
+  const p = W.parcels.find(x => x.id === id);
+  if (!p || p.permitQueue > 0 || !spend(permitCost(W))) return;
+  p.permitQueue = 2;
+  W.log.push({ tick: W.tick, proc: "you", msg: `Abstraction application filed for ${p.name}.`, tone: "" });
+  render();
+}
+function opBuy(id) {
+  const spec = CATALOGUE.find(x => x.id === id);
+  if (!spec || W.parcels.some(p => p.id === id) || !spend(spec.price)) return;
+  W.parcels.push(newParcel(spec));
+  W.log.push({ tick: W.tick, proc: "you", msg: `${spec.name}, ${spec.kunta} — ${spec.ha} ha conveyed for ${eur(spec.price)}.`, tone: "" });
+  render();
+}
+function opSign(uid) {
+  if (W.signedThisTick) return;
+  const o = W.offers.find(x => x.uid === uid);
+  const sel = document.getElementById("sel-" + uid);
+  if (!o || !sel || !sel.value) return;
+  const p = W.parcels.find(x => x.id === sel.value);
+  if (!p || eligible(p, o.k)) return;
+  const t = TENANTS[o.k];
+  p.tenant = o.k;
+  p.rent = rentOf(p);
+  p.termLeft = t.term;
+  W.offers = W.offers.filter(x => x.uid !== uid);
+  W.signedThisTick = true;
+  W.log.push({ tick: W.tick, proc: "you", msg: `${t.name} takes ${p.name} — ${eur(rentOf(p))} a quarter for ${t.term} quarters.`, tone: "good" });
+  render();
+}
+
+/* ============================================================
+   Formatting
+   ============================================================ */
+function eur(n) {
+  const a = Math.abs(n);
+  const sign = n < 0 ? "−" : "";
+  if (a >= 1000000) return sign + "€" + (a / 1000000).toFixed(2) + "M";
+  if (a >= 1000) return sign + "€" + Math.round(a / 1000) + "k";
+  return sign + "€" + Math.round(a);
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function band(v, warn, crit) { return v <= crit ? "crit" : v <= warn ? "warn" : "ok"; }
+function delta(now, was, unit) {
+  const d = now - was;
+  if (Math.abs(d) < 0.05) return "";
+  const s = (d > 0 ? "+" : "−") + (unit === "eur" ? eur(Math.abs(d)).replace("€", "€") : Math.abs(d).toFixed(1));
+  return `<span class="${d > 0 ? "up" : "dn"}">${s}</span>`;
+}
+
+/* ============================================================
+   Render
+   ============================================================ */
+function render() {
+  const s = season(W.tick);
+  document.getElementById("dQuarter").textContent = W.tick < HORIZON ? quarterLabel(W.tick) : "closed";
+  document.getElementById("dTick").textContent = Math.min(W.tick, HORIZON) + " / " + HORIZON;
+  document.getElementById("dBranch").textContent = branches[live].label;
+
+  const pr = W.prevReadings;
+  document.getElementById("gCash").textContent = eur(W.cash);
+  document.getElementById("gCashD").innerHTML = delta(W.cash, pr.cash, "eur");
+  document.getElementById("gCashBar").style.width = Math.max(2, Math.min(100, W.cash / 120000)) + "%";
+  document.getElementById("gCashBar").className = W.cash < 400000 ? "crit" : "";
+
+  document.getElementById("gAq").textContent = Math.round(W.aquifer);
+  document.getElementById("gAqD").innerHTML = delta(W.aquifer, pr.aquifer);
+  document.getElementById("gAqBar").style.width = W.aquifer + "%";
+  document.getElementById("gAqBar").className = band(W.aquifer, 40, 22);
+
+  document.getElementById("gSt").textContent = Math.round(W.standing);
+  document.getElementById("gStD").innerHTML = delta(W.standing, pr.standing);
+  document.getElementById("gStBar").style.width = W.standing + "%";
+  document.getElementById("gStBar").className = band(W.standing, 32, 18);
+
+  document.getElementById("gHt").textContent = W.heatGwh.toFixed(1) + " GWh";
+  document.getElementById("gHtD").innerHTML = delta(W.heatGwh, pr.heatGwh);
+  document.getElementById("gHtBar").style.width = Math.min(100, W.heatGwh * 1.4) + "%";
+  document.getElementById("gHtBar").className = "ok";
+
+  document.getElementById("hCadastre").textContent =
+    totalDraw(W) + " l/s drawn · " + s.name;
+  document.getElementById("hOffers").textContent =
+    W.signedThisTick ? "one signing per quarter — spent" : "one signing per quarter";
+
+  renderRail();
+  renderParcels();
+  renderMarket();
+  renderAnalyst();
+  renderOffers();
+  renderLedger();
+
+  document.getElementById("btnTick").disabled = !!W.over;
+  document.getElementById("btnSweep").disabled = !!W.over;
+  document.getElementById("dockNote").textContent = W.over
+    ? "The register is closed."
+    : `${forksLeft} fork${forksLeft === 1 ? "" : "s"} remaining · ${W.parcels.filter(p => p.tenant).length} of ${W.parcels.length} sites let`;
+}
+
+function renderRail() {
+  const rail = document.getElementById("rail");
+  rail.innerHTML = "";
+  branches.forEach((b, bi) => {
+    const row = document.createElement("div");
+    row.className = "rail-row" + (bi === live ? " live" : " ghost");
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = b.label;
+    row.appendChild(tag);
+
+    if (b.from > 0) {
+      const pad = document.createElement("div");
+      pad.style.flex = "0 0 " + (b.from * 14 - 9) + "px";
+      row.appendChild(pad);
+      const elbow = document.createElement("div");
+      elbow.className = "elbow";
+      row.appendChild(elbow);
+    }
+
+    const notches = document.createElement("div");
+    notches.className = "notches";
+    const end = bi === live ? W.tick : b.snaps.length - 1;
+    for (let t = b.from; t <= (bi === live ? HORIZON : end); t++) {
+      const n = document.createElement("button");
+      n.type = "button";
+      const done = t <= end;
+      n.className = "notch" + (done ? " done" : "") + (bi === live && t === W.tick ? " now" : "");
+      n.setAttribute("aria-label", "Tick " + t);
+      if (bi === live && t < W.tick && forksLeft > 0 && !W.over) {
+        n.classList.add("forkable");
+        n.title = "Fork from tick " + t;
+        n.addEventListener("click", () => askFork(t));
+      } else {
+        n.tabIndex = -1;
+      }
+      notches.appendChild(n);
+    }
+    row.appendChild(notches);
+    rail.appendChild(row);
+  });
+}
+
+function renderParcels() {
+  const host = document.getElementById("parcels");
+  host.innerHTML = "";
+  for (const p of W.parcels) {
+    const draw = drawOf(p);
+    const over = draw > p.permit;
+    const card = document.createElement("div");
+    card.className = "card " + (p.tenant ? "let" : over ? "dry" : "");
+
+    const t = p.tenant ? TENANTS[p.tenant] : null;
+    const pillCls = p.tenant ? (p.oven ? "hot" : "let") : "idle";
+    const pillTxt = p.tenant ? (p.oven ? "let · oven" : "let") : "vacant";
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="who">
+          <h3>${esc(p.name)}</h3>
+          <span class="kunta">${esc(p.kunta)} · ${p.ha} ha · fibre ${p.link}${p.sat ? " · sat" : ""}</span>
+        </div>
+        <span class="pill ${pillCls}">${pillTxt}</span>
+      </div>
+      <div class="readout">
+        <div class="r"><span class="label">Draw</span><span class="v ${over ? "over" : ""}">${draw}/${p.permit} l/s</span></div>
+        <div class="r"><span class="label">Grid</span><span class="v">${p.gridMw} MW${p.gridQueue ? " ↑" + p.gridQueue : ""}</span></div>
+        <div class="r"><span class="label">Cooling</span><span class="v ${p.closedLoop ? "on" : ""}">${p.closedLoop ? "closed" : "open"}</span></div>
+        <div class="r"><span class="label">Heat</span><span class="v ${p.oven ? "on" : ""}">${p.oven ? p.heatPot.toFixed(1) + " GWh" : "—"}</span></div>
+      </div>
+      <div class="card-body">
+        <p class="tenancy">${t
+          ? `<b>${esc(t.name)}</b> in occupation — ${eur(rentOf(p))} a quarter, ${p.termLeft} left.`
+          : `Vacant. ${p.permitQueue ? "Abstraction application pending (" + p.permitQueue + ")." : "Licensed to " + p.permit + " l/s."}`}</p>
+        <div class="ops"></div>
+      </div>`;
+
+    const ops = card.querySelector(".ops");
+    ops.appendChild(mkOp("Closed loop", retrofitCost(p), p.closedLoop || W.cash < retrofitCost(p), () => opRetrofit(p.id)));
+    ops.appendChild(mkOp("Build oven", COST.oven, p.oven || W.cash < COST.oven, () => opOven(p.id), true));
+    ops.appendChild(mkOp("+40 MW", COST.grid, p.gridQueue > 0 || W.cash < COST.grid, () => opGrid(p.id)));
+    ops.appendChild(mkOp("+35 l/s licence", permitCost(W), p.permitQueue > 0 || W.cash < permitCost(W), () => opPermit(p.id)));
+    host.appendChild(card);
+  }
+}
+
+function mkOp(label, cost, disabled, fn, heat) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "op" + (heat ? " heat" : "");
+  b.disabled = !!disabled || !!W.over;
+  b.innerHTML = `${esc(label)} <span class="cost">${eur(cost)}</span>`;
+  b.addEventListener("click", fn);
+  return b;
+}
+
+function renderMarket() {
+  const host = document.getElementById("market");
+  host.innerHTML = "";
+  const avail = CATALOGUE.filter(c => c.price > 0 && !W.parcels.some(p => p.id === c.id));
+  if (!avail.length) {
+    host.innerHTML = `<p class="tenancy" style="padding:2px 2px">Nothing else on the market.</p>`;
+    return;
+  }
+  for (const c of avail) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="who">
+          <h3>${esc(c.name)}</h3>
+          <span class="kunta">${esc(c.kunta)} · ${c.ha} ha</span>
+        </div>
+        <span class="pill idle">${eur(c.price)}</span>
+      </div>
+      <div class="readout">
+        <div class="r"><span class="label">Licence</span><span class="v">${c.permit} l/s</span></div>
+        <div class="r"><span class="label">Grid</span><span class="v">${c.gridMw} MW</span></div>
+        <div class="r"><span class="label">Link</span><span class="v">fibre ${c.link}${c.sat ? " · sat" : ""}</span></div>
+        <div class="r"><span class="label">Heat</span><span class="v">${c.heatPot.toFixed(1)} GWh</span></div>
+      </div>
+      <div class="card-body"><div class="ops"></div></div>`;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "op primary";
+    b.disabled = W.cash < c.price || !!W.over;
+    b.textContent = "Acquire";
+    b.addEventListener("click", () => opBuy(c.id));
+    card.querySelector(".ops").appendChild(b);
+    host.appendChild(card);
+  }
+}
+
+/* Which reading is on screen. null = the one written this tick. */
+let analystCursor = null;
+
+function renderAnalyst() {
+  const host = document.getElementById("analyst");
+  const log = W.analystLog;
+  if (!log.length) { host.innerHTML = ""; return; }
+
+  const idx = analystCursor !== null && analystCursor < log.length ? analystCursor : log.length - 1;
+  const r = log[idx];
+  const isPast = idx !== log.length - 1;
+
+  document.getElementById("hAnalyst").textContent =
+    isPast ? "reading " + (idx + 1) + " of " + log.length + " · historic" : "written each tick · kept in history";
+
+  const card = document.createElement("div");
+  card.className = "analyst " + r.risk;
+  card.innerHTML = `
+    <div class="an-head">
+      <div class="cf">
+        <span class="risk ${r.risk}">${r.risk === "low" ? "holding" : r.risk}</span>
+        <span class="conf">${esc(r.confidence)}</span>
+      </div>
+      <span class="runway">${r.binding ? esc(r.binding) + " · " + r.runway + "Q" : "no binding constraint"}</span>
+    </div>
+    <div class="an-body">
+      <p class="an-verdict">${esc(r.verdict)}</p>
+      ${r.lever ? `<p class="an-lever">${esc(r.lever)}</p>` : ""}
+    </div>`;
+
+  /* The strip: every reading this branch has written, scrubbable. */
+  const strip = document.createElement("div");
+  strip.className = "an-strip";
+  log.forEach((entry, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "bar";
+    b.title = quarterLabel(Math.min(entry.tick, HORIZON - 1)) + " — " + entry.verdict;
+    b.setAttribute("aria-label", "Analyst reading, tick " + entry.tick);
+    if (i === idx) b.setAttribute("aria-current", "true");
+    const h = entry.risk === "acute" ? 24 : entry.risk === "watch" ? 15 : 8;
+    b.innerHTML = `<i class="${entry.risk}" style="height:${h}px"></i>`;
+    b.addEventListener("click", () => {
+      analystCursor = (analystCursor === i || i === log.length - 1) ? null : i;
+      renderAnalyst();
+    });
+    strip.appendChild(b);
+  });
+  card.appendChild(strip);
+
+  /* Counterfactual: the same tick, read in the branches you left. */
+  if (branches.length > 1) {
+    const t = r.tick;
+    const rows = [];
+    branches.forEach((b, bi) => {
+      const snap = b.snaps[t];
+      const reading = bi === live ? r : (snap && snap.analyst);
+      if (!reading) return;
+      rows.push(`<div class="row ${bi === live ? "live" : ""}">
+        <span class="b">${esc(b.label)}</span>
+        <span class="t">${esc(reading.binding ? reading.binding + " in " + reading.runway + "Q — " : "")}${esc(reading.verdict)}</span>
+      </div>`);
+    });
+    if (rows.length > 1) {
+      const cf = document.createElement("div");
+      cf.className = "an-cf";
+      cf.innerHTML = `<span class="label">Same tick, other worlds</span>` + rows.join("");
+      card.appendChild(cf);
+    }
+  }
+
+  host.innerHTML = "";
+  host.appendChild(card);
+}
+
+function renderOffers() {
+  const host = document.getElementById("offers");
+  host.innerHTML = "";
+  if (!W.offers.length) {
+    host.innerHTML = `<p class="tenancy" style="padding:2px 2px">No one is looking this quarter.</p>`;
+    return;
+  }
+  const notes = new Map((W.analyst ? W.analyst.offerNotes : []).map(n => [n.uid, n]));
+  for (const o of W.offers) {
+    const t = TENANTS[o.k];
+    const fits = W.parcels.filter(p => !eligible(p, o.k));
+    const note = notes.get(o.uid);
+    const card = document.createElement("div");
+    card.className = "card offer";
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="who">
+          <h3>${esc(t.name)}</h3>
+          <span class="kunta">${eur(t.rent)} a quarter · ${t.term} quarters</span>
+        </div>
+        <span class="pill ${t.heat ? "hot" : "idle"}">${t.heat ? "heat offtake" : "standard"}</span>
+      </div>
+      <div class="card-body">
+        <div class="terms">
+          <span class="chip need">${t.mw} MW</span>
+          <span class="chip need">${t.thirst} l/s open</span>
+          <span class="chip">fibre ${t.link}</span>
+          ${t.sat ? '<span class="chip">satellite backhaul</span>' : ""}
+          ${t.heat ? '<span class="chip heat">requires an oven</span>' : ""}
+        </div>
+        ${note ? `<p class="an-lever" style="border-left-color:${note.tone === "bad" ? "var(--hehku)" : note.tone === "warn" ? "var(--warn)" : "var(--ink-3)"}">${esc(note.verdict)}</p>` : ""}
+        <div class="sign-row"></div>
+      </div>`;
+
+    const row = card.querySelector(".sign-row");
+    const sel = document.createElement("select");
+    sel.id = "sel-" + o.uid;
+    if (!fits.length) {
+      const opt = document.createElement("option");
+      const why = W.parcels.map(p => eligible(p, o.k)).filter(Boolean);
+      opt.textContent = "no site qualifies" + (why.length ? " — " + [...new Set(why)].join(", ") : "");
+      sel.appendChild(opt);
+      sel.disabled = true;
+    } else {
+      for (const p of fits) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name + " · " + p.kunta;
+        sel.appendChild(opt);
+      }
+    }
+    row.appendChild(sel);
+
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "op primary";
+    b.textContent = "Sign";
+    b.disabled = !fits.length || W.signedThisTick || !!W.over;
+    b.addEventListener("click", () => opSign(o.uid));
+    row.appendChild(b);
+
+    const pat = document.createElement("span");
+    pat.className = "patience" + (o.left <= 2 ? " urgent" : "");
+    pat.textContent = o.left + " quarter" + (o.left === 1 ? "" : "s") + " to decide";
+    row.appendChild(pat);
+
+    host.appendChild(card);
+  }
+}
+
+function renderLedger() {
+  const host = document.getElementById("ledger");
+  host.innerHTML = "";
+  const byTick = new Map();
+  for (const l of W.log) {
+    if (!byTick.has(l.tick)) byTick.set(l.tick, []);
+    byTick.get(l.tick).push(l);
+  }
+  const ticks = [...byTick.keys()].sort((a, b) => b - a).slice(0, 12);
+  for (const t of ticks) {
+    const block = document.createElement("div");
+    block.className = "tick-block";
+    const head = t < 0
+      ? `<span class="q">OPENING</span>`
+      : `<span class="q">${esc(quarterLabel(t))}</span><span class="season">${esc(season(t).name)}</span>`;
+    block.innerHTML = `<div class="th">${head}</div>`;
+    for (const l of byTick.get(t)) {
+      const line = document.createElement("div");
+      line.className = "line " + (l.tone === "event" ? "event" : l.tone || "");
+      line.innerHTML = `<span class="proc">${esc(l.proc)}</span><span class="msg">${esc(l.msg)}</span>`;
+      block.appendChild(line);
+    }
+    host.appendChild(block);
+  }
+}
+
+/* ============================================================
+   Sheets
+   ============================================================ */
+const scrim = document.getElementById("scrim");
+const sheetBody = document.getElementById("sheetBody");
+
+function openSheet(html) {
+  sheetBody.innerHTML = html;
+  scrim.hidden = false;
+}
+function closeSheet() { scrim.hidden = true; }
+scrim.addEventListener("click", e => { if (e.target === scrim && W.over === null) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !W.over) closeSheet(); });
+
+function askFork(t) {
+  const snap = branches[live].snaps[t];
+  openSheet(`
+    <h2 id="sheetTitle">Fork at tick ${t}</h2>
+    <div class="verdict">${esc(quarterLabel(t))} · ${forksLeft} fork${forksLeft === 1 ? "" : "s"} left</div>
+    <p>The world is restored to the state it held after ${esc(quarterLabel(t - 1 < 0 ? 0 : t - 1))} settled.
+    Weather, tenants and events replay exactly as before — only your decisions change.
+    The branch you are leaving stays on the rail.</p>
+    <div class="tally">
+      <div class="tr"><span>Treasury at that tick</span><span class="v">${eur(snap.cash)}</span></div>
+      <div class="tr"><span>Aquifer</span><span class="v">${Math.round(snap.aquifer)}</span></div>
+      <div class="tr"><span>Council standing</span><span class="v">${Math.round(snap.standing)}</span></div>
+      <div class="tr total"><span>Quarters forfeited</span><span class="v">${W.tick - t}</span></div>
+    </div>
+    <div class="sheet-acts">
+      <button class="big" id="doFork">Fork the world</button>
+      <button class="big ghost" id="noFork">Stay here</button>
+    </div>`);
+  document.getElementById("doFork").addEventListener("click", () => forkFrom(t));
+  document.getElementById("noFork").addEventListener("click", closeSheet);
+}
+
+const ENDINGS = {
+  aquifer:   ["Aquifer collapse", "bad", "The regional office revokes every abstraction licence in the district at once. Halls go dark within the week. You sold the water twice and the ground only had it once."],
+  standing:  ["Consent withdrawn", "bad", "The council terminates the leases it granted. Nothing you own is worth what you paid for it, because none of it can be built on."],
+  insolvent: ["Insolvent", "bad", "The retrofits landed a quarter before the rents did. Land is patient; creditors are not."],
+  horizon:   ["Twenty-four quarters", "", "Six years of meltwater, freeze-up and grid queues. The register closes on the position below."]
+};
+
+function endGame() {
+  const [title, tone, blurb] = ENDINGS[W.over] || ENDINGS.horizon;
+  /* Money is worth only what the ground and the council let you keep, so
+     aquifer and standing are multipliers on earnings, never points you
+     can bank by trading nothing. */
+  const S = score(W);
+  const total = W.over === "horizon" ? S.total : 0;
+
+  let rank = "Struck off the register";
+  if (total >= 7500) rank = "Steward of the aquifer";
+  else if (total >= 5000) rank = "Land agent of record";
+  else if (total >= 2500) rank = "Working broker";
+  else if (total > 0) rank = "Bought high, sold thirsty";
+
+  const others = branches
+    .map((b, i) => ({ b, i }))
+    .filter(x => x.i !== live)
+    .map(x => `<div class="tr"><span>${esc(x.b.label)} — abandoned at tick ${x.b.snaps.length - 1}</span><span class="v">${eur(x.b.snaps[x.b.snaps.length - 1].cash)}</span></div>`)
+    .join("");
+
+  openSheet(`
+    <h2 id="sheetTitle">${esc(title)}</h2>
+    <div class="verdict ${tone}">${esc(quarterLabel(Math.min(W.tick, HORIZON - 1)))} · world ${esc(branches[live].label)}</div>
+    <p>${esc(blurb)}</p>
+    <div class="tally">
+      <div class="tr"><span>Treasury</span><span class="v">${eur(W.cash)}${W.over === "horizon" ? " → " + S.earn : ""}</span></div>
+      <div class="tr"><span>Aquifer left in the ground</span><span class="v">${Math.round(W.aquifer)}${W.over === "horizon" ? " → ×" + S.mAq.toFixed(2) : ""}</span></div>
+      <div class="tr"><span>Council standing</span><span class="v">${Math.round(W.standing)}${W.over === "horizon" ? " → ×" + S.mSt.toFixed(2) : ""}</span></div>
+      <div class="tr"><span>Heat delivered</span><span class="v">${W.heatGwh.toFixed(1)} GWh${W.over === "horizon" ? " → +" + S.heat : ""}</span></div>
+      <div class="tr"><span>Sites let at close</span><span class="v">${W.parcels.filter(p => p.tenant).length}</span></div>
+      ${others}
+      <div class="tr total"><span>${esc(rank)}</span><span class="v">${total}</span></div>
+    </div>
+    <div class="sheet-acts">
+      ${forksLeft > 0 && W.tick > 1 ? '<button class="big" id="rewind">Fork and try again</button>' : ""}
+      <button class="big ghost" id="restart">New world</button>
+    </div>`);
+
+  const rw = document.getElementById("rewind");
+  if (rw) rw.addEventListener("click", () => {
+    closeSheet();
+    askFork(Math.max(0, W.tick - 6));
+  });
+  document.getElementById("restart").addEventListener("click", () => {
+    bootstrap(); closeSheet(); render();
+  });
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+document.getElementById("btnTick").addEventListener("click", runTick);
+document.getElementById("btnSweep").addEventListener("click", () => {
+  for (let i = 0; i < 4 && !W.over; i++) runTick();
+});
+/* Space advances the quarter — but never when a control has focus, or the
+   keypress would both activate the control and run a tick. */
+document.addEventListener("keydown", e => {
+  const t = e.target.tagName;
+  if (t === "SELECT" || t === "INPUT" || t === "BUTTON" || t === "TEXTAREA") return;
+  if (e.key === " ") {
+    if (scrim.hidden && !W.over) { e.preventDefault(); runTick(); }
+  }
+});
+
+bootstrap();
+render();
+</script>
