@@ -19,7 +19,7 @@ Usage:
         --target-namespace analytics
 
     uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
-        --source-url bigquery://eventual-analytics \
+        --source-url bigquery://my-project \
         --query "SELECT * FROM dataset.table" \
         --target-table table \
         --key id

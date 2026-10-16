@@ -12,7 +12,7 @@
 
 Usage:
     uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
-    GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
+    GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 """
 
 from datetime import datetime

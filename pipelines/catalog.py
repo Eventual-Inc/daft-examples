@@ -12,7 +12,7 @@
 Three catalog backends, selected by environment variables:
 
     SQLite (default)    — no env vars needed, writes to .lakehouse/
-    GCS + BigLake       — set GCP_PROJECT
+    GCS + BigLake       — set GCP_PROJECT and GCS_BUCKET (your own, no default)
     AWS S3 + Glue       — set AWS_S3_BUCKET
 
 The S3 backend pairs naturally with AWS S3 Files: mount the same bucket
@@ -33,7 +33,7 @@ load_dotenv()
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LAKEHOUSE_DIR = Path(os.environ.get("LAKEHOUSE_DIR") or REPO_ROOT / ".lakehouse")
 GCP_PROJECT = os.environ.get("GCP_PROJECT") or None
-GCS_BUCKET = os.environ.get("GCS_BUCKET") or "daft-lakehouse"
+GCS_BUCKET = os.environ.get("GCS_BUCKET") or None
 AWS_S3_BUCKET = os.environ.get("AWS_S3_BUCKET") or None
 AWS_REGION = os.environ.get("AWS_REGION") or "us-east-1"
 NAMESPACE = os.environ.get("LAKEHOUSE_NAMESPACE") or "analytics"
@@ -42,7 +42,12 @@ NAMESPACE = os.environ.get("LAKEHOUSE_NAMESPACE") or "analytics"
 def get_session(namespace: str | None = None) -> Session:
     """Return a Session with an Iceberg catalog attached."""
     namespace = namespace or NAMESPACE
-    if GCP_PROJECT:
+    if GCP_PROJECT or GCS_BUCKET:
+        if not (GCP_PROJECT and GCS_BUCKET):
+            raise RuntimeError(
+                "BigLake mode needs both GCP_PROJECT and GCS_BUCKET. "
+                "Set them to your own Google Cloud project and bucket, or unset both for local mode."
+            )
         from pyiceberg.catalog import load_catalog
 
         iceberg_catalog = load_catalog(

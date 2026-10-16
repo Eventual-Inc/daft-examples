@@ -11,11 +11,11 @@
 """Ingest pipeline — fetch from APIs via custom DataSources, write to Iceberg.
 
 Runs all sources and upserts into the lakehouse. Works in local mode (SQLite)
-or BigLake mode (GCS + BigQuery) depending on GCP_PROJECT env var.
+or BigLake mode (GCS + BigQuery) depending on whether GCP_PROJECT and GCS_BUCKET are set.
 
 Usage:
     uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
-    GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
+    GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 """
 
 import daft

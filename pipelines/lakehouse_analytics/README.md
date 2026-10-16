@@ -5,7 +5,7 @@ Build a complete analytics lakehouse using Daft + Apache Iceberg. Three backends
 | Backend | Env var | Catalog | Warehouse | Bonus |
 |---------|---------|---------|-----------|-------|
 | **Local** (default) | — | SQLite | `.lakehouse/` | Zero setup |
-| **GCS + BigLake** | `GCP_PROJECT` | BigLake REST | GCS bucket | Auto-federated to BigQuery |
+| **GCS + BigLake** | `GCP_PROJECT` + `GCS_BUCKET` | BigLake REST | GCS bucket | Auto-federated to BigQuery |
 | **AWS S3 + Glue** | `AWS_S3_BUCKET` | AWS Glue | S3 bucket | Mount locally via [S3 Files](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files.html) |
 
 This pipeline demonstrates:
@@ -37,8 +37,8 @@ flowchart LR
 # Local mode (SQLite Iceberg — no cloud needed)
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 
-# BigLake mode (GCS + BigQuery)
-GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
+# BigLake mode (GCS + BigQuery), your own project and bucket
+GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
 
 # AWS mode (S3 + Glue)
 AWS_S3_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.ingest
@@ -53,7 +53,7 @@ uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
 
 # Query and visualize
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
-GCP_PROJECT=eventual-analytics uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
+GCP_PROJECT=my-project GCS_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 AWS_S3_BUCKET=my-lakehouse uv run --extra lakehouse -m pipelines.lakehouse_analytics.analyze
 ```
 
@@ -67,8 +67,8 @@ cp .env.example .env
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `GCP_PROJECT` | Enables BigLake mode and sets the Google Cloud project. | unset |
-| `GCS_BUCKET` | GCS warehouse bucket for BigLake mode. | `daft-lakehouse` |
+| `GCP_PROJECT` | Your Google Cloud project. Set together with `GCS_BUCKET` to enable BigLake mode. | unset |
+| `GCS_BUCKET` | Your GCS warehouse bucket for BigLake mode. Required with `GCP_PROJECT`; no default. | unset |
 | `AWS_S3_BUCKET` | Enables AWS Glue mode with this S3 bucket as warehouse. | unset |
 | `AWS_REGION` | AWS region for the Glue catalog and S3 bucket. | `us-east-1` |
 | `LAKEHOUSE_NAMESPACE` | Default Iceberg namespace for ingest and analyze. | `analytics` |
@@ -87,8 +87,8 @@ cp .env.example .env
 ```bash
 # Query-based source
 uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
-  --source-url bigquery://eventual-analytics \
-  --query "SELECT * FROM github_daft_stargazers.stargazers" \
+  --source-url bigquery://my-project \
+  --query "SELECT * FROM my_dataset.stargazers" \
   --target-table github_stargazers \
   --key _dlt_id \
   --target-namespace analytics
@@ -104,6 +104,8 @@ uv run --extra lakehouse -m pipelines.lakehouse_analytics.backfill \
 The same values can be supplied through `BACKFILL_SOURCE_URL`, `BACKFILL_QUERY`, `BACKFILL_SOURCE_TABLE`, `BACKFILL_TARGET_TABLE`, `BACKFILL_KEY`, and `BACKFILL_TARGET_NAMESPACE`.
 
 ## Setup (BigLake mode)
+
+Use your own Google Cloud project and bucket. The pipeline writes tables to whatever bucket you configure, so never point it at a bucket you do not own. If you set only one of `GCP_PROJECT` / `GCS_BUCKET`, the pipeline stops with an error instead of falling back.
 
 ```bash
 # 1. Create GCS bucket
